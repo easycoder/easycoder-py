@@ -5,10 +5,12 @@ from .ec_classes import Script, Token, FatalError, RuntimeError
 from .ec_compiler import Compiler
 from .ec_core import Core
 import importlib
+from importlib.metadata import version
 
 class Program:
 
 	def __init__(self, argv):
+		print(f'EasyCoder version {version("easycoder")}')
 		scriptName = None
 		domains=[Core]
 		if len(argv)>0:
@@ -29,7 +31,7 @@ class Program:
 			print('No script supplied')
 			exit();
 
-		print('Domains:',domains)
+#		print('Domains:',domains)
 		f = open(scriptName, 'r')
 		source = f.read()
 		f.close()
@@ -301,6 +303,7 @@ class Program:
 			return -1
 		return 0
 
+# This is the program launcher
 def Main():
 	if (len(sys.argv) > 1):
 		Program(sys.argv[1:])

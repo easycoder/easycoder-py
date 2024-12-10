@@ -12,13 +12,10 @@ pip install easycoder
 ```
 print `Hello, world!`
 ```
-This is traditionally the first program to be written in virtually any language. To run it under REPL, launch Python and type the following commands:
+This is traditionally the first program to be written in virtually any language. To run it, use the following command:
 ```
-from easycoder import Program
-Program(['hello.ecs'])
+easycoder hello.ecs
 ```
-The script is passed in as a list because it could be just one of a number of command-line arguments.
-
 The output will look like this:
 ```
 Compiled <anon>: 1 lines (2 tokens) in 0 ms
