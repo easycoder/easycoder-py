@@ -55,4 +55,6 @@ There are three primary components to the language:
  - Values
  - Conditions
 
-[Keywords](doc/keywords.md)
+The language comprises a general-purpose core package, which can be enhanced by plugins to provide special features on demand.
+
+[The core package](doc/core.md)

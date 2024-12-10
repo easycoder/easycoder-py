@@ -4,7 +4,7 @@
 ``stack ValueStack`  
 `init ValueStack`
 ## Description:
-`init` initialises a stack - an array object, so that values can be [push](push.md)ed and [pop](pop.md)ped to and from it. Stacks are a convenient place to store values during recursive operations.
+`init` initialises a [stack](stack.md) - an array object, so that values can be [push](push.md)ed to it and [pop](pop.md)ped from it. A [stack](stack.md) is a convenient place to store values during recursive operations.
 
 Next: [input](input.md)  
 Prev: [index](index.md)
