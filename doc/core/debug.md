@@ -6,8 +6,8 @@
 `debug program`
 ## Description:
 Set up a debug option.  
-`debug step` causes the runtime to display each line before it executes it.  
-`debug stop` cancels `debug step`.  
+`debug step` causes the runtime to display each line before it executes it  
+`debug stop` cancels `debug step`  
 `debug program` displays the entire program
 
 Next: [decrement](decrement.md)  
