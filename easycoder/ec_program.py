@@ -300,3 +300,9 @@ class Program:
 		if v1 < v2:
 			return -1
 		return 0
+
+def Main():
+	if (len(sys.argv) > 1):
+		Program(sys.argv[1:])
+	else:
+		print('Syntax: easycoder <scriptname> [plugins]')

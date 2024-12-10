@@ -13,6 +13,8 @@ dependencies = [
     "pytz"
 ]
 
+[project.scripts]
+easycoder = "easycoder:Main"
 
 [project.urls]
 Home = "https://github.com/easycoder"

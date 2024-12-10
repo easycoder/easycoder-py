@@ -142,6 +142,7 @@ Loop1:
 	open File `test.txt` for reading
 	read X from File
 	close File
+	delete file `test.txt`
 	assert X is `Hello, world!`  cat newline cat `I'm back!`
 
 	exit
