@@ -2,9 +2,9 @@
 `wait {count} [millis/ticks/seconds/minutes]`
 
 ## Example:
-`wait 5`
-`wait 10 mills`
-`wait Count ticks`
+`wait 5`  
+`wait 10 mills`  
+`wait Count ticks`  
 `wait 1 minute`
 
 ## Description:
