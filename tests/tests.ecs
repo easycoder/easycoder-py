@@ -1,4 +1,6 @@
-	script Benchmark
+!	A test script
+
+	script Tests
 
 	variable N
 	variable M
