@@ -7,7 +7,7 @@
 
 When `fork` is used, the forked commands run until they reach a [stop](stop.md) or [wait](wait.md), then execution resumes at the command following the `fork`. If your forked commands comprise a loop, be sure to put in a short delay ([wait](wait.md)) to allow other 'processes' to get some CPU time.
 
-Next: [fork](fork.md)  
+Next: [get](get.md)  
 Prev: [exit](exit.md)
 
 [Back to keywords](../keywords.md)
