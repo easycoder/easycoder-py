@@ -17,7 +17,7 @@
 `close File3`
 
 ## Description:
-Opens a disk file for reading, writing or appending. Each of the file variables must be declared as such as in the example.
+Opens a disk file for reading, writing or appending. Each of the [file](file.md) variables must be declared as such as in the example.
 
 Next: [pop](pop.md)  
 Prev: [multiply](multiply.md)

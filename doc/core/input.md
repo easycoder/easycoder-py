@@ -8,6 +8,6 @@
 `input` lets the user provide data from the keyboard, with an optional prompt string.
 
 Next: [multiply](multiply.md)  
-Prev: [index](index.md)
+Prev: [init](init.md)
 
 [Back to keywords](../keywords.md)
