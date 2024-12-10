@@ -1,7 +1,7 @@
 ## Syntax:
 `begin ... end`
 ## Examples:
-`if true`  
+`if Flag`  
 `begin`  
 `  add 1 to Counter`  
 `  set Repeat`  
