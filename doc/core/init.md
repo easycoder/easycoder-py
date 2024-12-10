@@ -9,4 +9,4 @@
 Next: [input](input.md)  
 Prev: [index](index.md)
 
-[Back to keywords](../keywords.md)
+[Back](../core.md)

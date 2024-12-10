@@ -9,4 +9,4 @@ Perform an HTTP GET to request data. In the second example, if the request fails
 Next: [gosub](gosub.md)  
 Prev: [fork](fork.md)
 
-[Back to keywords](../keywords.md)
+[Back](../core.md)

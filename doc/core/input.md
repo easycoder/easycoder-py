@@ -10,4 +10,4 @@
 Next: [multiply](multiply.md)  
 Prev: [init](init.md)
 
-[Back to keywords](../keywords.md)
+[Back](../core.md)

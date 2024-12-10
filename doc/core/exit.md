@@ -8,4 +8,4 @@ Terminate the program.
 Next: [file](file.md)  
 Prev: [divide](divide.md)
 
-[Back to keywords](../keywords.md)
+[Back](../core.md)

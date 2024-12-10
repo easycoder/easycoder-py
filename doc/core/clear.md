@@ -12,4 +12,4 @@
 Next: [close](close.md)  
 Prev: [begin](begin.md)
 
-[Back to keywords](../keywords.md)
+[Back](../core.md)

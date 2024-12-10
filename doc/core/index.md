@@ -9,4 +9,4 @@
 Next: [init](init.md)  
 Prev: [increment](increment.md)
 
-[Back to keywords](../keywords.md)
+[Back](../core.md)

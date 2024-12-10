@@ -9,4 +9,4 @@ Pops the top value from the specified [stack](stack.md).
 Next: [post](post.md)  
 Prev: [open](open.md)
 
-[Back to keywords](../keywords.md)
+[Back](../core.md)

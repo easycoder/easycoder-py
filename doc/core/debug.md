@@ -13,4 +13,4 @@ Set up a debug option.
 Next: [decrement](decrement.md)  
 Prev: [create](create.md)
 
-[Back to keywords](../keywords.md)
+[Back](../core.md)

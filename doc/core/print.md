@@ -11,4 +11,4 @@ The output is prefixed by the script line number of the print command. This is v
 Next: [push](push.md)  
 Prev: [post](post.md)
 
-[Back to keywords](../keywords.md)
+[Back](../core.md)

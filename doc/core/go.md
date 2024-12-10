@@ -10,4 +10,4 @@
 Next: [gosub](gosub.md)  
 Prev: [get](get.md)
 
-[Back to keywords](../keywords.md)
+[Back](../core.md)

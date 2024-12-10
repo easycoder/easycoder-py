@@ -22,4 +22,4 @@ Opens a disk file for reading, writing or appending. Each of the [file](file.md)
 Next: [pop](pop.md)  
 Prev: [multiply](multiply.md)
 
-[Back to keywords](../keywords.md)
+[Back](../core.md)

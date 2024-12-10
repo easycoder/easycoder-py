@@ -9,4 +9,4 @@
 Next: [increment](increment.md)  
 Prev: [gosub](gosub.md)
 
-[Back to keywords](../keywords.md)
+[Back](../core.md)

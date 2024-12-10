@@ -12,4 +12,4 @@
 Next: [clear](clear.md)  
 Prev: [assert](assert.md)
 
-[Back to keywords](../keywords.md)
+[Back](../core.md)

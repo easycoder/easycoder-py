@@ -11,4 +11,4 @@ The second form deletes a named property of an object. See also `[set property](
 Next: [divide](divide.md)  
 Prev: [decrement](decrement.md)
 
-[Back to keywords](../keywords.md)
+[Back](../core.md)

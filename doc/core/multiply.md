@@ -11,4 +11,4 @@ Multiplies a numeric variable by a numeric value or multiplies one value by anot
 Next: [open](open.md)  
 Prev: [input](input.md)
 
-[Back to keywords](../keywords.md)
+[Back](../core.md)
