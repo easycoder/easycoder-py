@@ -1,14 +1,14 @@
 ## Syntax:
-`delete {filename}`  
-`delete property {value} of {variable}`
+`divide {value} by {variable}`  
+`divide {value} by {value} giving {variable}`
 ## Examples:
-`delete file {filename}`  
-`delete property ``name`` of Record`
+`divide Count by 2`  
+`divide Count by N`  
+`divide Count by N giving Total`
 ## Description:
-The first form deletes the file whose full or relative path is given.  
-The second form deletes a named property of an object. See also `[set property](set.md)
+Divides a numeric variable by a numeric value or divides one value by another and puts the result into a variable. See elsewhere in this documentation for an explanation of what is meant by a value. If you divide a variable it must already hold a numeric value, and if you assign a variable to hold the result of a division it will lose whatever value it previously held. 
 
-Next: [divide](divide.md)  
-Prev: [decrement](decrement.md)
+Next: [exit](exit.md)  
+Prev: [delete](delete.md)
 
 [Back to keywords](../keywords.md)
