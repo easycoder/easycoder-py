@@ -3,7 +3,7 @@
 ## Examples:
 `input MyName`  
 `input MyName with Prompt`  
-``input MyName with `Please type your name```
+``input MyName with `Please type your name` ``
 ## Description:
 `input` lets the user provide data from the keyboard, with an optional prompt string.
 
