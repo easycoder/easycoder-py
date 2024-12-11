@@ -3,7 +3,7 @@ This is the Python version of **_EasyCoder_**, a high-level English-like scripti
 
 The JavaScript version of **_EasyCoder_**, which provides a full set of graphical features to run in a browser, is at
 
-Repository: [https://github.com/easycoder/easycoder.github.io](https://github.com/easycoder/easycoder.github.io)
+Repository: [https://github.com/easycoder/easycoder.github.io](https://github.com/easycoder/easycoder.github.io)  
 Website: [https://easycoder.github.io](https://easycoder.github.io)
 
 ## Quick Start

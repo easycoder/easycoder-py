@@ -5,9 +5,11 @@ build-backend = "flit_core.buildapi"
 [project]
 name = "easycoder"
 authors = [{name = "Graham Trott", email = "gtanyware@gmail.com"}]
+description = "Rapid scripting in English"
 readme = "README.md"
 license = {file = "LICENSE"}
 classifiers = ["License :: OSI Approved :: MIT License"]
+keywords = ["compiler", "scripting", "prototyping", "programming", "coding", "python", "Low Code", "HyperTalk", "Computer Language", "Rapid Application Development"]
 dynamic = ["version", "description"]
 dependencies = [
     "pytz"
@@ -17,4 +19,4 @@ dependencies = [
 easycoder = "easycoder:Main"
 
 [project.urls]
-Home = "https://github.com/easycoder"
+Home = "https://github.com/easycoder/easycoder-py"
