@@ -1,0 +1,17 @@
+!   Points example
+
+    script Points
+    
+    import Points from plugins/example.py
+    
+    point Point1
+    point Point2
+    variable Distance
+
+    print `Hello, world!`
+
+    set Point1 to 50 500
+    set Point2 to 200 300
+    
+    put the distance between Point1 and Point2 into Distance
+    print `The distance is ` cat Distance cat ` units`

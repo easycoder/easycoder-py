@@ -1640,7 +1640,7 @@ class Core(Handler):
                     return value
             return None
 
-        print(f'Unknown token {token}')
+        self.warning(f'Core: Unknown token {token}')
         return None
 
     #############################################################################
