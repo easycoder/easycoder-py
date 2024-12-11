@@ -6,7 +6,6 @@ class Compiler:
 
 	def __init__(self, program):
 		self.program = program
-		self.domains = self.program.domains
 		self.value = Value(self)
 		self.condition = Condition(self)
 		self.marker = 0
@@ -142,11 +141,11 @@ class Compiler:
 	# Compile the current token
 	def compileToken(self):
 		token = self.getToken()
-		# print(f'Compile {token}')
+#		print(f'Compile {token}')
 		if not token:
 			return False
 		mark = self.getIndex()
-		for domain in self.domains:
+		for domain in self.program.getDomains():
 			handler = domain.keywordHandler(token)
 			if handler:
 				command = {}
@@ -163,7 +162,6 @@ class Compiler:
 			else:
 				self.rewindTo(mark)
 		FatalError(self, f'No handler found for "{token}"')
-		return False
 
 	# Compile a single command
 	def compileOne(self):

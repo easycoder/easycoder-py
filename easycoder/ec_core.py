@@ -18,6 +18,7 @@ class Core(Handler):
     # Keyword handlers
 
     # Arithmetic add
+    # add {value} to {variable}[ giving {variable}]}
     def k_add(self, command):
         # Get the (first) value
         command['value1'] = self.nextValue()
@@ -79,6 +80,7 @@ class Core(Handler):
         return self.nextPC()
 
     # Append a value to an array
+    # append {value} to {array}
     def k_append(self, command):
         command['value'] = self.nextValue()
         if self.nextIs('to'):
@@ -111,8 +113,14 @@ class Core(Handler):
         return self.nextPC()
 
     # Assertion
+    #assert {condition} [with {message}]
     def k_assert(self, command):
         command['test'] = self.nextCondition()
+        if self.peek() == 'with':
+            self.nextToken()
+            command['with'] = self.nextValue()
+        else:
+            command['with'] = None
         self.addCommand(command)
         return True
 
@@ -120,7 +128,7 @@ class Core(Handler):
         test = self.program.condition.testCondition(command['test'])
         if test:
             return self.nextPC()
-        AssertionError(self.program)
+        AssertionError(self.program, self.getRuntimeValue(command['with']))
 
     # Begin a block
     def k_begin(self, command):
@@ -136,6 +144,7 @@ class Core(Handler):
             return self.compileFromHere(['end'])
 
     # Clear (set False)
+    # clear {variable}
     def k_clear(self, command):
         if self.nextIsSymbol():
             target = self.getSymbolRecord()
@@ -155,6 +164,7 @@ class Core(Handler):
         return self.nextPC()
 
     # Close a file
+    # close {file}
     def k_close(self, command):
         if self.nextIsSymbol():
             fileRecord = self.getSymbolRecord()
@@ -170,6 +180,7 @@ class Core(Handler):
         return self.nextPC()
 
     #Create directory
+    # create directory {name}
     def k_create(self, command):
         if self.nextIs('directory'):
             command['item'] = 'directory'
@@ -229,6 +240,7 @@ class Core(Handler):
         return self.nextPC()
 
     # Decrement a variable
+    # decrement {variable}
     def k_decrement(self, command):
         if self.nextIsSymbol():
             symbolRecord = self.getSymbolRecord()
@@ -243,6 +255,8 @@ class Core(Handler):
         return self.incdec(command, '-')
 
     # Delete a file or a property
+    # delete {filename}
+    # delete property {value} of {variable}
     def k_delete(self, command):
         token = self.nextToken( )
         if token == 'file':
@@ -281,6 +295,7 @@ class Core(Handler):
         return self.nextPC()
 
     # Arithmetic division
+    # divide {variable} by {value}[ giving {variable}]}
     def k_divide(self, command):
         # Get the (first) value
         command['value1'] = self.nextValue()
@@ -381,6 +396,7 @@ class Core(Handler):
         return next
 
     # Issue a REST GET request
+    # get {variable) from {url} [or {command}]
     def k_get(self, command):
         if self.nextIsSymbol():
             symbolRecord = self.getSymbolRecord()
@@ -490,7 +506,7 @@ class Core(Handler):
     def r_gotoPC(self, command):
         return command['goto']
 
-    # If <condition> <action> [else <action>]
+    # if <condition> <action> [else <action>]
     def k_if(self, command):
         command['condition'] = self.nextCondition()
         self.addCommand(command)
@@ -536,6 +552,16 @@ class Core(Handler):
             self.program.pc += 1
         return self.program.pc
 
+    # Import a plugin. This is done at compile time.
+    # import {class} from {source}
+    def k_import(self, command):
+        clazz = self.nextToken()
+        if self.nextIs('from'):
+            source = self.nextToken()
+            self.program.importPlugin(f'{source}:{clazz}')
+            return True
+        return False
+
     # Increment a variable
     def k_increment(self, command):
         if self.nextIsSymbol():
@@ -551,6 +577,7 @@ class Core(Handler):
         return self.incdec(command, '+')
 
     # Index to a specified element in a variable
+    # index {variable} to {value}
     def k_index(self, command):
         # get the variable
         if self.nextIsSymbol():
@@ -567,7 +594,31 @@ class Core(Handler):
         symbolRecord['index'] = self.getRuntimeValue(command['value'])
         return self.nextPC()
 
+    # Initialise a stack, array or object
+    def k_init(self, command):
+        # get the variable
+        if self.nextIsSymbol():
+            symbolRecord = self.getSymbolRecord()
+            keyword = symbolRecord['keyword']
+            if keyword in ['stack','array', 'object']:
+                command['keyword'] = keyword
+                command['target'] = symbolRecord['name']
+                return True
+        return False
+
+    def r_init(self, command):
+        symbolRecord = self.getVariable(command['target'])
+        keyword = command['keyword']
+        if keyword in ['stack', 'array']:
+            self.putSymbolValue(symbolRecord, json.loads('[]'))
+        elif keyword == 'object':
+            self.putSymbolValue(symbolRecord, json.loads('{}'))
+        else:
+            RuntimeError(self.program, f"Inappropriate variable type '{keyword}'")
+        return self.nextPC()
+
     # Inout a value from the terminal
+    # input {variable} [with {prompt}]
     def k_input(self, command):
         # get the variable
         if self.nextIsSymbol():
@@ -594,30 +645,8 @@ class Core(Handler):
         self.putSymbolValue(symbolRecord, value)
         return self.nextPC()
 
-    # Initialise a stack, array or object
-    def k_init(self, command):
-        # get the variable
-        if self.nextIsSymbol():
-            symbolRecord = self.getSymbolRecord()
-            keyword = symbolRecord['keyword']
-            if keyword in ['stack','array', 'object']:
-                command['keyword'] = keyword
-                command['target'] = symbolRecord['name']
-                return True
-        return False
-
-    def r_init(self, command):
-        symbolRecord = self.getVariable(command['target'])
-        keyword = command['keyword']
-        if keyword in ['stack', 'array']:
-            self.putSymbolValue(symbolRecord, json.loads('[]'))
-        elif keyword == 'object':
-            self.putSymbolValue(symbolRecord, json.loads('{}'))
-        else:
-            RuntimeError(self.program, f"Inappropriate variable type '{keyword}'")
-        return self.nextPC()
-
     # Arithmetic multiply
+    # multiply {variable} by {value}[ giving {variable}]}
     def k_multiply(self, command):
         # Get the (first) value
         command['value1'] = self.nextValue()
@@ -675,6 +704,7 @@ class Core(Handler):
         return self.nextPC()
 
     # Open a file
+    # open {file} for reading/writing/appending
     def k_open(self, command):
         if self.nextIsSymbol():
             symbolRecord = self.getSymbolRecord()
@@ -711,6 +741,7 @@ class Core(Handler):
         RuntimeError(self.program, f"File {path} does not exist")
 
     # Pop a value from a stack
+    # pop {variable} from {stack}
     def k_pop(self, command):
         if (self.nextIsSymbol()):
             symbolRecord = self.getSymbolRecord()
@@ -738,6 +769,7 @@ class Core(Handler):
         return self.nextPC()
 
     # Perform an HTTP POST
+    # post {value} to {url} [giving {variable}] [or {command}]
     def k_post(self, command):
         if self.nextIs('to'):
             command['value'] = self.getConstant('')
@@ -825,6 +857,7 @@ class Core(Handler):
         return self.nextPC()
 
     # Push a value onto a stack
+    # push {value} to/onto {stack}
     def k_push(self, command):
         value = self.nextValue()
         command['value'] = value
@@ -853,6 +886,7 @@ class Core(Handler):
         return self.nextPC()
 
     # Put a value into a variable
+    # put {value} into {variable}
     def k_put(self, command):
         command['value'] = self.nextValue()
         if self.nextIs('into'):
@@ -880,6 +914,7 @@ class Core(Handler):
         return self.nextPC()
 
     # Read from a file
+    # read {variable} from {file}
     def k_read(self, command):
         if self.peek() == 'line':
             self.nextToken()
@@ -918,6 +953,7 @@ class Core(Handler):
         return self.nextPC()
 
     # Replace a substring
+    #replace {value} with {value} in {variable}
     def k_replace(self, command):
         original = self.nextValue()
         if self.peek() == 'with':
@@ -960,6 +996,9 @@ class Core(Handler):
         return True
 
     # Set a value
+    # set {variable}
+    # set the elements of {variable} to {value}
+    # set element/property of {variable} to {value}
     def k_set(self, command):
         if self.nextIsSymbol():
             target = self.getSymbolRecord()
@@ -1074,6 +1113,7 @@ class Core(Handler):
             return self.nextPC()
 
     # Split a string into a variable with several elements
+    # split {variable} on {value}
     def k_split(self, command):
         if self.nextIsSymbol():
             symbolRecord = self.getSymbolRecord()
@@ -1128,6 +1168,7 @@ class Core(Handler):
         return 0
 
     # Issue a system call
+    # system {command}
     def k_system(self, command):
         background = False
         token = self.nextToken()
@@ -1154,6 +1195,7 @@ class Core(Handler):
             return self.nextPC()
 
     # Arithmetic subtraction
+    # take {value} from {variable}[ giving {variable}]}
     def k_take(self, command):
         # Get the (first) value
         command['value1'] = self.nextValue()
@@ -1281,7 +1323,7 @@ class Core(Handler):
         threading.Timer(value/1000.0, lambda: (self.run(next))).start()
         return 0
 
-    # While <condition> <action>
+    # while <condition> <action>
     def k_while(self, command):
         code = self.nextCondition()
         if code == None:

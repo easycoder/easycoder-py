@@ -1,7 +1,7 @@
 class Condition:
 
 	def __init__(self, compiler):
-		self.domains = compiler.domains
+		self.compiler = compiler
 		self.getToken = compiler.getToken
 		self.nextToken = compiler.nextToken
 		self.peek = compiler.peek
@@ -12,7 +12,7 @@ class Condition:
 
 	def compileCondition(self):
 		mark = self.getIndex()
-		for domain in self.domains:
+		for domain in self.compiler.program.getDomains():
 			condition = domain.compileCondition()
 			if condition != None:
 				condition.domain= domain.getName()

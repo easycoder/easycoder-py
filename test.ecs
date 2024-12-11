@@ -1,0 +1,10 @@
+!   Test
+
+    script Test
+    
+    import P100 from plugins/ec_p100.py
+
+    print `Hello, world!`
+
+    relay `Relay` `TPEmail` `TPPassword` `OnOff`
+    set p100 email to `gt@pobox.com`

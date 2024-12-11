@@ -4,7 +4,6 @@ class Value:
 
 	def __init__(self, compiler):
 		self.compiler = compiler
-		self.domains = compiler.domains
 		self.getToken = compiler.getToken
 		self.nextToken = compiler.nextToken
 		self.peek = compiler.peek
@@ -47,7 +46,7 @@ class Value:
 
 		# See if any of the domains can handle it
 		mark = self.compiler.getIndex()
-		for domain in self.domains:
+		for domain in self.compiler.program.getDomains():
 			item = domain.compileValue()
 			if item != None:
 				return item
@@ -77,7 +76,7 @@ class Value:
 			value = item
 
 	# See if any domain has something to add to the value
-		for domain in self.domains:
+		for domain in self.compiler.program.getDomains():
 			value = domain.modifyValue(value)
 
 		return value

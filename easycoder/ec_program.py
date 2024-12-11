@@ -12,21 +12,8 @@ class Program:
 	def __init__(self, argv):
 		print(f'EasyCoder version {version("easycoder")}')
 		scriptName = None
-		domains=[Core]
 		if len(argv)>0:
 			scriptName = argv[0]
-			# Process any extra modules needed
-			for n in range(1, len(argv)):
-				args=argv[n].split(':')
-				idx=args[0].rfind('/')
-				if idx<0:
-					modue=args[0]
-				else:
-					sys.path.append(args[0][0:idx])
-					module=args[0][idx+1:]
-				module = importlib.import_module(module.replace('/','.').replace('.py',''))
-				myClass = getattr(module, args[1])
-				domains.append(myClass)
 		else:
 			print('No script supplied')
 			exit();
@@ -36,6 +23,7 @@ class Program:
 		source = f.read()
 		f.close()
 		self.argv = argv
+		self.classes=[Core]
 		self.domains = []
 		self.domainIndex = {}
 		self.name = '<anon>'
@@ -44,15 +32,12 @@ class Program:
 		self.onError = 0
 		self.pc = 0
 		self.debugStep = False
-		self.script = Script(source)
 		self.stack = []
+		self.script = Script(source)
 		self.compiler = Compiler(self)
 		self.value = self.compiler.value
 		self.condition = self.compiler.condition
-		for domain in domains:
-			handler = domain(self.compiler)
-			self.domains.append(handler)
-			self.domainIndex[handler.getName()] = handler
+		self.processClasses()
 		self.queue = deque()
 
 		startCompile = time.time()
@@ -73,6 +58,33 @@ class Program:
 		else:
 			self.compiler.showWarnings()
 			return
+
+	# Import a plugin
+	def importPlugin(self, source):
+		args=source.split(':')
+		idx=args[0].rfind('/')
+		if idx<0:
+			module=args[0]
+		else:
+			sys.path.append(args[0][0:idx])
+			module=args[0][idx+1:len(args[0])]
+		module = module.replace('/','.').replace('.py','')
+		module = importlib.import_module(module)
+		plugin = getattr(module, args[1])
+		self.classes.append(plugin)
+		self.processClasses()
+
+	# Process the class list to get the domains
+	def processClasses(self):
+		self.domains=[]
+		for clazz in self.classes:
+			handler = clazz(self.compiler)
+			self.domains.append(handler)
+			self.domainIndex[handler.getName()] = handler
+	
+	# Get the domain list
+	def getDomains(self):
+		return self.domains
 
 	# Add a command to the code list
 	def add(self, command):

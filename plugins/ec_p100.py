@@ -41,7 +41,7 @@ class P100(Handler):
         return self.nextPC()
 
     def k_set(self, command):
-        if self.tokenIs('p100'):
+        if self.nextIs('p100'):
             token = self.nextToken()
             if token == 'email':
                 if self.nextIs('to'):
