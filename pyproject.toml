@@ -9,7 +9,7 @@ description = "Rapid scripting in English"
 readme = "README.md"
 license = {file = "LICENSE"}
 classifiers = ["License :: OSI Approved :: MIT License"]
-keywords = ["compiler", "scripting", "prototyping", "programming", "coding", "python", "Low Code", "HyperTalk", "Computer Language", "Rapid Application Development"]
+keywords = ["compiler", "scripting", "prototyping", "programming", "coding", "python", "low code", "hypertalk", "computer language", "learn to code"]
 dynamic = ["version", "description"]
 dependencies = [
     "pytz"
