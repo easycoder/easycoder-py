@@ -57,4 +57,4 @@ There are three primary components to the language:
 
 The language comprises a general-purpose core package, which can be enhanced by plugins to provide special features on demand.
 
-[The core package](doc/core.md)
+[The core package](doc/README.md)
