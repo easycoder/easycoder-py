@@ -11,7 +11,7 @@
 ``set property `age` of MyProperties to Age``
 
 ## Description:
-set is a heavily used command in **_EasyCoder_**. Here in the core package it does the following, as listed in the Syntax above:
+`set` is a heavily used command in **_EasyCoder_**. Here in the core package it does the following, as listed in the Syntax above:
 
 -- assigns the boolean true value to the named [variable](variable.md). See also [clear](clear.md) and [toggle](toggle.md).
 

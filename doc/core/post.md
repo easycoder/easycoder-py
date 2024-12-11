@@ -1,8 +1,11 @@
 ## Syntax:
 `post {value} to {url} [giving {variable}] [or {command}]`
+
 ## Examples:
-``post MyData to `https://myserver.com/posted` ``  
+``post MyData to `https://myserver.com/rest` ``  
 `post MyData to MyServer`  
+`post stringify Data to MyServer giving Result`  
+`` post `reset` to MyServer``  
 `post MyData to MyServer or go to AbandonShip`
 
 ## Description:

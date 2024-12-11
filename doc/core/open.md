@@ -1,6 +1,6 @@
 ## Syntax:
 `open {file} {path} for reading/writing/appending`
-## Examples:
+## Example:
 `file File1`  
 `file File2`  
 `file File3`
