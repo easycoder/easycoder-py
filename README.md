@@ -48,12 +48,7 @@ Here in the repository is a folder called `scripts` containing some sample scrip
 `tests.ecs` is a test program containing many of the EasyCoder features  
 `fizzbuzz.ecs` is a simple programming challenge often given at job interviews
 
-## The EasyCoder programming language
-There are three primary components to the language:
-
- - Keywords
- - Values
- - Conditions
+## EasyCoder programming reference
 
 The language comprises a general-purpose core package, which can be enhanced by plugins to provide special features on demand.
 

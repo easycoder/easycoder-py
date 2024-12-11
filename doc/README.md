@@ -1,5 +1,11 @@
 # The 'core' package
 
+There are three primary components to the language:
+
+ - Keywords
+ - Values
+ - Conditions
+
 The core package contains all the keywords values and conditionals needed for general programming, and in most cases these are all that will be needed.
 
 The core keywords are:
