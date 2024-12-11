@@ -11,4 +11,4 @@ Divides a numeric variable by a numeric value or divides one value by another an
 Next: [exit](exit.md)  
 Prev: [delete](delete.md)
 
-[Back](../core.md)
+[Back](../README.md)

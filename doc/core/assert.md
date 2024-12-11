@@ -8,4 +8,4 @@ Tests the condition and throws an exception if it is not true.
 Next: [begin](begin.md)  
 Prev: [append](append.md)
 
-[Back](../core.md)
+[Back](../README.md)

@@ -22,4 +22,4 @@
 Next: [split](split.md)  
 Prev: [script](script.md)
 
-[Back](../core.md)
+[Back](../README.md)

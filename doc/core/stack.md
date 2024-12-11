@@ -10,4 +10,4 @@ Declares a stack variable, a special kind of array that permits elements to be [
 Next: [stop](stop.md)  
 Prev: [split](split.md)
 
-[Back](../core.md)
+[Back](../README.md)

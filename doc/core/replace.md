@@ -10,4 +10,4 @@ Replaces all occurrences of one string with another in a string [variable](varia
 Next: [return](return.md)  
 Prev: [read](read.md)
 
-[Back](../core.md)
+[Back](../README.md)

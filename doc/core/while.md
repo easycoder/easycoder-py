@@ -17,4 +17,4 @@ When constructing loops like this it's common for programmers to forget to bump 
 Next: [write](write.md)  
 Prev: [wait](wait.md)
 
-[Back](../core.md)
+[Back](../README.md)

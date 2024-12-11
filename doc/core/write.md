@@ -10,4 +10,4 @@ Write a value to a [file](file.md). See [open](open.md), [read](read.md) and [cl
 Next: [add](add.md)  
 Prev: [while](while.md)
 
-[Back](../core.md)
+[Back](../README.md)

@@ -10,4 +10,4 @@ Appends an item to a JSON array, which is is a string value held in a single var
 Next: [assert](assert.md)  
 Prev: [add](add.md)
 
-[Back](../core.md)
+[Back](../README.md)

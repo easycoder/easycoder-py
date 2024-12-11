@@ -10,4 +10,4 @@ Split a [variable](variable.md) containing a string into a number of parts on a 
 Next: [stack](stack.md)  
 Prev: [set](set.md)
 
-[Back](../core.md)
+[Back](../README.md)

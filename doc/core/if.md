@@ -11,4 +11,4 @@
 Next: [increment](increment.md)  
 Prev: [gosub](gosub.md)
 
-[Back](../core.md)
+[Back](../README.md)

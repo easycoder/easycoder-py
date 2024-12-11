@@ -12,4 +12,4 @@ Stop execution of the current thread. The program will not exit as there may be 
 Next: [system](system.md)  
 Prev: [stack](stack.md)
 
-[Back](../core.md)
+[Back](../README.md)

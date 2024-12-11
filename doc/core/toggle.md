@@ -10,4 +10,4 @@ Toggle - change from `true` to `false` or vice versa - a variable that has been 
 Next: [variable](variable.md)  
 Prev: [take](take.md)
 
-[Back](../core.md)
+[Back](../README.md)

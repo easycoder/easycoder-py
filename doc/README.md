@@ -10,3 +10,5 @@ The core values are:
 
 
 The core conditions are:
+
+[Back](../README.md)

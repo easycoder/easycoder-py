@@ -12,4 +12,4 @@ Variables can be assigned any number of elements - see [set the elements](set.md
 Next: [wait](wait.md)  
 Prev: [toggle](toggle.md)
 
-[Back](../core.md)
+[Back](../README.md)

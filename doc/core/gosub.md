@@ -9,4 +9,4 @@
 Next: [if](if.md)  
 Prev: [go](go.md)
 
-[Back](../core.md)
+[Back](../README.md)

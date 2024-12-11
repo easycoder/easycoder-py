@@ -12,4 +12,4 @@ Subtracts a numeric value from a numeric variable or subtracts one value from an
 Next: [toggle](toggle.md)  
 Prev: [system](system.md)
 
-[Back](../core.md)
+[Back](../README.md)

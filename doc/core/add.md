@@ -10,4 +10,4 @@ Adds a numeric value to a numeric variable or adds two values and puts the resul
 Next: [append](append.md)  
 Prev: [write](write.md)
 
-[Back](../core.md)
+[Back](../README.md)

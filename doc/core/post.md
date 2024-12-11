@@ -14,4 +14,4 @@ Perform an HTTP PUT request with the specified data and endpoint, optionally sav
 Next: [print](print.md)  
 Prev: [pop](pop.md)
 
-[Back](../core.md)
+[Back](../README.md)

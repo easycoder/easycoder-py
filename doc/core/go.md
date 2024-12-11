@@ -10,4 +10,4 @@
 Next: [gosub](gosub.md)  
 Prev: [get](get.md)
 
-[Back](../core.md)
+[Back](../README.md)

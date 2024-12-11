@@ -11,4 +11,4 @@
 Next: [input](input.md)  
 Prev: [index](index.md)
 
-[Back](../core.md)
+[Back](../README.md)

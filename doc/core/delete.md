@@ -13,4 +13,4 @@ The second form deletes a named property of an object. See also [set property](s
 Next: [divide](divide.md)  
 Prev: [decrement](decrement.md)
 
-[Back](../core.md)
+[Back](../README.md)

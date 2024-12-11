@@ -10,4 +10,4 @@
 Next: [close](close.md)  
 Prev: [begin](begin.md)
 
-[Back](../core.md)
+[Back](../README.md)

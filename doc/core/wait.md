@@ -15,4 +15,4 @@ By "thread" we mean the pseudo-threads **_EasyCoder_** uses to simulate multi-ta
 Next: [while](while.md)  
 Prev: [variable](variable.md)
 
-[Back](../core.md)
+[Back](../README.md)

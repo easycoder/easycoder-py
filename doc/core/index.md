@@ -12,4 +12,4 @@
 Next: [init](init.md)  
 Prev: [increment](increment.md)
 
-[Back](../core.md)
+[Back](../README.md)

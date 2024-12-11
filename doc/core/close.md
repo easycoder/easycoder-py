@@ -8,4 +8,4 @@ Close the file identified by the `{file}` variable. See `file`, `open`, `read` a
 Next: [create](create.md)  
 Prev: [clear](clear.md)
 
-[Back](../core.md)
+[Back](../README.md)

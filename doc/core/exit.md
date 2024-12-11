@@ -8,4 +8,4 @@ Terminate the program.
 Next: [file](file.md)  
 Prev: [divide](divide.md)
 
-[Back](../core.md)
+[Back](../README.md)

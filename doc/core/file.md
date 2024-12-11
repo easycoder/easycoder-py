@@ -11,4 +11,4 @@ Declare a file variable. See [open](open.md), [read](read.md), [write](write.md)
 Next: [fork](fork.md)  
 Prev: [exit](exit.md)
 
-[Back](../core.md)
+[Back](../README.md)

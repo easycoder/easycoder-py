@@ -10,4 +10,4 @@ Put a value into a [variable](variable.md). The second example illustrates how t
 Next: [read](read.md)  
 Prev: [push](push.md)
 
-[Back](../core.md)
+[Back](../README.md)

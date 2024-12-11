@@ -10,4 +10,4 @@ When `fork` is used, the forked commands run until they reach a [stop](stop.md) 
 Next: [get](get.md)  
 Prev: [exit](exit.md)
 
-[Back](../core.md)
+[Back](../README.md)

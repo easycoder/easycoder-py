@@ -11,4 +11,4 @@ Truncate a file
 Next: [variable](variable.md)  
 Prev: [toggle](toggle.md)
 
-[Back](../core.md)
+[Back](../README.md)

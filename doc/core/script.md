@@ -9,4 +9,4 @@ Provides a name for the script. Note that `name` is literal text, not a script v
 Next: [set](set.md)  
 Prev: [return](return.md)
 
-[Back](../core.md)
+[Back](../README.md)

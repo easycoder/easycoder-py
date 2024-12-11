@@ -10,4 +10,4 @@ Push something onto the specified [stack](stack.md).
 Next: [put](put.md)  
 Prev: [print](print.md)
 
-[Back](../core.md)
+[Back](../README.md)
