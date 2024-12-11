@@ -9,11 +9,14 @@ class FatalError:
 		sys.exit()
 
 class AssertionError:
-	def __init__(self, program):
+	def __init__(self, program, msg=None):
 		code = program.code[program.pc]
 		lino = code['lino']
 		script = program.script.lines[lino].strip()
-		print(f'Assertion Error in {program.name} at line {lino + 1}')
+		message = f'Assertion Error in {program.name} at line {lino + 1}'
+		if msg != None:
+			message += f': {msg}'
+		print(message)
 		sys.exit()
 
 class RuntimeError:

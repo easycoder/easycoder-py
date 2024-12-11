@@ -53,3 +53,9 @@ Here in the repository is a folder called `scripts` containing some sample scrip
 The language comprises a general-purpose core package, which can be enhanced by plugins to provide special features on demand.
 
 [The core package](doc/README.md)
+
+## Extending the language
+
+**_EasyCoder_** can be extended to add new functionality with the use of 'plugins'. These contain compiler and runtime modules for the added language features. **_EasyCoder_** can use the added keywords, values and conditions freely; the effect is completely seamless. There is an outline example in the `plugins` directory called `example.py`, which comprises a module called `Points` with new language syntax to deal with two-valued items such as coordinates. In the `scripts` directory there is `points.ecs`, which exercises the new functionality.
+
+A plugin can act as a wrapper around any Python functionality that has a sensible API, thereby hiding its complexity. The only challenge is to devise an unambiguous syntax that doesn't clash with anything already existing in **_EasyCoder_**
