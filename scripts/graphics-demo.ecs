@@ -1,18 +1,21 @@
-!   Graphics test
+!   Graphics demo
 
-    script GTest
+    script Graphics-Demo
 
- !   debug step
     rectangle BlueRect
-    rectangle RedRect
+    ellipse RedEllipse
+    ellipse GreenCircle
     variable Spec
     variable Widget
+    variable Widget2
     variable N
     variable M
 
+!    debug step
+
     create screen at 300 300 size 640 480 fill color yellow
     put json `{}` into Spec
-    set property `#` of Spec to json `["BlueRect","RedRect"]`
+    set property `#` of Spec to json `["BlueRect","RedEllipse"]`
 
     ! Blue rectangle
     put json `{}` into Widget
@@ -23,26 +26,42 @@
     set property `height` of Widget to 100
     set property `fill` of Widget to `blue`
     set property `id` of Widget to `bluerect`
+
+    ! Green circle
+    put json `{}` into Widget2
+    set property `type` of Widget2 to `ellipse`
+    set property `left` of Widget2 to 20
+    set property `top` of Widget2 to 20
+    set property `width` of Widget2 to 60
+    set property `height` of Widget2 to 60
+    set property `fill` of Widget2 to `green`
+    set property `id` of Widget2 to `greencircle`
+    set property `#` of Widget to json `["GreenCircle"]`
+    set property `GreenCircle` of Widget to Widget2
     set property `BlueRect` of Spec to Widget
 
-    ! Red rectangle
+    ! Red ellipse
     put json `{}` into Widget
-    set property `type` of Widget to `rect`
+    set property `type` of Widget to `ellipse`
     set property `left` of Widget to 400
     set property `top` of Widget to 200
-    set property `width` of Widget to 100
+    set property `width` of Widget to 200
     set property `height` of Widget to 100
     set property `fill` of Widget to `red`
-    set property `id` of Widget to `redrect`
-    set property `RedRect` of Spec to Widget
+    set property `id` of Widget to `redellipse`
+    set property `RedEllipse` of Spec to Widget
 
 !    print stringify Spec
     render stringify Spec
 
     attach BlueRect to `bluerect`
     on click BlueRect print `Click Blue`
-    attach RedRect to `redrect`
-    on click RedRect print `Click Red`
+    attach RedEllipse to `redellipse`
+    on click RedEllipse print `Click Red`
+    attach GreenCircle to `greencircle`
+    on click GreenCircle print `Click Green`
+
+    debug stop
 
     put 0 into N
     on tick
