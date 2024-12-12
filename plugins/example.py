@@ -29,7 +29,8 @@ class Points(Handler):
                     command['y'] = yValue
                     command['name'] = pointRecord['name']
                     self.add(command)
-        return True
+                    return True
+        return False
 
     def r_set(self, command):
         pointRecord = self.getVariable(command['name'])
