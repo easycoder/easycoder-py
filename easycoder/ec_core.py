@@ -38,7 +38,7 @@ class Core(Handler):
                         command['target'] = self.getToken()
                         self.add(command)
                         return True
-                self.warning(f'core.add: Expected value holder')
+                self.warning(f'Core.add: Expected value holder')
             else:
                 # Here we have 2 values so 'giving' must come next
                 command['value2'] = self.getValue()
@@ -46,7 +46,7 @@ class Core(Handler):
                     command['target'] = self.nextToken()
                     self.add(command)
                     return True
-                self.warning(f'core.add: Expected "giving"')
+                self.warning(f'Core.add: Expected "giving"')
         return False
 
     def r_add(self, command):
@@ -90,7 +90,7 @@ class Core(Handler):
                     command['target'] = symbolRecord['name']
                     self.add(command)
                     return True
-                self.warning(f'Variable "{symbolRecord["name"]}" does not hold a value')
+                self.warning(f'Core.append: Variable "{symbolRecord["name"]}" does not hold a value')
         return False
 
     def r_append(self, command):
@@ -248,7 +248,7 @@ class Core(Handler):
                 command['target'] = self.getToken()
                 self.add(command)
                 return True
-            self.warning(f'Variable "{symbolRecord["name"]}" does not hold a value')
+            self.warning(f'Core.decrement: Variable "{symbolRecord["name"]}" does not hold a value')
         return False
 
     def r_decrement(self, command):
@@ -272,9 +272,9 @@ class Core(Handler):
                 self.add(command)
                 return True
             else:
-                self.warning(f'"of" expected; got {self.getToken()}')
+                self.warning(f'Core.delete: "of" expected; got {self.getToken()}')
         else:
-            self.warning(f'"file" or "property" expected; got {token}')
+            self.warning(f'Core.delete: "file" or "property" expected; got {token}')
         return False
 
     def r_delete(self, command):
@@ -570,7 +570,7 @@ class Core(Handler):
                 command['target'] = self.getToken()
                 self.add(command)
                 return True
-            self.warning(f'Variable "{symbolRecord["name"]}" does not hold a value')
+            self.warning(f'Core.increment: Variable "{symbolRecord["name"]}" does not hold a value')
         return False
 
     def r_increment(self, command):
@@ -729,7 +729,7 @@ class Core(Handler):
             else:
                 FatalError(self.compiler, f'Variable "{self.getToken()}" is not a file')
         else:
-            self.warning(f'core.open: Variable "{self.getToken()}" not declared')
+            self.warning(f'Core.open: Variable "{self.getToken()}" not declared')
         return False
 
     def r_open(self, command):
@@ -1215,7 +1215,7 @@ class Core(Handler):
                         command['target'] = self.getToken()
                         self.add(command)
                         return True
-                self.warning(f'core.take: Expected value holder')
+                self.warning(f'Core.take: Expected value holder')
             else:
                 # Here we have 2 values so 'giving' must come next
                 command['value2'] = self.getValue()
@@ -1227,7 +1227,7 @@ class Core(Handler):
                     else:
                         FatalError(self.program.compiler, f'\'{self.getToken()}\' is not a symbol')
                 else:
-                    self.warning(f'core.take: Expected "giving"')
+                    self.warning(f'Core.take: Expected "giving"')
         return False
 
     def r_take(self, command):
@@ -1402,6 +1402,8 @@ class Core(Handler):
             RuntimeError(self.program, f'{symbolRecord["name"]} does not hold a value')
             return None
         value = self.getSymbolValue(symbolRecord)
+        if value == None:
+            RuntimeError(self.program, f'{symbolRecord["name"]} has not been initialised')
         if mode == '+':
             value['content'] += 1
         else:
@@ -1467,7 +1469,7 @@ class Core(Handler):
                     if symbolRecord['valueHolder']:
                         value['target'] = symbolRecord['name']
                         return value
-                self.warning(f'Token \'{self.getToken()}\' does not hold a value')
+                self.warning(f'Core.compileValue: Token \'{self.getToken()}\' does not hold a value')
             return None
 
         if token == 'property':
@@ -1478,7 +1480,7 @@ class Core(Handler):
                     if symbolRecord['valueHolder']:
                         value['target'] = symbolRecord['name']
                         return value
-                self.warning(f'Token \'{self.getToken()}\' does not hold a value')
+                self.warning(f'Core.compileValue: Token \'{self.getToken()}\' does not hold a value')
             return None
 
         if token == 'arg':
@@ -1640,7 +1642,7 @@ class Core(Handler):
                     return value
             return None
 
-        self.warning(f'Core: Unknown token {token}')
+        self.warning(f'Core.compileValue: Unknown token "{token}"')
         return None
 
     #############################################################################
@@ -2115,7 +2117,7 @@ class Core(Handler):
             condition.type = 'boolean'
             return condition
 
-        self.warning(f'I can\'t get a conditional:')
+        self.warning(f'Core.compileCondition: I can\'t get a conditional:')
         return None
 
     def isNegate(self):

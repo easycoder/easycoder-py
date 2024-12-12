@@ -48,6 +48,11 @@ Here in the repository is a folder called `scripts` containing some sample scrip
 `tests.ecs` is a test program containing many of the EasyCoder features  
 `fizzbuzz.ecs` is a simple programming challenge often given at job interviews
 
+## Graphical programmming
+**_EasyCoder_** is currently being extended to include a graphical programming environment. A single demo script `graphics-demo.ecs` is included in the `scripts` directory. To run it, first install the Python graphics library if it's not already present on your system. On Linux this is done with `sudo apt install python3-tk`. On Windows it's `pip install tk`. Then give the command `easycoder -g scripts/graphics-demo.ecs`.
+
+As development progresses this demo program will be extended to include new features.
+
 ## EasyCoder programming reference
 
 The language comprises a general-purpose core package, which can be enhanced by plugins to provide special features on demand.

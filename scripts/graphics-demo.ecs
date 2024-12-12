@@ -1,0 +1,58 @@
+!   Graphics test
+
+    script GTest
+
+ !   debug step
+    rectangle BlueRect
+    rectangle RedRect
+    variable Spec
+    variable Widget
+    variable N
+    variable M
+
+    create screen at 300 300 size 640 480 fill color yellow
+    put json `{}` into Spec
+    set property `#` of Spec to json `["BlueRect","RedRect"]`
+
+    ! Blue rectangle
+    put json `{}` into Widget
+    set property `type` of Widget to `rect`
+    set property `left` of Widget to 200
+    set property `top` of Widget to 100
+    set property `width` of Widget to 100
+    set property `height` of Widget to 100
+    set property `fill` of Widget to `blue`
+    set property `id` of Widget to `bluerect`
+    set property `BlueRect` of Spec to Widget
+
+    ! Red rectangle
+    put json `{}` into Widget
+    set property `type` of Widget to `rect`
+    set property `left` of Widget to 400
+    set property `top` of Widget to 200
+    set property `width` of Widget to 100
+    set property `height` of Widget to 100
+    set property `fill` of Widget to `red`
+    set property `id` of Widget to `redrect`
+    set property `RedRect` of Spec to Widget
+
+!    print stringify Spec
+    render stringify Spec
+
+    attach BlueRect to `bluerect`
+    on click BlueRect print `Click Blue`
+    attach RedRect to `redrect`
+    on click RedRect print `Click Red`
+
+    put 0 into N
+    on tick
+    begin
+        if N modulo 10 is 0
+        begin
+            divide N by 10 giving M
+!            print `Tick ` cat M
+        end
+        increment N
+    end
+    show screen
+    stop

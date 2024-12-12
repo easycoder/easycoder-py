@@ -10,7 +10,7 @@ readme = "README.md"
 license = {file = "LICENSE"}
 classifiers = ["License :: OSI Approved :: MIT License"]
 keywords = ["compiler", "scripting", "prototyping", "programming", "coding", "python", "low code", "hypertalk", "computer language", "learn to code"]
-dynamic = ["version", "description"]
+dynamic = ["version"]
 dependencies = [
     "pytz"
 ]

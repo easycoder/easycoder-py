@@ -12,18 +12,22 @@ class Program:
 	def __init__(self, argv):
 		print(f'EasyCoder version {version("easycoder")}')
 		scriptName = None
-		if len(argv)>0:
-			scriptName = argv[0]
-		else:
+		if len(argv) == 0:
 			print('No script supplied')
-			exit();
+			exit()
+		self.classes=[Core]
+		for n in range(len(argv)):
+			arg = argv[n]
+			if arg == '-g':
+				from .ec_graphics import Graphics
+				self.classes.append(Graphics)
+			else:
+				scriptName = arg
 
-#		print('Domains:',domains)
 		f = open(scriptName, 'r')
 		source = f.read()
 		f.close()
 		self.argv = argv
-		self.classes=[Core]
 		self.domains = []
 		self.domainIndex = {}
 		self.name = '<anon>'
@@ -40,6 +44,7 @@ class Program:
 		self.processClasses()
 		self.queue = deque()
 
+	def start(self):
 		startCompile = time.time()
 		self.tokenise(self.script)
 		if self.compiler.compileFrom(0, []):
@@ -62,8 +67,11 @@ class Program:
 	# Import a plugin
 	def importPlugin(self, source):
 		args=source.split(':')
+		if len(args)<2:
+			RuntimeError(None, f'Invalid plugin spec "{source}"')
 		idx=args[0].rfind('/')
 		if idx<0:
+			sys.path.append('.')
 			module=args[0]
 		else:
 			sys.path.append(args[0][0:idx])
@@ -318,6 +326,6 @@ class Program:
 # This is the program launcher
 def Main():
 	if (len(sys.argv) > 1):
-		Program(sys.argv[1:])
+		Program(sys.argv[1:]).start()
 	else:
 		print('Syntax: easycoder <scriptname> [plugins]')
