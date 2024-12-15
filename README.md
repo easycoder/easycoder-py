@@ -51,7 +51,7 @@ Here in the repository is a folder called `scripts` containing some sample scrip
 ## Graphical programmming
 **_EasyCoder_** is currently being extended to include a graphical programming environment. A single demo script `graphics-demo.ecs` is included in the `scripts` directory. To run it, first install the Python graphics library if it's not already present on your system. On Linux this is done with `sudo apt install python3-tk`. On Windows it's `pip install tk`. Then give the command `easycoder -g scripts/graphics-demo.ecs`.
 
-As development progresses this demo script will be extended to include new features as they are added. **_EasyCoder_** graphics are handled by a library module, `ec_renderer` that can be used outside of the **EasyCoder_** environment, in other Python programs.
+As development progresses this demo script will be extended to include new features as they are added. **_EasyCoder_** graphics are handled by a library module, `ec_renderer` that can be used outside of the **_EasyCoder_** environment, in other Python programs.
 
 ## EasyCoder programming reference
 
