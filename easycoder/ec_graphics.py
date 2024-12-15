@@ -1,4 +1,5 @@
-from easycoder import FatalError, RuntimeError, Handler
+from .ec_classes import FatalError, RuntimeError
+from .ec_handler import Handler
 from .ec_renderer import *
 
 class Graphics(Handler):
@@ -29,6 +30,8 @@ class Graphics(Handler):
         if element == None:
             FatalError(self.program.compiler, f'There is no screen element with id \'{id}\'')
             return -1
+        if element['type'] != target['keyword']:
+            FatalError(self.program.compiler, f'Mismatched element type ({element['type']} and {target['keyword']})')
         self.putSymbolValue(target, {'type': 'text', 'content': id})
         return self.nextPC()
 
@@ -77,6 +80,31 @@ class Graphics(Handler):
         return self.compileVariable(command)
 
     def r_image(self, command):
+        return self.nextPC()
+
+    def k_move(self, command):
+        if self.nextIsSymbol():
+            record = self.getSymbolRecord()
+            if record['keyword'] in ['rectangle', 'ellipse', 'text', 'image']:
+                command['name'] = record['name']
+                if self.nextToken() in ['by', 'to']:
+                    command['type'] = self.getToken()
+                    command['x'] = self.nextValue()
+                    command['y'] = self.nextValue()
+                    self.add(command)
+                    return True
+        return False
+
+    def r_move(self, command):
+        target = self.getVariable(command['name'])
+        id = self.getSymbolValue(target)['content']
+        type = command['type']
+        x = self.getRuntimeValue(command['x'])
+        y = self.getRuntimeValue(command['y'])
+        if type == 'by':
+            moveElement(id, x, y)
+        elif type == 'to':
+            moveElementTo(id, x, y)
         return self.nextPC()
 
     def k_on(self, command):
@@ -186,9 +214,7 @@ class Graphics(Handler):
     def r_render(self, command):
         parent = command['parent']
         value = self.getRuntimeValue(command['value'])
-        result = render(value, parent)
-        if result != None:
-            RuntimeError(command['program'], f'Rendering error: {result}')
+        render(value, parent)
         return self.nextPC()
 
     def k_set(self, command):
@@ -290,13 +316,22 @@ class Graphics(Handler):
         if self.tokenIs('the'):
             self.nextToken()
         token = self.getToken()
+
+        value['type'] = token
+
         if token == 'color':
             name = self.nextToken()
             value = {}
             value['type'] = 'string'
             value['content'] = name
             return value
-
+        
+        elif token == 'attribute':
+            value['attribute'] = self.nextValue()
+            if (self.nextIs('of')):
+                if (self.nextIsSymbol()):
+                    value['name'] = self.getToken()
+                    return value
         return None
 
     #############################################################################
@@ -321,6 +356,15 @@ class Graphics(Handler):
             return result
         else:
             return ''
+    
+    def v_attribute(self, v):
+        target = self.getVariable(v['name'])
+        attribute = self.getRuntimeValue(v['attribute'])
+        name = target['value'][target['index']]['content']
+        value = {}
+        value['type'] = 'int'
+        value['content'] = getAttribute(name, attribute)
+        return value
 
     #############################################################################
     # Compile a condition

@@ -126,40 +126,41 @@ def render(spec, parent):
             outlineWidth = getValue(args, values['outlineWidth']) if 'outlineWidth' in values else 1
         else:
             outlineWidth = 0
-        if widgetType == 'rect':
+        if widgetType == 'rectangle':
             widgetId = getCanvas().create_rectangle(left, top, right, bottom, fill=fill, outline=outline, width=outlineWidth)
         elif widgetType == 'ellipse':
             widgetId = getCanvas().create_oval(left, top, right, bottom, fill=fill, outline=outline, width=outlineWidth)
         else:
             return f'Unknown widget type \'{widgetType}\''
-        if 'id' in values:
-            id = getValue(args, values['id'])
-            widgetSpec = {
-                "id": widgetId,
-                "left": left,
-                "top": top,
-                "width": width,
-                "height": height
-            }
-            elements[id] = widgetSpec
-            zlist.append({id: widgetSpec})
+        if 'name' in values:
+            widgetName = getValue(args, values['name'])
+        else:
+            widgetName = None
+        widgetSpec = {
+            "type": widgetType,
+            "name": widgetName,
+            "id": widgetId,
+            "left": left,
+            "top": top,
+            "width": width,
+            "height": height,
+            "children": []
+        }
+        elements[widgetName] = widgetSpec
+        zlist.append({widgetName: widgetSpec})
         if '#' in values:
             children = values['#']
             if type(children) == list:
                 for item in children:
                     if item in values:
                         child = values[item]
-                        result = renderWidget(child, {'dx': left, 'dy': top}, args)
-                        if result != None:
-                            return result
-                    else:
-                        return f'Unable to render \'{item}\''
+                        childSpec = renderWidget(child, {'dx': left, 'dy': top}, args)
+                        widgetSpec['children'].append(childSpec['name'])
             else:
                 child = values[children]
-                result = renderWidget(child, offset)
-                if result != None:
-                    return result
-        return None
+                childSpec = renderWidget(child, {'dx': left, 'dy': top}, args)
+                widgetSpec['children'].append(childSpec['name'])
+        return widgetSpec
    
     def renderText(values, offset, args):
         left = getValue(args, values['left']) if 'left' in values else 10
@@ -201,20 +202,24 @@ def render(spec, parent):
         else:
             containerId = getCanvas().create_rectangle(left, top, right, bottom, fill=fill, outline=outline, width=outlineWidth)
         textId = canvas.create_text(left + xoff, fontTop + adjust, fill=color, font=f'"{fontFace}" {fontSize} {fontWeight}', text=text, anchor=anchor)
-        if 'id' in values:
-            id = getValue(args, values['id'])
-            widgetSpec = {
-                "id": textId,
-                "containerId": containerId,
-                "left": left,
-                "top": top,
-                "width": width,
-                "height": height
-            }
-            elements[id] = widgetSpec
-            zlist.append({id: widgetSpec})
-        return None
-   
+        if 'name' in values:
+            widgetName = getValue(args, values['name'])
+        else:
+            widgetName = None
+        widgetSpec = {
+            "type": "text",
+            "name": widgetName,
+            "id": textId,
+            "containerId": containerId,
+            "left": left,
+            "top": top,
+            "width": width,
+            "height": height
+        }
+        elements[widgetName] = widgetSpec
+        zlist.append({widgetName: widgetSpec})
+        return widgetSpec
+
     def renderImage(values, offset, args):
         global images
         left = getValue(args, values['left']) if 'left' in values else 10
@@ -227,30 +232,34 @@ def render(spec, parent):
         bottom = top + height
         src = getValue(args, values['src']) if 'src' in values else None
         containerId = getCanvas().create_rectangle(left, top, right, bottom, width=0)
-        if 'id' in values:
-            id = values['id']
-            widgetSpec = {
-                "id": containerId,
-                "left": left,
-                "top": top,
-                "width": width,
-                "height": height
-            }
-            elements[id] = widgetSpec
-            zlist.append({id: widgetSpec})
-            if src == None:
-                return f'No image source given for \'{id}\''
+        if 'name' in values:
+            widgetName = values['name']
+        else:
+            widgetName = None
+        widgetSpec = {
+            "type": "image",
+            "nme": widgetName,
+            "id": containerId,
+            "left": left,
+            "top": top,
+            "width": width,
+            "height": height
+        }
+        elements[widgetName] = widgetSpec
+        zlist.append({widgetName: widgetSpec})
+        if src == None:
+            raise(Exception(f'No image source given for \'{id}\''))
         img = (Image.open(src))
         resized_image= img.resize((width, height), Image.ANTIALIAS)
         new_image= ImageTk.PhotoImage(resized_image)
         imageid = getCanvas().create_image(left, top, anchor='nw', image=new_image)
         images[containerId] = {'id': imageid, "image": new_image}
-        return None
+        return widgetSpec
 
     # Create a canvas or render a widget
     def renderWidget(widget, offset, args):
         widgetType = widget['type']
-        if widgetType in ['rect', 'ellipse']:
+        if widgetType in ['rectangle', 'ellipse']:
             return renderIntoRectangle(widgetType, widget, offset, args)
         elif widgetType == 'text':
             return renderText(widget, offset, args)
@@ -263,12 +272,10 @@ def render(spec, parent):
         # If a list, iterate it
         if type(widgets) is list:
             for widget in widgets:
-                result = renderWidget(spec[widget], offset, args)
-                if result != None:
-                    return result
+                renderWidget(spec[widget], offset, args)
         # Otherwise, process the single widget
         else:
-            return renderWidget(spec[widgets], offset, args)
+            renderWidget(spec[widgets], offset, args)
 
     # Main entry point
     offset = {'dx': 0, 'dy': 0}
@@ -277,13 +284,13 @@ def render(spec, parent):
 
     # If it'a string, process it
     if type(spec) is str:
-        return renderSpec(json.loads(spec), offset, {})
+        renderSpec(json.loads(spec), offset, {})
 
     # If it's a 'dict', extract the spec and the args
     if type(spec) is dict:
         args = spec['args']
         spec = json.loads(spec['spec'])
-        return renderSpec(spec, offset, args)
+        renderSpec(spec, offset, args)
 
 # Get the widget whose name is given
 def getElement(name):
@@ -302,3 +309,22 @@ def setBackground(name, value):
     id = getElement(name)['id']
     getCanvas().itemconfig(getElement(name)['id'], fill=value)
     
+# Move an element by an amount
+def moveElement(name, dx, dy):
+    element = getElement(name)
+    getCanvas().move(element['id'], dx, dy)
+    element['left'] += dx
+    element['top'] += dy
+    for childName in element['children']:
+        element = getElement(childName)
+        getCanvas().move(element['id'], dx, dy)
+
+# Move an element to a new location
+def moveElementTo(name, left, top):
+    element = getElement(name)
+    moveElement(name, left - element['left'], top - element['top'])
+
+# Get an attribute of an element
+def getAttribute(name, attribute):
+    element = getElement(name)
+    return element[attribute]
