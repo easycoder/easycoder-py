@@ -50,8 +50,8 @@ def createScreen(values):
             id = list(element)[0]
             values = element[id]
             x1 = values['left']
-            x2 = x1 + values['width']
-            y1 = values['top']
+            x2 = x1 + values['width'] + getScreenLeft(values['parent'])
+            y1 = values['top'] + getScreenTop(values['parent'])
             y2 = y1 + values['height']
             if x >= x1 and x < x2 and y >= y1 and y < y2:
                 if id in elements:
@@ -110,16 +110,16 @@ def render(spec, parent):
             return args[item]
         return item
 
-    def renderIntoRectangle(widgetType, values, offset, args):
+    def renderIntoRectangle(widgetType, values, parent, args):
         global zlist
         left = getValue(args, values['left']) if 'left' in values else 10
+        screenLeft = left + getScreenLeft(parent)
         top = getValue(args, values['top']) if 'top' in values else 10
-        left = offset['dx'] + left
-        top = offset['dy'] + top
+        screenTop = top + getScreenTop(parent)
         width = getValue(args, values['width']) if 'width' in values else 100
         height = getValue(args, values['height']) if 'height' in values else 100
-        right = left + width
-        bottom = top + height
+        right = screenLeft + width
+        bottom = screenTop + height
         fill = values['fill'] if 'fill' in values else None
         outline = values['outline'] if 'outline' in values else None
         if outline != None:
@@ -127,9 +127,9 @@ def render(spec, parent):
         else:
             outlineWidth = 0
         if widgetType == 'rectangle':
-            widgetId = getCanvas().create_rectangle(left, top, right, bottom, fill=fill, outline=outline, width=outlineWidth)
+            widgetId = getCanvas().create_rectangle(screenLeft, screenTop, right, bottom, fill=fill, outline=outline, width=outlineWidth)
         elif widgetType == 'ellipse':
-            widgetId = getCanvas().create_oval(left, top, right, bottom, fill=fill, outline=outline, width=outlineWidth)
+            widgetId = getCanvas().create_oval(screenLeft, screenTop, right, bottom, fill=fill, outline=outline, width=outlineWidth)
         else:
             return f'Unknown widget type \'{widgetType}\''
         if 'name' in values:
@@ -144,6 +144,7 @@ def render(spec, parent):
             "top": top,
             "width": width,
             "height": height,
+            "parent": parent,
             "children": []
         }
         elements[widgetName] = widgetSpec
@@ -154,23 +155,23 @@ def render(spec, parent):
                 for item in children:
                     if item in values:
                         child = values[item]
-                        childSpec = renderWidget(child, {'dx': left, 'dy': top}, args)
+                        childSpec = renderWidget(child, widgetSpec, args)
                         widgetSpec['children'].append(childSpec['name'])
             else:
                 child = values[children]
-                childSpec = renderWidget(child, {'dx': left, 'dy': top}, args)
+                childSpec = renderWidget(child, widgetSpec, args)
                 widgetSpec['children'].append(childSpec['name'])
         return widgetSpec
    
-    def renderText(values, offset, args):
+    def renderText(values, parent, args):
         left = getValue(args, values['left']) if 'left' in values else 10
+        screenLeft = left + getScreenLeft(parent)
         top = getValue(args, values['top']) if 'top' in values else 10
-        left = offset['dx'] + left
-        top = offset['dy'] + top
+        screenTop = top + getScreenTop(parent)
         width = getValue(args, values['width']) if 'width' in values else 100
         height = getValue(args, values['height']) if 'height' in values else 100
-        right = left + width
-        bottom = top + height
+        right = screenLeft + width
+        bottom = screenTop + height
         shape = getValue(args, values['shape']) if 'shape' in values else 'rectangle'
         fill = getValue(args, values['fill']) if 'fill' in values else None
         outline = getValue(args, values['outline']) if 'outline' in values else None
@@ -180,7 +181,7 @@ def render(spec, parent):
         fontFace = getValue(args, values['fontFace']) if 'fontFace' in values else 'Helvetica'
         fontWeight = getValue(args, values['fontWeight']) if 'fontWeight' in values else 'normal'
         fontSize = round(height*2/5) if shape == 'ellipse' else round(height*3/5)
-        fontTop = top + height/2
+        fontTop = screenTop + height/2
         if 'fontSize' in values:
             fontSize = getValue(args, values['fontSize'])
             fontTop = top + round(fontSize * 5 / 4)
@@ -198,10 +199,10 @@ def render(spec, parent):
         if xoff < 3:
             xoff = 3
         if shape == 'ellipse':
-            containerId = getCanvas().create_oval(left, top, right, bottom, fill=fill, outline=outline, width=outlineWidth)
+            containerId = getCanvas().create_oval(screenLeft, screenTop, right, bottom, fill=fill, outline=outline, width=outlineWidth)
         else:
-            containerId = getCanvas().create_rectangle(left, top, right, bottom, fill=fill, outline=outline, width=outlineWidth)
-        textId = canvas.create_text(left + xoff, fontTop + adjust, fill=color, font=f'"{fontFace}" {fontSize} {fontWeight}', text=text, anchor=anchor)
+            containerId = getCanvas().create_rectangle(screenLeft, screenTop, right, bottom, fill=fill, outline=outline, width=outlineWidth)
+        textId = canvas.create_text(screenLeft + xoff, fontTop + adjust, fill=color, font=f'"{fontFace}" {fontSize} {fontWeight}', text=text, anchor=anchor)
         if 'name' in values:
             widgetName = getValue(args, values['name'])
         else:
@@ -214,24 +215,25 @@ def render(spec, parent):
             "left": left,
             "top": top,
             "width": width,
-            "height": height
+            "height": height,
+            "parent": parent
         }
         elements[widgetName] = widgetSpec
         zlist.append({widgetName: widgetSpec})
         return widgetSpec
 
-    def renderImage(values, offset, args):
+    def renderImage(values, parent, args):
         global images
         left = getValue(args, values['left']) if 'left' in values else 10
+        screenLeft = left + getScreenLeft(parent)
         top = getValue(args, values['top']) if 'top' in values else 10
-        left = offset['dx'] + left
-        top = offset['dy'] + top
+        screenTop = top + getScreenTop(parent)
         width = getValue(args, values['width']) if 'width' in values else 100
         height = getValue(args, values['height']) if 'height' in values else 100
-        right = left + width
-        bottom = top + height
+        right = screenLeft + width
+        bottom = screenTop + height
         src = getValue(args, values['src']) if 'src' in values else None
-        containerId = getCanvas().create_rectangle(left, top, right, bottom, width=0)
+        containerId = getCanvas().create_rectangle(screenLeft, screenTop, right, bottom, width=0)
         if 'name' in values:
             widgetName = values['name']
         else:
@@ -243,7 +245,8 @@ def render(spec, parent):
             "left": left,
             "top": top,
             "width": width,
-            "height": height
+            "height": height,
+            "parent": parent
         }
         elements[widgetName] = widgetSpec
         zlist.append({widgetName: widgetSpec})
@@ -252,45 +255,44 @@ def render(spec, parent):
         img = (Image.open(src))
         resized_image= img.resize((width, height), Image.ANTIALIAS)
         new_image= ImageTk.PhotoImage(resized_image)
-        imageid = getCanvas().create_image(left, top, anchor='nw', image=new_image)
+        imageid = getCanvas().create_image(screenLeft, screenTop, anchor='nw', image=new_image)
         images[containerId] = {'id': imageid, "image": new_image}
         return widgetSpec
 
     # Create a canvas or render a widget
-    def renderWidget(widget, offset, args):
+    def renderWidget(widget, parent, args):
         widgetType = widget['type']
         if widgetType in ['rectangle', 'ellipse']:
-            return renderIntoRectangle(widgetType, widget, offset, args)
+            return renderIntoRectangle(widgetType, widget, parent, args)
         elif widgetType == 'text':
-            return renderText(widget, offset, args)
+            return renderText(widget, parent, args)
         elif widgetType == 'image':
-            return renderImage(widget, offset, args)
+            return renderImage(widget, parent, args)
 
     # Render a complete specification
-    def renderSpec(spec, offset, args):
+    def renderSpec(spec, parent, args):
         widgets = spec['#']
         # If a list, iterate it
         if type(widgets) is list:
             for widget in widgets:
-                renderWidget(spec[widget], offset, args)
+                renderWidget(spec[widget], parent, args)
         # Otherwise, process the single widget
         else:
-            renderWidget(spec[widgets], offset, args)
+            renderWidget(spec[widgets], parent, args)
 
     # Main entry point
-    offset = {'dx': 0, 'dy': 0}
     if parent != screen:
         RuntimeError(None, 'Can\'t yet render into parent widget')
 
     # If it'a string, process it
     if type(spec) is str:
-        renderSpec(json.loads(spec), offset, {})
+        renderSpec(json.loads(spec), None, {})
 
     # If it's a 'dict', extract the spec and the args
     if type(spec) is dict:
         args = spec['args']
         spec = json.loads(spec['spec'])
-        renderSpec(spec, offset, args)
+        renderSpec(spec, None, args)
 
 # Get the widget whose name is given
 def getElement(name):
@@ -328,3 +330,15 @@ def moveElementTo(name, left, top):
 def getAttribute(name, attribute):
     element = getElement(name)
     return element[attribute]
+
+# Get the screen left position of an element
+def getScreenLeft(element):
+    if element == None:
+        return 0
+    return element['left'] + getScreenLeft(element['parent'])
+
+# Get the screen top position of an element
+def getScreenTop(element):
+    if element == None:
+        return 0
+    return element['top'] + getScreenTop(element['parent'])
