@@ -1,8 +1,9 @@
 {
     "#": [
+    
+        "Photo",
         "BlueRect",
-        "RedEllipse",
-        "Photo"
+        "RedEllipse"
     ],
     "BlueRect": {
         "type": "rectangle",

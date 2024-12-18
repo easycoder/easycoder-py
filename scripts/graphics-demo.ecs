@@ -5,13 +5,20 @@
     rectangle BlueRect
     ellipse RedEllipse
     ellipse GreenCircle
-    text WhiteText
     file File
     variable Spec
     variable UpDown
     variable Left
     variable Top
+    variable Steps
+    variable Step
+    variable DX
+    variable DY
     variable N
+    variable X
+    variable Y
+    variable L
+    variable T
 
 !    debug step
 
@@ -29,9 +36,8 @@
     on click RedEllipse print `Click Red`
     attach GreenCircle to `greencircle`
     on click GreenCircle print `Click Green`
-
-    put attribute `left` of RedEllipse into Left
-    put attribute `top` of RedEllipse into Top
+    
+    gosub to InitEllipse
 
     clear UpDown
     put 0 into N
@@ -48,8 +54,6 @@
                 put 0 into N
                 clear UpDown
             end
-            move RedEllipse to Left Top
-            add 5 to Left
         end
         else
         begin
@@ -62,10 +66,34 @@
                 put 0 into N
                 set UpDown
             end
-            move RedEllipse to Left Top
-            take 5 from Left
         end
         increment N
+        gosub to MoveEllipse
     end
     show screen
     stop
+
+InitEllipse:
+    put attribute `left` of RedEllipse into Left
+    put attribute `top` of RedEllipse into Top
+    put random 340 into X
+    put random 280 into Y
+    add 50 to X
+    add 50 to Y
+    take Left from X giving DX
+    take Top from Y giving DY
+    put 20 into Steps
+    put 0 into Step
+    return
+
+MoveEllipse:
+    multiply DX by Step giving X
+    divide X by Steps
+    add X to Left giving L
+    multiply DY by Step giving Y
+    divide Y by Steps
+    add Y to Top giving T
+    move RedEllipse to L T
+    increment Step
+    if Step is Steps gosub to InitEllipse
+    return
