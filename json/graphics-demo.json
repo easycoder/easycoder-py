@@ -1,7 +1,8 @@
 {
     "#": [
         "BlueRect",
-        "RedEllipse"
+        "RedEllipse",
+        "Photo"
     ],
     "BlueRect": {
         "type": "rectangle",
@@ -27,10 +28,33 @@
     "RedEllipse": {
         "type": "ellipse",
         "left": 300,
-        "top": 200,
+        "top": 100,
         "width": 200,
         "height": 100,
         "fill": "red",
-        "name": "redellipse"
+        "name": "redellipse",
+        "#": [
+            "WhiteText"
+        ],
+        "WhiteText": {
+            "type": "text",
+            "left": 25,
+            "top": 40,
+            "width": 160,
+            "height": 32,
+            "color": "white",
+            "text": "Graphics demo",
+            "fontSize": 20,
+            "name": "mytext"
+        }
+    },
+
+    "Photo": {
+        "type": "image",
+        "left": 150,
+        "top": 250,
+        "width": 300,
+        "source": "images/Semoigo Dawn.jpg",
+        "name": "dawn"
     }
 }

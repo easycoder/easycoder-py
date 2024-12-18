@@ -2,7 +2,7 @@
 
 import sys, json
 import tkinter as tk
-from PIL import *
+from PIL import Image, ImageTk
 
 elements = {}
 zlist = []
@@ -170,38 +170,33 @@ def render(spec, parent):
         screenTop = top + getScreenTop(parent)
         width = getValue(args, values['width']) if 'width' in values else 100
         height = getValue(args, values['height']) if 'height' in values else 100
-        right = screenLeft + width
-        bottom = screenTop + height
         shape = getValue(args, values['shape']) if 'shape' in values else 'rectangle'
-        fill = getValue(args, values['fill']) if 'fill' in values else None
         outline = getValue(args, values['outline']) if 'outline' in values else None
-        outlineWidth = getValue(args, values['outlineWidth']) if 'outlineWidth' in values else 0 if outline == None else 1
         color = getValue(args, values['color']) if 'color' in values else None
         text = getValue(args, values['text']) if 'text' in values else ''
         fontFace = getValue(args, values['fontFace']) if 'fontFace' in values else 'Helvetica'
         fontWeight = getValue(args, values['fontWeight']) if 'fontWeight' in values else 'normal'
-        fontSize = round(height*2/5) if shape == 'ellipse' else round(height*3/5)
-        fontTop = screenTop + height/2
+        fontTop = int(round(screenTop + height/2))
         if 'fontSize' in values:
             fontSize = getValue(args, values['fontSize'])
-            fontTop = top + round(fontSize * 5 / 4)
-        adjust = round(fontSize/5) if shape == 'ellipse' else 0
+            fontTop = int(round(screenTop + height/2 - fontSize/4))
+        else:
+            fontSize = int(round(height*2/5) if shape == 'ellipse' else round(height*3/5))
+            fontTop -= int(round(screenTop + height/2 - fontSize/5))
+        adjust = int(round(fontSize/5)) if shape == 'ellipse' else 0
         align = getValue(args, values['align']) if 'align' in values else 'center'
         if align == 'left':
-            xoff = round(fontSize/5)
+            xoff = int(round(fontSize/5))
             anchor = 'w'
         elif align == 'right':
-            xoff = width - round(fontSize/5)
+            xoff = width - int(round(fontSize/5))
             anchor = 'e'
         else:
-            xoff = width/2
+            xoff = int(round(width/2))
             anchor = 'center'
         if xoff < 3:
             xoff = 3
-        if shape == 'ellipse':
-            containerId = getCanvas().create_oval(screenLeft, screenTop, right, bottom, fill=fill, outline=outline, width=outlineWidth)
-        else:
-            containerId = getCanvas().create_rectangle(screenLeft, screenTop, right, bottom, fill=fill, outline=outline, width=outlineWidth)
+        xoff -= int(round(fontSize/4))
         textId = canvas.create_text(screenLeft + xoff, fontTop + adjust, fill=color, font=f'"{fontFace}" {fontSize} {fontWeight}', text=text, anchor=anchor)
         if 'name' in values:
             widgetName = getValue(args, values['name'])
@@ -211,7 +206,6 @@ def render(spec, parent):
             "type": "text",
             "name": widgetName,
             "id": textId,
-            "containerId": containerId,
             "left": left,
             "top": top,
             "width": width,
@@ -229,34 +223,31 @@ def render(spec, parent):
         top = getValue(args, values['top']) if 'top' in values else 10
         screenTop = top + getScreenTop(parent)
         width = getValue(args, values['width']) if 'width' in values else 100
-        height = getValue(args, values['height']) if 'height' in values else 100
-        right = screenLeft + width
-        bottom = screenTop + height
-        src = getValue(args, values['src']) if 'src' in values else None
-        containerId = getCanvas().create_rectangle(screenLeft, screenTop, right, bottom, width=0)
+        source = getValue(args, values['source']) if 'source' in values else None
         if 'name' in values:
             widgetName = values['name']
         else:
             widgetName = None
+        if source == None:
+            raise(Exception(f'No image source given for \'{id}\''))
+        img = (Image.open(source))
+        height = int(round(img.height * width / img.width))
+        resized_image= img.resize((width, height), Image.LANCZOS)
+        new_image= ImageTk.PhotoImage(resized_image)
+        imageid = getCanvas().create_image(screenLeft, screenTop, anchor='nw', image=new_image)
+        images[widgetName] = {'id': imageid, "image": new_image}
         widgetSpec = {
             "type": "image",
             "nme": widgetName,
-            "id": containerId,
             "left": left,
             "top": top,
             "width": width,
             "height": height,
+            "source": source,
             "parent": parent
         }
         elements[widgetName] = widgetSpec
         zlist.append({widgetName: widgetSpec})
-        if src == None:
-            raise(Exception(f'No image source given for \'{id}\''))
-        img = (Image.open(src))
-        resized_image= img.resize((width, height), Image.ANTIALIAS)
-        new_image= ImageTk.PhotoImage(resized_image)
-        imageid = getCanvas().create_image(screenLeft, screenTop, anchor='nw', image=new_image)
-        images[containerId] = {'id': imageid, "image": new_image}
         return widgetSpec
 
     # Create a canvas or render a widget

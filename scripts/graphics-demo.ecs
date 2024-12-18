@@ -5,6 +5,7 @@
     rectangle BlueRect
     ellipse RedEllipse
     ellipse GreenCircle
+    text WhiteText
     file File
     variable Spec
     variable UpDown
@@ -16,7 +17,7 @@
 
     create screen at 300 300 size 640 480 fill color yellow
 
-    open File `scripts/graphics-demo.json` for reading
+    open File `json/graphics-demo.json` for reading
     read Spec from File
     close File
 
@@ -48,7 +49,7 @@
                 clear UpDown
             end
             move RedEllipse to Left Top
-            take 5 from Left
+            add 5 to Left
         end
         else
         begin
@@ -62,7 +63,7 @@
                 set UpDown
             end
             move RedEllipse to Left Top
-            add 5 to Left
+            take 5 from Left
         end
         increment N
     end
