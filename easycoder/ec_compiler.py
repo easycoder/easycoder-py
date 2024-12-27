@@ -16,6 +16,7 @@ class Compiler:
 		self.warnings = []
 		self.program.compiler = self
 		self.addCommand = self.program.add
+		self.compileConstant = self.value.compileConstant
 
 	def getPC(self):
 		return len(self.program.code)
@@ -44,6 +45,11 @@ class Compiler:
 		except:
 			return None
 
+	# Get a constant
+	def getConstant(self, token):
+		self.index += 1
+		return self.compileConstant(token)
+
 	# Get a value
 	def getValue(self):
 		return self.value.compileValue()
@@ -52,11 +58,6 @@ class Compiler:
 	def nextValue(self):
 		self.index += 1
 		return self.value.compileValue()
-
-	# Get a constant
-	def getConstant(self, token):
-		self.index += 1
-		return self.value.compileConstant(token)
 
 	# Get a condition
 	def getCondition(self):
@@ -101,7 +102,7 @@ class Compiler:
 
 	def showWarnings(self):
 		for warning in self.warnings:
-			print(f'Warning: Line {self.getLino() + 1}: {warning}')
+			print(f'Warning at line {self.getLino() + 1} from {warning}')
 
 	def getSymbolRecord(self):
 		token = self.getToken()

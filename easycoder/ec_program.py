@@ -11,23 +11,18 @@ class Program:
 
 	def __init__(self, argv):
 		print(f'EasyCoder version {version("easycoder")}')
-		scriptName = None
 		if len(argv) == 0:
 			print('No script supplied')
 			exit()
 		self.classes=[Core]
-		for n in range(len(argv)):
-			arg = argv[n]
-			if arg == '-g':
-				from .ec_graphics import Graphics
-				self.classes.append(Graphics)
-			else:
-				scriptName = arg
+		scriptName = argv[0]
+		if scriptName.endswith('.ecg'):
+			from .ec_graphics import Graphics
+			self.classes.append(Graphics)
 
 		f = open(scriptName, 'r')
 		source = f.read()
 		f.close()
-		self.argv = argv
 		self.domains = []
 		self.domainIndex = {}
 		self.name = '<anon>'
@@ -43,6 +38,8 @@ class Program:
 		self.condition = self.compiler.condition
 		self.processClasses()
 		self.queue = deque()
+		self.externalControl = False
+		self.quit = False
 
 	def start(self):
 		startCompile = time.time()
@@ -242,18 +239,17 @@ class Program:
 				index += 1
 			lino += 1
 		return
+	
+	def finish(self):
+		self.quit = True
 
-	# Run the script
-	def run(self, pc):
-		# print(f'Run from {pc}')
-		length = len(self.queue)
-		self.queue.append(pc)
-		if length > 0:
-			return
-
+	# Flush the queue
+	def flush(self):
 		while len(self.queue):
 			self.pc = self.queue.popleft()
 			while True:
+				if self.quit:
+					return
 				command = self.code[self.pc]
 				domainName = command['domain']
 				if domainName == None:
@@ -272,11 +268,20 @@ class Program:
 						self.pc = handler(command)
 						try:
 							if self.pc == 0 or self.pc >= len(self.code):
-								return 0
+								break
 						except:
-							return 0
-				if self.pc < 0:
-					return -1
+							break
+
+	def setExternalControl(self):
+		self.externalControl = True
+
+	# Run the script
+	def run(self, pc):
+		length = len(self.queue)
+		self.queue.append(pc)
+		if not self.externalControl:
+			if length == 0:
+				return self.flush()
 
 	def nonNumericValueError(self):
 		FatalError(self.compiler, 'Non-numeric value')
@@ -322,10 +327,3 @@ class Program:
 		if v1 < v2:
 			return -1
 		return 0
-
-# This is the program launcher
-def Main():
-	if (len(sys.argv) > 1):
-		Program(sys.argv[1:]).start()
-	else:
-		print('Syntax: easycoder <scriptname> [plugins]')

@@ -5,29 +5,30 @@
     rectangle BlueRect
     ellipse RedEllipse
     ellipse GreenCircle
+    image Image
     file File
     variable Spec
     variable UpDown
-    variable Left
-    variable Top
     variable Steps
     variable Step
+    variable Left
+    variable Bottom
     variable DX
     variable DY
+    variable B
+    variable L
     variable N
     variable X
     variable Y
-    variable L
-    variable T
 
 !    debug step
 
-    create screen at 300 300 size 640 480 fill color yellow
+    create window title `Learning Kivy` at 300 300 size 640 480 fill color 255 255 200
+    run graphics
 
-    open File `json/graphics-demo.json` for reading
+    open File `json/graphics-demo.json`
     read Spec from File
     close File
-
     render Spec
 
     attach BlueRect to `bluerect`
@@ -36,18 +37,19 @@
     on click RedEllipse print `Click Red`
     attach GreenCircle to `greencircle`
     on click GreenCircle print `Click Green`
-    
-    gosub to InitEllipse
+    attach Image to `dawn`
+    on click Image print ` Click Image`
 
+    gosub to InitEllipse
     clear UpDown
     put 0 into N
-    on tick
+    while true
     begin
         if UpDown
         begin
-            if N is less than 10
+            if N is less than 200
             begin
-                move BlueRect by -10 -10
+                move BlueRect by -1 -1
             end
             else
             begin
@@ -57,9 +59,9 @@
         end
         else
         begin
-            if N is less than 10
+            if N is less than 200
             begin
-                move BlueRect by 10 10
+                move BlueRect by 1 1
             end
             else
             begin
@@ -69,19 +71,20 @@
         end
         increment N
         gosub to MoveEllipse
+        wait 1 tick
     end
-    show screen
-    stop
+    close window
+    exit
 
 InitEllipse:
     put attribute `left` of RedEllipse into Left
-    put attribute `top` of RedEllipse into Top
+    put attribute `bottom` of RedEllipse into Bottom
     put random 340 into X
     put random 280 into Y
     add 50 to X
     add 50 to Y
     take Left from X giving DX
-    take Top from Y giving DY
+    take Bottom from Y giving DY
     put 20 into Steps
     put 0 into Step
     return
@@ -92,8 +95,8 @@ MoveEllipse:
     add X to Left giving L
     multiply DY by Step giving Y
     divide Y by Steps
-    add Y to Top giving T
-    move RedEllipse to L T
+    add Y to Bottom giving B
+    move RedEllipse to L B
     increment Step
     if Step is Steps gosub to InitEllipse
     return

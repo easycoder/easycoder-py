@@ -724,8 +724,10 @@ class Core(Handler):
                         FatalError(self.program.compiler, 'Unknown file open mode {self.getToken()}')
                         return False
                     command['mode'] = mode
-                    self.add(command)
-                    return True
+                else:
+                    command['mode'] = 'r'
+                self.add(command)
+                return True
             else:
                 FatalError(self.compiler, f'Variable "{self.getToken()}" is not a file')
         else:

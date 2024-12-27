@@ -83,16 +83,16 @@ class Value:
 	
 	def compileConstant(self, token):
 		value = {}
-		if token.isnumeric():
-			val = eval(token)
-			if isinstance(val, int):
-				value['type'] = 'int'
-				value['content'] = val
-				return value
-			if isinstance(val, float):
-				value['type'] = 'float'
-				value['content'] = val
-				return value
+		if type(token) == 'str':
+			token = eval(token)
+		if isinstance(token, int):
+			value['type'] = 'int'
+			value['content'] = token
+			return value
+		if isinstance(token, float):
+			value['type'] = 'float'
+			value['content'] = token
+			return value
 		value['type'] = 'text'
 		value['content'] = token
 		return value

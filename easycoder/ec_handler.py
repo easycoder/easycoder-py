@@ -25,6 +25,7 @@ class Handler:
 		self.getCommandAt = compiler.getCommandAt
 		self.compileOne = compiler.compileOne
 		self.compileFromHere = compiler.compileFromHere
+		self.compileConstant = compiler.compileConstant
 
 		self.code = self.program.code
 		self.add = self.program.add

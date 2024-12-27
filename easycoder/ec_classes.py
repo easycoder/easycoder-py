@@ -52,3 +52,6 @@ class Token:
 	
 class Condition():
 	negate = False
+
+class Object():
+    pass
