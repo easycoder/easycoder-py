@@ -78,7 +78,8 @@ class UI(Widget):
         self.zlist.append(element)
 
     def createElement(self, spec):
-        def recalc(val):
+        # Get a real position or size value
+        def getReal(val):
             if isinstance(val, str):
                 c = val[-1]
                 if c in ['w', 'h']:
@@ -105,9 +106,9 @@ class UI(Widget):
                     Color(c[0], c[1], c[2])
                 else:
                     Color(c[0]/255, c[1]/255, c[2]/255)
-            pos = (recalc(spec.pos[0]), recalc(spec.pos[1]))
+            pos = (getReal(spec.pos[0]), getReal(spec.pos[1]))
             spec.realpos = pos
-            size = (recalc(spec.size[0]), recalc(spec.size[1]))
+            size = (getReal(spec.size[0]), getReal(spec.size[1]))
             spec.realsize = size
             if spec.parent != None:
                 pos = Vector(pos) + spec.parent.realpos

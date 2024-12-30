@@ -64,10 +64,10 @@
 
     "Photo": {
         "type": "image",
-        "left": 70,
-        "bottom": 150,
-        "width": 500,
-        "height": 300,
+        "left": "10w",
+        "bottom": "30h",
+        "width": "80w",
+        "height": "60h",
         "source": "images/Semoigo Dawn.jpg",
         "id": "dawn"
     }
