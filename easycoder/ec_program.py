@@ -200,44 +200,60 @@ class Program:
 
 	# Tokenise the script
 	def tokenise(self, script):
-		index = 0
-		lino = 0
-		for line in script.lines:
+		token = ''
+		literal = False
+		for lino in range(0, len(script.lines)):
+			line = script.lines[lino]
 			length = len(line)
-			token = ''
-			inSpace = True
+			if length == 0:
+				continue
+			# Look for the first non-space
 			n = 0
-			while n < length:
+			while n < length and line[n].isspace():
+				n += 1
+			# The whole line may be empty
+			if n == length:
+				if literal:
+					token += '\n'
+				continue
+			# If in an unfinished literal, the first char must be a backtick to continue adding to it
+			if literal:
+				if line[n] != '`':
+					# Close the current token
+					if len(token) > 0:
+						script.tokens.append(Token(lino, token))
+						token = ''
+						literal = False
+				n += 1
+			for n in range(n, length):
 				c = line[n]
-				if len(c.strip()) == 0:
-					if (inSpace):
-						n += 1
+				# Test if we are in a literal
+				if not literal:
+					if c.isspace():
+						if len(token) > 0:
+							script.tokens.append(Token(lino, token))
+							token = ''
 						continue
-					script.tokens.append(Token(lino, token))
-					index += 1
-					token = ''
-					inSpace = True
-					n += 1
-					continue
-				inSpace = False
+					elif c == '!':
+						break
+				# Test for the start or end of a literal
 				if c == '`':
-					m = n
-					n += 1
-					while n < len(line) - 1:
-						if line[n] == '`':
-							break
-						n += 1
-					# n += 1
-					token = line[m:n+1]
-				elif c == '!':
-					break
+					if literal:
+						token += c
+						literal = False
+					else:
+						token += c
+						literal = True
+						m = n
+						continue
 				else:
 					token += c
-				n += 1
 			if len(token) > 0:
-				script.tokens.append(Token(lino, token))
-				index += 1
-			lino += 1
+				if literal:
+					token += '\n'
+				else:
+					script.tokens.append(Token(lino, token))
+					token = ''
 		return
 	
 	def finish(self):

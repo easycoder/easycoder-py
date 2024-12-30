@@ -24,6 +24,13 @@ class Element():
     def getID(self):
         return self.spec.id
 
+    def getRealPos(self):
+        spec = self.spec
+        pos = spec.realpos
+        if spec.parent != None:
+            pos = Vector(pos) + spec.parent.realpos
+        return pos
+
     def getPos(self):
         spec = self.spec
         pos = spec.pos
@@ -32,13 +39,16 @@ class Element():
         return pos
 
     def setPos(self, pos):
-        self.spec.pos = pos
+        self.spec.realpos = pos
         self.spec.item.pos = pos
     
     # Called when the parent moves
     def repos(self):
         spec = self.spec
-        spec.item.pos = Vector(spec.pos) + spec.parent.pos
+        spec.item.pos = Vector(spec.realpos) + spec.parent.realpos
+            
+    def getRealSize(self):
+        return self.spec.realsize
             
     def getSize(self):
         return self.spec.size
@@ -68,6 +78,25 @@ class UI(Widget):
         self.zlist.append(element)
 
     def createElement(self, spec):
+        def recalc(val):
+            if isinstance(val, str):
+                c = val[-1]
+                if c in ['w', 'h']:
+                    val = int(val[0:len(val)-1])
+                    if spec.parent == None:
+                        if c == 'w':
+                            n = Window.width
+                        else:
+                            n = Window.height
+                    else:
+                        if c == 'w':
+                            n = spec.parent.realsize[0]
+                        else:
+                            n = spec.parent.realsize[1]
+                    return val * n / 100
+            return val
+
+        print(spec.id)
         with self.canvas:
             if hasattr(spec, 'fill'):
                 c = spec.fill
@@ -76,13 +105,16 @@ class UI(Widget):
                     Color(c[0], c[1], c[2])
                 else:
                     Color(c[0]/255, c[1]/255, c[2]/255)
-            pos = spec.pos
+            pos = (recalc(spec.pos[0]), recalc(spec.pos[1]))
+            spec.realpos = pos
+            size = (recalc(spec.size[0]), recalc(spec.size[1]))
+            spec.realsize = size
             if spec.parent != None:
-                pos = Vector(pos) + spec.parent.pos
+                pos = Vector(pos) + spec.parent.realpos
             if spec.type == 'ellipse':
-                item = Ellipse(pos=pos, size=spec.size)
+                item = Ellipse(pos=pos, size=size)
             elif spec.type == 'rectangle':
-                item = Rectangle(pos=pos, size=spec.size)
+                item = Rectangle(pos=pos, size=size)
             elif spec.type == 'text':
                 if hasattr(spec, 'color'):
                     c = spec.color
@@ -96,16 +128,16 @@ class UI(Widget):
                 label = CoreLabel(text=spec.text, font_size=1000, halign='center', valign='center')
                 label.refresh()
                 text = label.texture
-                item = Rectangle(pos=spec.pos, size=spec.size, texture=text)
+                item = Rectangle(pos=pos, size=size, texture=text)
             elif spec.type == 'image':
-                item = AsyncImage(pos=spec.pos, size=spec.size, source=spec.source)
+                item = AsyncImage(pos=pos, size=size, source=spec.source)
             spec.item = item
             self.addElement(spec.id, spec)
     
     def moveElementBy(self, id, dist):
         element = self.getElement(id)
         if element != None:
-            element.setPos(Vector(element.getPos()) + dist)
+            element.setPos(Vector(element.getRealPos()) + dist)
             for id in element.getChildren():
                 self.getElement(id).repos()
         return
@@ -113,7 +145,7 @@ class UI(Widget):
     def moveElementTo(self, id, pos):
         element = self.getElement(id)
         if element != None:
-            self.moveElementBy(id, Vector(pos) - element.getPos())
+            self.moveElementBy(id, Vector(pos) - element.getRealPos())
         return
 
     def on_touch_down(self, touch):
@@ -123,9 +155,9 @@ class UI(Widget):
         for element in reversed(self.zlist):
             if element.cb != None:
                 spec = element.spec
-                pos = spec.pos
+                pos = self.getRealPos()
                 if spec.parent != None:
-                    pos = Vector(pos) + spec.parent.pos
+                    pos = Vector(pos) + spec.parent.getRealPos()
                 size = spec.size
                 if spec.type == 'ellipse':
                     a = size[0]/2
@@ -147,16 +179,25 @@ class UI(Widget):
     def getAttribute(self, id, attribute):
         spec = self.getElement(id).spec
         if attribute == 'left':
-            return spec.pos[0]
+            return spec.realpos[0]
         elif attribute == 'bottom':
-            return spec.pos[1]
+            return spec.realpos[1]
         elif attribute == 'width':
-            return spec.size[0]
+            return spec.realsize[0]
         elif attribute == 'height':
-            return spec.size[1]
+            return spec.realsize[1]
         else:
             raise Exception(f'Unknown attribute: {attribute}')
 
+    def getWindowAttribute(self, attribute):
+        if attribute == 'left':
+            return Window.left
+        elif attribute == 'top':
+            return Window.top
+        elif attribute == 'width':
+            return Window.size[0]
+        elif attribute == 'height':
+            return Window.size[1]
 
 class Renderer(App):
 

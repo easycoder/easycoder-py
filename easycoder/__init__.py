@@ -10,4 +10,4 @@ from .ec_program import *
 from .ec_timestamp import *
 from .ec_value import *
 
-__version__ = "241227.1"
+__version__ = "241230.1"
