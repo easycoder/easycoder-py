@@ -11,8 +11,8 @@
     variable Range
     variable Step
     variable H
+    variable L
     variable N
-    variable W
 
     create window title `Mexican Wave` at 300 300 size 640 480 fill color 255 255 200
     run graphics
@@ -33,24 +33,23 @@
         `
         `` into Spec
 
-    set the elements of Bar to 10
     put 0 into N
     while N is less than 10
     begin
         put `
         `   "Bar<N>": {
         `      "type": "rectangle",
-        `      "left": "<W>w",
+        `      "left": "<L>w",
         `      "bottom": 0,
-        `      "width": "9w",
+        `      "width": "8w",
         `      "height": 0,
         `      "fill": "blue",
         `      "id": "bar<N>"
         `   }` into Item
 
-        multiply N by 10 giving W
-        add 1 to W
-        replace `<W>` with W in Item
+        multiply N by 10 giving L
+        add 1 to L
+        replace `<L>` with L in Item
         replace `<N>` with N in Item
         put Spec cat Item into Spec
         increment N
