@@ -97,7 +97,6 @@ class UI(Widget):
                     return val * n / 100
             return val
 
-        print(spec.id)
         with self.canvas:
             if hasattr(spec, 'fill'):
                 c = spec.fill
@@ -177,6 +176,18 @@ class UI(Widget):
     def setOnClick(self, id, callback):
         self.getElement(id).cb = callback
 
+    def getWindowAttribute(self, attribute):
+        if attribute == 'left':
+            return Window.left
+        elif attribute == 'top':
+            return Window.top
+        elif attribute == 'width':
+            return Window.size[0]
+        elif attribute == 'height':
+            return Window.size[1]
+        else:
+            raise Exception(f'Unknown attribute: {attribute}')
+
     def getAttribute(self, id, attribute):
         spec = self.getElement(id).spec
         if attribute == 'left':
@@ -189,16 +200,23 @@ class UI(Widget):
             return spec.realsize[1]
         else:
             raise Exception(f'Unknown attribute: {attribute}')
-
-    def getWindowAttribute(self, attribute):
+        
+    def setAttribute(self, id, attribute, value):
+        spec = self.getElement(id).spec
         if attribute == 'left':
-            return Window.left
-        elif attribute == 'top':
-            return Window.top
+            spec.realpos = (value, spec.realsize[0])
+            spec.item.pos = (value, spec.realsize[0])
+        elif attribute == 'bottom':
+            spec.realpos = (spec.realsize[0], value)
+            spec.item.pos = (spec.realsize[0], value)
         elif attribute == 'width':
-            return Window.size[0]
+            spec.realsize = (value, spec.realsize[0])
+            spec.item.size = (value, spec.realsize[0])
         elif attribute == 'height':
-            return Window.size[1]
+            spec.realsize = (spec.realsize[0], value)
+            spec.item.size = (spec.realsize[0], value)
+        else:
+            raise Exception(f'Unknown attribute: {attribute}')
 
 class Renderer(App):
 
@@ -213,7 +231,7 @@ class Renderer(App):
         self.flush()
     
     def build(self):
-        Clock.schedule_interval(self.flushQueue, 0.05)
+        Clock.schedule_interval(self.flushQueue, 0.01)
         self.ui = UI()
         return self.ui
 

@@ -1,0 +1,119 @@
+!   Mexican Wave
+
+    script MexicanWave
+
+    rectangle Bar
+    variable Spec
+    variable Item
+    variable Angle
+    variable Height
+    variable Mid
+    variable Range
+    variable Step
+    variable H
+    variable N
+    variable W
+
+    create window title `Mexican Wave` at 300 300 size 640 480 fill color 255 255 200
+    run graphics
+
+    put `{
+        `   "#": [
+        `       "Bar0",
+        `       "Bar1",
+        `       "Bar2",
+        `       "Bar3",
+        `       "Bar4",
+        `       "Bar5",
+        `       "Bar6",
+        `       "Bar7",
+        `       "Bar8",
+        `       "Bar9"
+        `   ],
+        `
+        `` into Spec
+
+    set the elements of Bar to 10
+    put 0 into N
+    while N is less than 10
+    begin
+        put `
+        `   "Bar<N>": {
+        `      "type": "rectangle",
+        `      "left": "<W>w",
+        `      "bottom": 0,
+        `      "width": "9w",
+        `      "height": 0,
+        `      "fill": "blue",
+        `      "id": "bar<N>"
+        `   }` into Item
+
+        multiply N by 10 giving W
+        add 1 to W
+        replace `<W>` with W in Item
+        replace `<N>` with N in Item
+        put Spec cat Item into Spec
+        increment N
+        if N is less than 10 put Spec cat `,` cat newline into Spec
+    end
+    put Spec cat newline cat `}` cat newline into Spec
+
+    render Spec
+
+    divide the window height by 2 giving Mid
+    multiply Mid by 9 giving Range
+    divide Range by 10
+
+    set the elements of Bar to 10
+    set the elements of Angle to 10
+    put 0 into N
+    while N is less than 10
+    begin
+        index Bar to N
+        attach Bar to `bar` cat N
+        index Angle to N
+        multiply N by 36 giving Angle
+        increment N
+    end
+
+    wait 1
+    ! Run the setup
+    put 0 into N
+    while N is less than 10
+    begin
+        index Bar to N
+        index Angle to N
+        put sin Angle radius Range into Height
+        negate Height
+        add Mid to Height
+        divide Height by 10 giving Step
+        put 0 into H
+        while H is less than Height
+        begin
+            set attribute `height` of Bar to H
+            add Step to H
+            wait 1 milli
+        end
+        set attribute `height` of Bar to Height
+        increment N
+    end
+
+    wait 2
+    ! Run the main animation
+    while true
+    begin
+        put 0 into N
+        while N is less than 10
+        begin
+            index Bar to N
+            index Angle to N
+            put sin Angle radius Range into Height
+            negate Height
+            add Mid to Height
+            set attribute `height` of Bar to Height
+            if Angle is 0 put 360 into Angle
+            decrement Angle
+            increment N
+        end
+        wait 1 milli
+    end

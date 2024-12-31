@@ -75,4 +75,3 @@ class ScreenSpec():
 
         else:
             raise Exception('Spec is an unknown type')
-

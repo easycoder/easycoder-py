@@ -696,6 +696,29 @@ class Core(Handler):
         self.putSymbolValue(target, value)
         return self.nextPC()
 
+    # Negate a variable
+    def k_negate(self, command):
+        if self.nextIsSymbol():
+            symbolRecord = self.getSymbolRecord()
+            if symbolRecord['valueHolder']:
+                command['target'] = self.getToken()
+                self.add(command)
+                return True
+            self.warning(f'Core.negate: Variable "{symbolRecord["name"]}" does not hold a value')
+        return False
+
+    def r_negate(self, command):
+        symbolRecord = self.getVariable(command['target'])
+        if not symbolRecord['valueHolder']:
+            RuntimeError(self.program, f'{symbolRecord["name"]} does not hold a value')
+            return None
+        value = self.getSymbolValue(symbolRecord)
+        if value == None:
+            RuntimeError(self.program, f'{symbolRecord["name"]} has not been initialised')
+        value['content'] *= -1
+        self.putSymbolValue(symbolRecord, value)
+        return self.nextPC()
+
     # Define an object variable
     def k_object(self, command):
         return self.compileVariable(command)
@@ -976,7 +999,7 @@ class Core(Handler):
         content = self.getSymbolValue(templateRecord)['content']
         original = self.getRuntimeValue(command['original'])
         replacement = self.getRuntimeValue(command['replacement'])
-        content = content.replace(original, replacement)
+        content = content.replace(original, str(replacement))
         value = {}
         value['type'] = 'text'
         value['numeric'] = False
@@ -1417,7 +1440,7 @@ class Core(Handler):
     # Compile a value in this domain
     def compileValue(self):
         value = {}
-        value['domain'] = 'core'
+        value['domain'] = self.getName()
         token = self.getToken()
         if self.isSymbol():
             value['name'] = token

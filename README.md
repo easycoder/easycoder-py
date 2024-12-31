@@ -49,9 +49,17 @@ Here in the repository is a folder called `scripts` containing some sample scrip
 `fizzbuzz.ecs` is a simple programming challenge often given at job interviews
 
 ## Graphical programmming
-**_EasyCoder_** is currently being extended to include a graphical programming environment. A single demo script `graphics-demo.ecs` is included in the `scripts` directory. To run it, first install the Python graphics library if it's not already present on your system. On Linux this is done with `sudo apt install python3-tk`. On Windows it's `pip install tk`. Then give the command `easycoder -g scripts/graphics-demo.ecs`.
+**_EasyCoder_** includes a graphical programming environment that is in the early stages of development. A couple of demo scripts are included in the `scripts` directory. To run them, first install the Python `kivy` graphics library if it's not already present on your system. This is done with `pip install kivy`. Then run a script using `easycoder {scriptname}.ecg`.
 
-As development progresses this demo script will be extended to include new features as they are added. **_EasyCoder_** graphics are handled by a library module, `ec_renderer` that can be used outside of the **_EasyCoder_** environment, in other Python programs.
+Graphical scripts look much like any other script but their file names must use the extension `.ecg` to signal to **_EasyCoder_** that it needs to load the graphics module. This allows the **_EasyCoder_** application to be used wherever Python is installed, in either a command-line or a graphical environment (but graphics will of course not be available in the former).
+
+A couple of demo scripts are included in the `scripts` directory:
+
+`graphics-demo.ecg` shows some of the elements that can be created, and demonstrates a variety of the graphical features of the language such as detecting when elements are clicked.
+
+`wave.ecg` is a "Mexican Wave" simulation.
+
+**_EasyCoder_** graphics are handled by a library module, `ec_renderer` that can be used outside of the **_EasyCoder_** environment, in other Python programs.
 
 ## EasyCoder programming reference
 

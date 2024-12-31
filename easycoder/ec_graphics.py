@@ -9,7 +9,7 @@ class Graphics(Handler):
         Handler.__init__(self, compiler)
 
     def getName(self):
-        return 'kivy'
+        return 'graphics'
 
     #############################################################################
     # Keyword handlers
@@ -204,10 +204,45 @@ class Graphics(Handler):
     def r_ellipse(self, command):
         return self.nextPC()
 
+    def r_getui(self, command):
+        self.ui = self.renderer.getUI()
+        return self.nextPC()
+
     def k_image(self, command):
         return self.compileVariable(command)
 
     def r_image(self, command):
+        return self.nextPC()
+
+    # move an element
+    def k_move(self, command):
+        if self.nextIsSymbol():
+            record = self.getSymbolRecord()
+            type = record['keyword']
+            if type in ['ellipse', 'rectangle']:
+                command['target'] = record['id']
+                token = self.nextToken()
+                if token == 'to':
+                    command['x'] = self.nextValue()
+                    command['y'] = self.nextValue()
+                    self.add(command)
+                    return True
+                elif token == 'by':
+                    command['keyword'] = 'moveBy'
+                    command['dx'] = self.nextValue()
+                    command['dy'] = self.nextValue()
+                    self.add(command)
+                    return True
+        return False
+
+    def r_move(self, command):
+        pos = (self.getRuntimeValue(command['x']), self.getRuntimeValue(command['y']))
+        self.ui.moveElementTo(self.getRuntimeValue(command['target']), pos)
+        return self.nextPC()
+
+    def r_moveBy(self, command):
+        dist = (self.getRuntimeValue(command['dx']), self.getRuntimeValue(command['dy']))
+        self.ui.moveElementBy(self.getRuntimeValue(command['target']), dist)
         return self.nextPC()
 
     def k_on(self, command):
@@ -255,37 +290,6 @@ class Graphics(Handler):
                 RuntimeError(self.program, f'{record['name']} is not a clickable object')
         return self.nextPC()
 
-    # move an element
-    def k_move(self, command):
-        if self.nextIsSymbol():
-            record = self.getSymbolRecord()
-            type = record['keyword']
-            if type in ['ellipse', 'rectangle']:
-                command['target'] = record['id']
-                token = self.nextToken()
-                if token == 'to':
-                    command['x'] = self.nextValue()
-                    command['y'] = self.nextValue()
-                    self.add(command)
-                    return True
-                elif token == 'by':
-                    command['keyword'] = 'moveBy'
-                    command['dx'] = self.nextValue()
-                    command['dy'] = self.nextValue()
-                    self.add(command)
-                    return True
-        return False
-
-    def r_move(self, command):
-        pos = (self.getRuntimeValue(command['x']), self.getRuntimeValue(command['y']))
-        self.ui.moveElementTo(self.getRuntimeValue(command['target']), pos)
-        return self.nextPC()
-
-    def r_moveBy(self, command):
-        dist = (self.getRuntimeValue(command['dx']), self.getRuntimeValue(command['dy']))
-        self.ui.moveElementBy(self.getRuntimeValue(command['target']), dist)
-        return self.nextPC()
-
     def k_rectangle(self, command):
         return self.compileVariable(command)
 
@@ -306,13 +310,22 @@ class Graphics(Handler):
 
     def r_render(self, command):
         self.ui = self.renderer.getUI()
-        ScreenSpec().render(self.getRuntimeValue(command['spec']), self.ui)
+        try:
+            ScreenSpec().render(self.getRuntimeValue(command['spec']), self.ui)
+        except Exception as e:
+            RuntimeError(self.program, e)
         return self.nextPC()
 
     # run graphics
     def k_run(self, command):
         if self.nextIs('graphics'):
             self.add(command)
+            cmd = {}
+            cmd['domain'] = 'graphics'
+            cmd['lino'] = command['lino'] + 1
+            cmd['keyword'] = 'getui'
+            cmd['debug'] = False
+            self.addCommand(cmd)
             return True
         return False
 
@@ -322,6 +335,33 @@ class Graphics(Handler):
         self.program.setExternalControl()
         self.program.run(self.nextPC())
         self.renderer.run()
+
+    # Set something
+    def k_set(self, command):
+        if self.nextIs('attribute'):
+            command['attribute'] = self.nextValue()
+            if self.nextIs('of'):
+                if self.nextIsSymbol():
+                    record = self.getSymbolRecord()
+                    if record['keyword'] in ['ellipse', 'rectangle', 'text', 'image']:
+                        command['target'] = record['name']
+                        if self.nextIs('to'):
+                            command['value'] = self.nextValue()
+                            self.addCommand(command)
+                            return True
+                    else:
+                        FatalError(self.program.compiler, f'Invalid type: {record['keyword']}')
+                else:
+                    FatalError(self.program.compiler, f'\'{self.getToken()}\' is not a variable')
+        return False
+
+    def r_set(self, command):
+        attribute = self.getRuntimeValue(command['attribute'])
+        target = self.getVariable(command['target'])
+        id = target['value'][target['index']]['content']
+        value = self.getRuntimeValue(command['value'])
+        self.ui.setAttribute(id, attribute, value)
+        return self.nextPC()
 
     #############################################################################
     # Modify a value or leave it unchanged.
@@ -333,16 +373,24 @@ class Graphics(Handler):
     def compileValue(self):
         value = {}
         value['domain'] = self.getName()
-        if self.tokenIs('attribute'):
+        if self.tokenIs('the'):
+            self.nextToken()
+        kwd = self.getToken()
+        value['type'] = kwd
+        if kwd == 'attribute':
             attribute = self.nextValue()
             if self.nextIs('of'):
                 if self.nextIsSymbol():
                     record = self.getSymbolRecord()
                     if record['keyword'] in ['ellipse', 'rectangle']:
-                        value['type'] = 'attribute'
                         value['attribute'] = attribute
                         value['target'] = record['name']
                         return value
+        elif kwd == 'window':
+            attribute = self.nextToken()
+            if attribute in ['left', 'top', 'width', 'height']:
+                value['attribute'] = attribute
+                return value
         return None
 
     #############################################################################
@@ -357,6 +405,16 @@ class Graphics(Handler):
             value = {}
             value['type'] = 'int'
             value['content'] = int(round(v))
+            return value
+        except Exception as e:
+            RuntimeError(self.program, e)
+
+    def v_window(self, v):
+        try:
+            attribute = v['attribute']
+            value = {}
+            value['type'] = 'int'
+            value['content'] = int(round(self.ui.getWindowAttribute(attribute)))
             return value
         except Exception as e:
             RuntimeError(self.program, e)
