@@ -464,23 +464,6 @@ class Core(Handler):
         self.program.putSymbolValue(target, retval);
         return self.nextPC()
 
-    # Call a subroutine
-    def k_gosub(self, command):
-        if self.peek() == 'to':
-            self.nextToken()
-        command['gosub'] = self.nextToken()
-        self.add(command)
-        return True
-
-    def r_gosub(self, command):
-        label = command['gosub'] + ':'
-        address = self.symbols[label]
-        if address != None:
-            self.stack.append(self.nextPC())
-            return address
-        RuntimeError(self.program, f'There is no label "{label + ":"}"')
-        return None
-
     # Go to a label
     def k_go(self, command):
         if self.peek() == 'to':
@@ -505,6 +488,23 @@ class Core(Handler):
 
     def r_gotoPC(self, command):
         return command['goto']
+
+    # Call a subroutine
+    def k_gosub(self, command):
+        if self.peek() == 'to':
+            self.nextToken()
+        command['gosub'] = self.nextToken()
+        self.add(command)
+        return True
+
+    def r_gosub(self, command):
+        label = command['gosub'] + ':'
+        address = self.symbols[label]
+        if address != None:
+            self.stack.append(self.nextPC())
+            return address
+        RuntimeError(self.program, f'There is no label "{label + ":"}"')
+        return None
 
     # if <condition> <action> [else <action>]
     def k_if(self, command):
