@@ -1,5 +1,5 @@
 # Introduction
-This is the Python version of **_EasyCoder_**, a high-level English-like scripting language suited for prototyping and rapid testing of ideas. It operates on the command line.
+**_EasyCoder_** is a high-level English-like scripting language suited for prototyping and rapid testing of ideas. It operates on the command line and a graphics module is under construction. This version of the language is written in Python and its runtime acts as a fairly thin wrapper around Python functions, giving good performance for general applications.
 
 The JavaScript version of **_EasyCoder_**, which provides a full set of graphical features to run in a browser, is at
 
@@ -44,16 +44,16 @@ As you can guess from the above, the print command gives the line in the script 
 
 Here in the repository is a folder called `scripts` containing some sample scripts:
 
-`benchmark.ecs` allows the performance of EasyCoder to be compared to other languages if a similar program is written for each one  
-`tests.ecs` is a test program containing many of the EasyCoder features  
-`fizzbuzz.ecs` is a simple programming challenge often given at job interviews
+`fizzbuzz.ecs` is a simple programming challenge often given at job interviews    
+`tests.ecs` is a test program containing many of the EasyCoder features
+`benchmark.ecs` allows the performance of EasyCoder to be compared to other languages if a similar program is written for each one
 
 ## Graphical programmming
-**_EasyCoder_** includes a graphical programming environment that is in the early stages of development. A couple of demo scripts are included in the `scripts` directory. To run them, first install the Python `kivy` graphics library if it's not already present on your system. This is done with `pip install kivy`. Then run a script using `easycoder {scriptname}.ecg`.
+**_EasyCoder_** includes a graphical programming environment that is in the early stages of development. A couple of demo scripts are included in the `scripts` directory. To run them, first install the Python `kivy` graphics library if it's not already present on your system. This is done with `pip install kivy`. Then run your **_EasyCoder_** script using `easycoder {scriptname}.ecg`.
 
-Graphical scripts look much like any other script but their file names must use the extension `.ecg` to signal to **_EasyCoder_** that it needs to load the graphics module. This allows the **_EasyCoder_** application to be used wherever Python is installed, in either a command-line or a graphical environment (but graphics will of course not be available in the former).
+Graphical scripts look much like any other script but their file names must use the extension `.ecg` to signal to **_EasyCoder_** that it needs to load the graphics module. Non-graphical applications can use any extension but `.ecs` is recommended. This allows the **_EasyCoder_** application to be used wherever Python is installed, in either a command-line or a graphical environment, but graphics will of course not be available in the former.
 
-A couple of demo scripts are included in the `scripts` directory:
+A couple of demo graphical scripts are included in the `scripts` directory:
 
 `graphics-demo.ecg` shows some of the elements that can be created, and demonstrates a variety of the graphical features of the language such as detecting when elements are clicked.
 

@@ -1,0 +1,2 @@
+print now
+print datime now format `%b %d %H:%M:%S`

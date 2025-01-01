@@ -192,11 +192,11 @@ class Program:
 				index = 0
 			symbolRecord['value'][index] = value
 
-	def encode(self, value):
-		return value
+	def encode(self, value, encoding='UTF-8'):
+		return value.encode(encoding)
 
-	def decode(self, value):
-		return value
+	def decode(self, value, encoding='UTF-8'):
+		return value.decode(encoding)
 
 	# Tokenise the script
 	def tokenise(self, script):

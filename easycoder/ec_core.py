@@ -1,4 +1,4 @@
-import json, math, hashlib, threading, os, subprocess, sys, requests, time, numbers
+import json, math, hashlib, threading, os, subprocess, sys, requests, time, numbers, base64
 from psutil import Process
 from datetime import datetime, timezone
 from random import randrange
@@ -10,6 +10,7 @@ class Core(Handler):
 
     def __init__(self, compiler):
         Handler.__init__(self, compiler)
+        self.encoding = 'utf-8'
 
     def getName(self):
         return 'core'
@@ -1032,25 +1033,32 @@ class Core(Handler):
                 command['target'] = target['name']
                 self.add(command)
                 return True
+            return False
 
         token = self.getToken()
         if token == 'the':
             token = self.nextToken()
+        command['type'] = token
+
         if token == 'elements':
             self.nextToken()
             if self.peek() == 'of':
                 self.nextToken()
             if self.nextIsSymbol():
-                command['type'] = 'elements'
                 command['name'] = self.getToken()
                 if self.peek() == 'to':
                     self.nextToken()
                 command['elements'] = self.nextValue()
                 self.add(command)
                 return True
+            
+        elif token == 'encoding':
+            if self.nextIs('to'):
+                command['encoding'] = self.nextValue()
+                self.add(command)
+                return True
 
-        if token == 'property':
-            command['type'] = 'property'
+        elif token == 'property':
             command['name'] = self.nextValue()
             if self.nextIs('of'):
                 if self.nextIsSymbol():
@@ -1060,8 +1068,7 @@ class Core(Handler):
                         self.add(command)
                         return True
 
-        if token == 'element':
-            command['type'] = 'element'
+        elif token == 'element':
             command['index'] = self.nextValue()
             if self.nextIs('of'):
                 if self.nextIsSymbol():
@@ -1070,7 +1077,6 @@ class Core(Handler):
                         command['value'] = self.nextValue()
                         self.add(command)
                         return True
-
         return False
 
     def r_set(self, command):
@@ -1083,7 +1089,7 @@ class Core(Handler):
             self.putSymbolValue(target, val)
             return self.nextPC()
 
-        if cmdType == 'elements':
+        elif cmdType == 'elements':
             symbolRecord = self.getVariable(command['name'])
             elements = self.getRuntimeValue(command['elements'])
             currentElements = symbolRecord['elements']
@@ -1102,7 +1108,7 @@ class Core(Handler):
             symbolRecord['value'] = newValue
             return self.nextPC()
 
-        if cmdType == 'element':
+        elif cmdType == 'element':
             value = self.getRuntimeValue(command['value'])
             index = self.getRuntimeValue(command['index'])
             target = self.getVariable(command['target'])
@@ -1117,7 +1123,11 @@ class Core(Handler):
             self.putSymbolValue(target, val)
             return self.nextPC()
 
-        if cmdType == 'property':
+        elif cmdType == 'encoding':
+            self.encoding = self.getRuntimeValue(command['encoding'])
+            return self.nextPC()
+
+        elif cmdType == 'property':
             value = self.getRuntimeValue(command['value'])
             name = self.getRuntimeValue(command['name'])
             target = command['target']
@@ -1472,7 +1482,7 @@ class Core(Handler):
         if token in ['now', 'today', 'newline', 'break', 'empty']:
             return value
 
-        if token in ['date', 'encode', 'decode', 'stringify', 'json', 'lowercase', 'uppercase', 'hash', 'random', 'float', 'integer']:
+        if token in ['date', 'stringify', 'json', 'lowercase', 'uppercase', 'hash', 'random', 'float', 'integer', 'encode', 'decode']:
             value['content'] = self.nextValue()
             return value
 
@@ -1716,6 +1726,14 @@ class Core(Handler):
         value['content'] = round(math.cos(angle * 0.01745329) * radius)
         return value
 
+    def v_count(self, v):
+        variable = self.getVariable(v['name'])
+        content = variable['value'][variable['index']]['content']
+        value = {}
+        value['type'] = 'int'
+        value['content'] = len(content)
+        return value
+
     def v_datime(self, v):
         ts = self.getRuntimeValue(v['timestamp'])
         fmt = v['format']
@@ -1729,9 +1747,17 @@ class Core(Handler):
         return value
 
     def v_decode(self, v):
+        content = self.getRuntimeValue(v['content'])
         value = {}
         value['type'] = 'text'
-        value['content'] = self.program.decode(v['content'])
+        if self.encoding == 'utf-8':
+            value['content'] = content.decode('utf-8')
+        elif self.encoding == 'base64':
+            base64_bytes = content.encode('ascii')
+            message_bytes = base64.b64decode(base64_bytes)
+            value['content'] = message_bytes.decode('ascii')
+        else:
+            value = v
         return value
 
     def v_element(self, v):
@@ -1754,16 +1780,7 @@ class Core(Handler):
         var = self.getVariable(v['name'])
         value = {}
         value['type'] = 'int'
-        # value['content'] = self.getVariable(v['name'])['elements']
         value['content'] = var['elements']
-        return value
-
-    def v_count(self, v):
-        variable = self.getVariable(v['name'])
-        content = variable['value'][variable['index']]['content']
-        value = {}
-        value['type'] = 'int'
-        value['content'] = len(content)
         return value
 
     def v_empty(self, v):
@@ -1773,9 +1790,17 @@ class Core(Handler):
         return value
 
     def v_encode(self, v):
+        content = self.getRuntimeValue(v['content'])
         value = {}
         value['type'] = 'text'
-        value['content'] = self.program.encode(v['content'])
+        if self.encoding == 'utf-8':
+            value['content'] = content.encode('utf-8')
+        elif self.encoding == 'base64':
+            data_bytes = content.encode('ascii')
+            base64_bytes = base64.b64encode(data_bytes)
+            value['content'] = base64_bytes.decode('ascii')
+        else:
+            value = v
         return value
 
     def v_error(self, v):
