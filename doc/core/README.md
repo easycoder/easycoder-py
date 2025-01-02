@@ -18,4 +18,6 @@ The core values are:
 
 The core conditions are:
 
+[boolean](conditions/boolean.md) [empty](conditions/empty.md) [ends](conditions/ends.md) [even](conditions/even.md) [exists](conditions/exists.md) [greater](conditions/greater.md) [has property](conditions/hasProperty.md) [includes](conditions/includes.md) [is](conditions/is.md) [less](conditions/less.md) [list](conditions/list.md) [numeric](conditions/numeric.md) [none](conditions/none.md) [not](conditions/not.md) [object](conditions/object.md) [odd](conditions/odd.md) [starts](conditions/starts.md) [string](conditions/string.md) 
+
 [Back](../README.md)

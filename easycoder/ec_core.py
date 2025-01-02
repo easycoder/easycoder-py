@@ -2211,62 +2211,6 @@ class Core(Handler):
                 return True if condition.negate else False
         return False
 
-    def c_numeric(self, condition):
-        comparison = type(self.getRuntimeValue(condition.value1)) is int
-        return not comparison if condition.negate else comparison
-
-    def c_string(self, condition):
-        comparison = type(self.getRuntimeValue(condition.value1)) is str
-        return not comparison if condition.negate else comparison
-
-    def c_list(self, condition):
-        comparison = type(self.getRuntimeValue(condition.value1)) is list
-        return not comparison if condition.negate else comparison
-
-    def c_object(self, condition):
-        comparison = type(self.getRuntimeValue(condition.value1)) is dict
-        return not comparison if condition.negate else comparison
-
-    def c_none(self, condition):
-        comparison = self.getRuntimeValue(condition.value1) is None
-        return not comparison if condition.negate else comparison
-
-    def c_not(self, condition):
-        return not self.getRuntimeValue(condition.value1)
-
-    def c_even(self, condition):
-        return self.getRuntimeValue(condition.value1) % 2 == 0
-
-    def c_odd(self, condition):
-        return self.getRuntimeValue(condition.value1) % 2 == 1
-
-    def c_is(self, condition):
-        comparison = self.program.compare(condition.value1, condition.value2)
-        return comparison != 0 if condition.negate else comparison == 0
-
-    def c_greater(self, condition):
-        comparison = self.program.compare(condition.value1, condition.value2)
-        return comparison <= 0 if condition.negate else comparison > 0
-
-    def c_less(self, condition):
-        comparison = self.program.compare(condition.value1, condition.value2)
-        return comparison >= 0 if condition.negate else comparison < 0
-
-    def c_starts(self, condition):
-        value1 = self.getRuntimeValue(condition.value1)
-        value2 = self.getRuntimeValue(condition.value2)
-        return value1.startswith(value2)
-
-    def c_ends(self, condition):
-        value1 = self.getRuntimeValue(condition.value1)
-        value2 = self.getRuntimeValue(condition.value2)
-        return value1.endswith(value2)
-
-    def c_includes(self, condition):
-        value1 = self.getRuntimeValue(condition.value1)
-        value2 = self.getRuntimeValue(condition.value2)
-        return value2 in value1
-
     def c_empty(self, condition):
         value = self.getRuntimeValue(condition.value1)
         if value == None:
@@ -2275,9 +2219,21 @@ class Core(Handler):
             comparison = len(value) == 0
         return not comparison if condition.negate else comparison
 
+    def c_ends(self, condition):
+        value1 = self.getRuntimeValue(condition.value1)
+        value2 = self.getRuntimeValue(condition.value2)
+        return value1.endswith(value2)
+
+    def c_even(self, condition):
+        return self.getRuntimeValue(condition.value1) % 2 == 0
+
     def c_exists(self, condition):
         path = self.getRuntimeValue(condition.path)
         return os.path.exists(path)
+
+    def c_greater(self, condition):
+        comparison = self.program.compare(condition.value1, condition.value2)
+        return comparison <= 0 if condition.negate else comparison > 0
 
     def c_hasProperty(self, condition):
         value = self.getRuntimeValue(condition.value1)
@@ -2288,4 +2244,48 @@ class Core(Handler):
         except:
             hasProp = False
         return hasProp
+
+    def c_includes(self, condition):
+        value1 = self.getRuntimeValue(condition.value1)
+        value2 = self.getRuntimeValue(condition.value2)
+        return value2 in value1
+
+    def c_is(self, condition):
+        comparison = self.program.compare(condition.value1, condition.value2)
+        return comparison != 0 if condition.negate else comparison == 0
+
+    def c_less(self, condition):
+        comparison = self.program.compare(condition.value1, condition.value2)
+        return comparison >= 0 if condition.negate else comparison < 0
+
+    def c_list(self, condition):
+        comparison = type(self.getRuntimeValue(condition.value1)) is list
+        return not comparison if condition.negate else comparison
+
+    def c_numeric(self, condition):
+        comparison = type(self.getRuntimeValue(condition.value1)) is int
+        return not comparison if condition.negate else comparison
+
+    def c_none(self, condition):
+        comparison = self.getRuntimeValue(condition.value1) is None
+        return not comparison if condition.negate else comparison
+
+    def c_not(self, condition):
+        return not self.getRuntimeValue(condition.value1)
+
+    def c_object(self, condition):
+        comparison = type(self.getRuntimeValue(condition.value1)) is dict
+        return not comparison if condition.negate else comparison
+
+    def c_odd(self, condition):
+        return self.getRuntimeValue(condition.value1) % 2 == 1
+
+    def c_starts(self, condition):
+        value1 = self.getRuntimeValue(condition.value1)
+        value2 = self.getRuntimeValue(condition.value2)
+        return value1.startswith(value2)
+
+    def c_string(self, condition):
+        comparison = type(self.getRuntimeValue(condition.value1)) is str
+        return not comparison if condition.negate else comparison
 # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
