@@ -8,7 +8,7 @@
 ``print error reason `Unexpected value` ``
 
 ## Description:
-Gets an error code or reason.
+Sets up an error code or reason.
 
 Next: [files](files.md)  
 Prev: [encode](encode.md)

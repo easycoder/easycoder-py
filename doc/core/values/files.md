@@ -7,7 +7,7 @@
 ``print the files in `/home/test` ``
 
 ## Description:
-Gets aa list of all the files in a given directory
+Gets a list of all the files in a given directory
 
 Next: [float](float.md)  
 Prev: [error](error.md)

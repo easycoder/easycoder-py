@@ -2,8 +2,11 @@
 
 	script Tests
 
-	variable N
+	variable Data
+	variable D
+	variable E
 	variable M
+	variable N
 	variable Array
 	variable X
 	variable Y
@@ -144,6 +147,47 @@ Loop1:
 	close File
 	delete file `test.txt`
 	assert X is `Hello, world!`  cat newline cat `I'm back!`
+	
+    put now into N
+    multiply N by 1000
+    print N
+    print datime N
+    print datime 1735689600000 format `%b %d %Y %H:%M:%S`
+
+    put `"Goodbye,\n cruel world!"` into D
+    put encode D into E
+    print E
+    put decode E into D
+    print D
+
+    set the encoding to `base64`
+
+    put `"Goodbye, cruel world!"` into D
+    put encode D into E
+    print E
+    put decode E into D
+    print D
+
+    print from 8 to 12 of `This is some text`
+
+    print hash `Graham`
+
+    print the timestamp cat ` ` cat now
+
+    print the files in `.`
+
+    print the memory
+
+    put json `[]` into Data
+    put 0 into N
+    while N is less than 10
+    begin
+        append N to Data
+        increment N
+    end
+
+    print Data
+    print the index of 5 in Data
 
 	exit
 

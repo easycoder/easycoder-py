@@ -1479,10 +1479,10 @@ class Core(Handler):
                 return value
             return None
 
-        if token in ['now', 'today', 'newline', 'break', 'empty']:
+        if token in ['now', 'today', 'newline', 'tab', 'empty']:
             return value
 
-        if token in ['date', 'stringify', 'json', 'lowercase', 'uppercase', 'hash', 'random', 'float', 'integer', 'encode', 'decode']:
+        if token in ['stringify', 'json', 'lowercase', 'uppercase', 'hash', 'random', 'float', 'integer', 'encode', 'decode']:
             value['content'] = self.nextValue()
             return value
 
@@ -1565,7 +1565,9 @@ class Core(Handler):
         if token == 'index':
             if self.nextIs('of'):
                 if self.nextIsSymbol():
+                    value['variable'] = self.getSymbolRecord()['name']
                     if self.peek() == 'in':
+                        value['value'] = None
                         value['type'] = 'indexOf'
                         if self.nextIsSymbol():
                             value['target'] = self.getSymbolRecord()['name']
@@ -1574,8 +1576,9 @@ class Core(Handler):
                         value['name'] = self.getToken()
                         return value
                 else:
-                    value['value1'] = self.getValue()
+                    value['value'] = self.getValue()
                     if self.nextIs('in'):
+                        value['variable'] = None
                         value['type'] = 'indexOf'
                         if self.nextIsSymbol():
                             value['target'] = self.getSymbolRecord()['name']
@@ -1641,7 +1644,8 @@ class Core(Handler):
             return value
 
         if token == 'files':
-            if self.nextIs('of'):
+            token = self.nextToken()
+            if token in ['in', 'of']:
                 value['target'] = self.nextValue()
                 return value
             return None
@@ -1814,21 +1818,22 @@ class Core(Handler):
             value['content'] = errorReason
         return value
 
-    def v_stringify(self, v):
-        item = self.getRuntimeValue(v['content'])
+    def v_files(self, v):
+        v = self.getRuntimeValue(v['target'])
         value = {}
         value['type'] = 'text'
-        value['content'] = json.dumps(item)
+        value['content'] = os.listdir(v)
         return value
 
-    def v_json(self, v):
-        item = self.getRuntimeValue(v['content'])
+    def v_float(self, v):
+        val = self.getRuntimeValue(v['content'])
         value = {}
-        value['type'] = 'object'
+        value['type'] = 'float'
         try:
-            value['content'] = json.loads(item)
+            value['content'] = float(val)
         except:
-            RuntimeError(self.program, 'Cannot encode value')
+            RuntimeWarning(self.program, f'Value cannot be parsed as floating-point')
+            value['content'] = 0.0
         return value
 
     def v_from(self, v):
@@ -1852,17 +1857,6 @@ class Core(Handler):
         value['content'] = hashlib.sha256(hashval.encode('utf-8')).hexdigest()
         return value
 
-    def v_float(self, v):
-        val = self.getRuntimeValue(v['content'])
-        value = {}
-        value['type'] = 'float'
-        try:
-            value['content'] = float(val)
-        except:
-            RuntimeWarning(self.program, f'Value cannot be parsed as floating-point')
-            value['content'] = 0.0
-        return value
-
     def v_index(self, v):
         value = {}
         value['type'] = 'int'
@@ -1870,22 +1864,38 @@ class Core(Handler):
         return value
 
     def v_indexOf(self, v):
-        value1 = v['value1']
+        value = v['value']
+        if value == None:
+            value = self.getSymbolValue(v['variable'])['content']
+        else:
+            value = self.getRuntimeValue(value)
         target = self.getVariable(v['target'])
-        try:
-            index = target['value'].index(value1)
-        except:
-            index = -1
-        value = {}
-        value['type'] = 'int'
-        value['content'] = index
-        return value
+        data = self.getSymbolValue(target)['content']
+        index = -1
+        for n in range(0, len(data)):
+            if data[n] == value:
+                index = n
+                break
+        retval = {}
+        retval['type'] = 'int'
+        retval['content'] = index
+        return retval
 
     def v_integer(self, v):
         val = self.getRuntimeValue(v['content'])
         value = {}
         value['type'] = 'int'
         value['content'] = int(val)
+        return value
+
+    def v_json(self, v):
+        item = self.getRuntimeValue(v['content'])
+        value = {}
+        value['type'] = 'object'
+        try:
+            value['content'] = json.loads(item)
+        except:
+            RuntimeError(self.program, 'Cannot encode value')
         return value
 
     def v_keys(self, v):
@@ -1918,18 +1928,20 @@ class Core(Handler):
         value['content'] = content.lower()
         return value
 
-    def v_uppercase(self, v):
-        content = self.getRuntimeValue(v['content'])
+    def v_memory(self, v):
+        process: Process = Process(os.getpid())
+        megabytes: float = process.memory_info().rss / (1024 * 1024)
         value = {}
-        value['type'] = 'text'
-        value['content'] = content.upper()
+        value['type'] = 'float'
+        value['content'] = megabytes
         return value
 
-    def v_random(self, v):
-        limit = self.getRuntimeValue(v['content'])
+    def v_modification(self, v):
+        fileName = self.getRuntimeValue(v['fileName'])
+        ts = int(os.stat(fileName).st_mtime)
         value = {}
         value['type'] = 'int'
-        value['content'] = randrange(0, limit)
+        value['content'] = ts
         return value
 
     def v_modulo(self, v):
@@ -1979,6 +1991,13 @@ class Core(Handler):
             value['type'] = 'text'
         return value
 
+    def v_random(self, v):
+        limit = self.getRuntimeValue(v['content'])
+        value = {}
+        value['type'] = 'int'
+        value['content'] = randrange(0, limit)
+        return value
+
     def v_right(self, v):
         content = self.getRuntimeValue(v['content'])
         count = self.getRuntimeValue(v['count'])
@@ -1993,6 +2012,35 @@ class Core(Handler):
         value = {}
         value['type'] = 'int'
         value['content'] = round(math.sin(angle * 0.01745329) * radius)
+        return value
+
+    def v_stringify(self, v):
+        item = self.getRuntimeValue(v['content'])
+        value = {}
+        value['type'] = 'text'
+        value['content'] = json.dumps(item)
+        return value
+
+    def v_symbol(self, symbolRecord):
+        result = {}
+        if symbolRecord['keyword'] == 'variable':
+            symbolValue = self.getSymbolValue(symbolRecord)
+            return symbolValue
+            # if symbolValue == None:
+            #     return None
+            # result['type'] = symbolValue['type']
+            # content = symbolValue['content']
+            # if content == None:
+            #     return ''
+            # result['content'] = content
+            # return result
+        else:
+            return None
+
+    def v_tab(self, v):
+        value = {}
+        value['type'] = 'text'
+        value['content'] = '\t'
         return value
 
     def v_tan(self, v):
@@ -2023,55 +2071,11 @@ class Core(Handler):
         value['content'] = int(datetime.combine(datetime.now().date(),datetime.min.time()).timestamp())*1000
         return value
 
-    def v_symbol(self, symbolRecord):
-        result = {}
-        if symbolRecord['keyword'] == 'variable':
-            symbolValue = self.getSymbolValue(symbolRecord)
-            return symbolValue
-            # if symbolValue == None:
-            #     return None
-            # result['type'] = symbolValue['type']
-            # content = symbolValue['content']
-            # if content == None:
-            #     return ''
-            # result['content'] = content
-            # return result
-        else:
-            return None
-
-    def v_valueOf(self, v):
-        v = self.getRuntimeValue(v['content'])
-        value = {}
-        value['type'] = 'int'
-        value['content'] = int(v)
-        return value
-
-    def v_files(self, v):
-        v = self.getRuntimeValue(v['target'])
-        value = {}
-        value['type'] = 'text'
-        value['content'] = os.listdir(v)
-        return value
-
     def v_trim(self, v):
         v = self.getRuntimeValue(v['content'])
         value = {}
         value['type'] = 'text'
         value['content'] = v.strip()
-        return value
-
-    def v_weekday(self, v):
-        value = {}
-        value['type'] = 'int'
-        value['content'] = datetime.today().weekday()
-        return value
-
-    def v_memory(self, v):
-        process: Process = Process(os.getpid())
-        megabytes: float = process.memory_info().rss / (1024 * 1024)
-        value = {}
-        value['type'] = 'float'
-        value['content'] = megabytes
         return value
 
     def v_type(self, v):
@@ -2092,12 +2096,24 @@ class Core(Handler):
             value['content'] = 'object'
         return value
 
-    def v_modification(self, v):
-        fileName = self.getRuntimeValue(v['fileName'])
-        ts = int(os.stat(fileName).st_mtime)
+    def v_uppercase(self, v):
+        content = self.getRuntimeValue(v['content'])
+        value = {}
+        value['type'] = 'text'
+        value['content'] = content.upper()
+        return value
+
+    def v_valueOf(self, v):
+        v = self.getRuntimeValue(v['content'])
         value = {}
         value['type'] = 'int'
-        value['content'] = ts
+        value['content'] = int(v)
+        return value
+
+    def v_weekday(self, v):
+        value = {}
+        value['type'] = 'int'
+        value['content'] = datetime.today().weekday()
         return value
 
     #############################################################################

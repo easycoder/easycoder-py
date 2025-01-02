@@ -9,7 +9,7 @@
 ## Description:
 Converts the text value provided into an integer.
 
-Next: [index of](indexOf.md)  
+Next: [index](index.md)  
 Prev: [json](json.md)
 
 [Back](../../README.md)

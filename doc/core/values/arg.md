@@ -1,4 +1,4 @@
-# args
+# arg
 
 ## Syntax:
 `arg {n}`
