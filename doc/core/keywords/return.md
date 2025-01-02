@@ -1,3 +1,5 @@
+# return
+
 ## Syntax:
 `return`
 ## Examples:

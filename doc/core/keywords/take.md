@@ -1,3 +1,5 @@
+# take
+
 ## Syntax:
 `take {value} from {variable}`  
 `take {value} from {value} giving {variable}`

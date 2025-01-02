@@ -1,5 +1,7 @@
+# empty
+
 ## Syntax:
-`empty`]
+`empty`
 
 ## Examples:
 `put empty into MyString`

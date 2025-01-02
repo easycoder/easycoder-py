@@ -20,7 +20,7 @@ This is traditionally the first program to be written in virtually any language.
 The output will look like this:
 
 ```
-EasyCoder version 5
+EasyCoder version 250101.1
 Compiled <anon>: 1 lines (2 tokens) in 0 ms
 Run <anon>
 1-> Hello, world!
@@ -32,21 +32,21 @@ It's conventional to add a program title to a script:
     script Test
     print `Hello, world!`
 ```
-The first line here is just a comment and has no effect on the running of the script. The second line gives the script a name, which is useful in debugging as it says which script was running. When run, the output is now
+The first line here is just a comment and has no effect on the running of the script.   The second line gives the script a name, which is useful in debugging as it says which script was running. When run, the output is now
 
 ```
-EasyCoder version 5
-Compiled Test: 5 lines (4 tokens) in 0 ms
+EasyCoder version 250101.1
+Compiled Test: 3 lines (4 tokens) in 0 ms
 Run Test
-5-> Hello, world!
+3-> Hello, world!
 ```
-As you can guess from the above, the print command gives the line in the script it was called from. This is very useful in tracking down debugging print commands in large scripts.
+As you might guess from the above, the print command shows the line in the script it was called from. This is very useful in tracking down debugging print commands in large scripts.
 
 Here in the repository is a folder called `scripts` containing some sample scripts:
 
-`fizzbuzz.ecs` is a simple programming challenge often given at job interviews    
-`tests.ecs` is a test program containing many of the EasyCoder features
-`benchmark.ecs` allows the performance of EasyCoder to be compared to other languages if a similar program is written for each one
+`fizzbuzz.ecs` is a simple programming challenge often given at job interviews  
+`tests.ecs` is a test program containing many of the **_EasyCoder_** features  
+`benchmark.ecs` allows the performance of **_EasyCoder_** to be compared to other languages if a similar script is written for each one.
 
 ## Graphical programmming
 **_EasyCoder_** includes a graphical programming environment that is in the early stages of development. A couple of demo scripts are included in the `scripts` directory. To run them, first install the Python `kivy` graphics library if it's not already present on your system. This is done with `pip install kivy`. Then run your **_EasyCoder_** script using `easycoder {scriptname}.ecg`.
@@ -61,11 +61,9 @@ A couple of demo graphical scripts are included in the `scripts` directory:
 
 **_EasyCoder_** graphics are handled by a library module, `ec_renderer` that can be used outside of the **_EasyCoder_** environment, in other Python programs.
 
-## EasyCoder programming reference
+## Programming reference
 
-The language comprises a general-purpose core package, which can be enhanced by plugins to provide special features on demand.
-
-[The core package](doc/README.md)
+**_EasyCoder_** comprises a set of modules to handle tokenisation, compilation and runtime control. Syntax and grammar are defined by [packages](doc/README.md), of which there are currently two; the [core](doc/core/README.md) package, which implements a comprehensive set of command-line programming features, and and the [graphics](doc/graphics/README.md) package, which adds graphical features in a windowing environment.
 
 ## Extending the language
 

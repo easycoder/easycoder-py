@@ -1,3 +1,5 @@
+# negate
+
 ## Syntax:
 `negate {variable}`
 ## Examples:

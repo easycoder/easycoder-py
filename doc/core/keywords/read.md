@@ -1,3 +1,5 @@
+# read
+
 ## Syntax:
 `read {value} from {file}`
 ## Examples:

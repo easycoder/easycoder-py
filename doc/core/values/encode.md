@@ -1,3 +1,5 @@
+# encode
+
 ## Syntax:
 `encode {value}
 

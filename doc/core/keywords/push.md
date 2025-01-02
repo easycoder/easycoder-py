@@ -1,3 +1,5 @@
+# push
+
 ## Syntax:
 `push {variable} to/onto {stack}`
 ## Examples:

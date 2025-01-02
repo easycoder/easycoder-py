@@ -1,3 +1,5 @@
+# put
+
 ## Syntax:
 `put {value} into {variable}`
 ## Examples:

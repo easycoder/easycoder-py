@@ -1,3 +1,5 @@
+# write
+
 ## Syntax:
 `write {value} to {file}`
 

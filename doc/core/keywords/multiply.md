@@ -1,3 +1,5 @@
+# multiply
+
 ## Syntax:
 `multiply {value} by {variable}`  
 `multiply {value} by {value} giving {variable}`

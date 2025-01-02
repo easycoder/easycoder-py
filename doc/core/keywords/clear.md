@@ -1,3 +1,5 @@
+# clear
+
 ## Syntax:
 `clear {variable}`
 

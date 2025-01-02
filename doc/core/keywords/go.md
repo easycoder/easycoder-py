@@ -1,3 +1,5 @@
+# go
+
 ## Syntax:
 `go [to] {label}`  
 `goto {label}`

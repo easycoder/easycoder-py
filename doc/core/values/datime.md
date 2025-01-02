@@ -1,3 +1,5 @@
+# datime
+
 ## Syntax:
 `datime {timestamp} [format {format string}`]
 

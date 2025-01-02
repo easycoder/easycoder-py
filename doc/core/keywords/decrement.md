@@ -1,3 +1,5 @@
+# decrement
+
 ## Syntax:
 `decrement {variable}`
 ## Examples:

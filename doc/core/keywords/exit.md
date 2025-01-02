@@ -1,3 +1,5 @@
+# exit
+
 ## Syntax:
 `exit`
 ## Examples:

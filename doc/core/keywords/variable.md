@@ -1,3 +1,5 @@
+# variable
+
 ## Syntax:
 `variable {name}`
 

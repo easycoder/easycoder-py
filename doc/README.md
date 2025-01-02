@@ -1,6 +1,6 @@
 # _EasyCoder_ packages
 
-'Packages' are components of the **_EasyCoder_** system that deal with specific groups of language features. Thos included or available from the repository are
+'Packages' are components of the **_EasyCoder_** system that deal with specific groups of language features. Those included or available from the repository are
 
 [core](core/README.md) contains all the language features needed to construct command-line applications to run on any computer equipped with Python.
 

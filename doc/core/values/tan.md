@@ -1,3 +1,5 @@
+# tan
+
 ## Syntax:
 `tan {value} radius {radius}`
 

@@ -1,3 +1,5 @@
+# stack
+
 ## Syntax:
 `stack {name}`
 

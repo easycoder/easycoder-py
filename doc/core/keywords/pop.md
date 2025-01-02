@@ -1,3 +1,5 @@
+# pop
+
 ## Syntax:
 `pop {variable} from {stack}`
 ## Examples:

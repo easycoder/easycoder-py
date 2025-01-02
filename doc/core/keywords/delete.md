@@ -1,3 +1,5 @@
+# delete
+
 ## Syntax:
 `delete {filename}`  
 `delete property {value} of {variable}`

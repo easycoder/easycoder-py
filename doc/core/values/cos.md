@@ -1,3 +1,5 @@
+# cos
+
 ## Syntax:
 `cos {value} radius {radius}`
 

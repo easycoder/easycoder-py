@@ -1,3 +1,5 @@
+# truncate
+
 ## Syntax:
 `truncate {file}`
 

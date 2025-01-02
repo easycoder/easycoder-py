@@ -1,3 +1,5 @@
+# wait
+
 ## Syntax:
 `wait {count} [millis/ticks/seconds/minutes]`
 

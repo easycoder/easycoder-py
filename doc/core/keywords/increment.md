@@ -1,3 +1,5 @@
+# increment
+
 ## Syntax:
 `increment {variable}`
 

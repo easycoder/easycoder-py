@@ -1,3 +1,5 @@
+# replace
+
 ## Syntax:
 `replace {value} with {value} in {variable}`
 ## Examples:

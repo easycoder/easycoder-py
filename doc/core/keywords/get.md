@@ -1,3 +1,5 @@
+# get
+
 ## Syntax:
 `get {variable from {url} [or {command}]}`
 

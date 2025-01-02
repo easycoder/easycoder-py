@@ -1,3 +1,5 @@
+# toggle
+
 ## Syntax:
 `toggle {variable}`
 

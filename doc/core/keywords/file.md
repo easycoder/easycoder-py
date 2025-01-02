@@ -1,3 +1,5 @@
+# file
+
 ## Syntax:
 `file {name}`
 ## Example:

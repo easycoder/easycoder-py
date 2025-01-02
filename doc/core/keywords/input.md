@@ -1,3 +1,5 @@
+# input
+
 ## Syntax:
 `input {variable} [with {prompt}]`
 ## Examples:

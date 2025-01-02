@@ -1,3 +1,5 @@
+# divide
+
 ## Syntax:
 `divide {value} by {variable}`  
 `divide {value} by {value} giving {variable}`

@@ -1,3 +1,5 @@
+# append
+
 ## Syntax:
 `append {value} to {array}`
 ## Examples:

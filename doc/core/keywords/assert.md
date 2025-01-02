@@ -1,3 +1,5 @@
+# assert
+
 ## Syntax:
 `assert {condition}`
 ## Examples:

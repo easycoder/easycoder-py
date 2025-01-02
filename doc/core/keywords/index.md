@@ -1,3 +1,5 @@
+# index
+
 ## Syntax:
 `index {variable} to {value}`
 

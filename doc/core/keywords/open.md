@@ -1,3 +1,5 @@
+# open
+
 ## Syntax:
 `open {file} {path} for reading/writing/appending`
 ## Example:

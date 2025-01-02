@@ -1,3 +1,5 @@
+# decode
+
 ## Syntax:
 `decode {value}
 

@@ -1,3 +1,5 @@
+# while
+
 ## Syntax:
 `while {condition} {block}`
 

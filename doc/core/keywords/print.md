@@ -1,3 +1,5 @@
+# print
+
 ## Syntax:
 `print {value}`
 ## Examples:

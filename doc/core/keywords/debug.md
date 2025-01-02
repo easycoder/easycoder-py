@@ -1,3 +1,5 @@
+# debug
+
 ## Syntax:
 `debug step/stop/program`
 ## Examples:

@@ -1,3 +1,5 @@
+# stop
+
 ## Syntax:
 `stop`
 

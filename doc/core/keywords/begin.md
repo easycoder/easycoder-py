@@ -1,3 +1,5 @@
+# begin
+
 ## Syntax:
 `begin ... end`
 ## Examples:

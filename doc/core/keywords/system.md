@@ -1,3 +1,5 @@
+# system
+
 ## Syntax:
 `system {command}`
 

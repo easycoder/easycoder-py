@@ -1,3 +1,5 @@
+# close
+
 ## Syntax:
 `close {file}`
 ## Examples:

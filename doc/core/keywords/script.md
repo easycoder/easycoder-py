@@ -1,3 +1,5 @@
+# script
+
 ## Syntax:
 `script {name}`
 ## Examples:
