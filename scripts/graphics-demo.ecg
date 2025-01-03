@@ -6,7 +6,6 @@
     ellipse RedEllipse
     ellipse GreenCircle
     image Image
-    file File
     variable Spec
     variable UpDown
     variable Steps
@@ -26,9 +25,7 @@
     create window title `Learning Kivy` at 300 300 size 640 480 fill color 255 255 200
     run graphics
 
-    open File `json/graphics-demo.json`
-    read Spec from File
-    close File
+    load Spec from `graphics-demo.json`
     render Spec
 
     attach BlueRect to `bluerect`

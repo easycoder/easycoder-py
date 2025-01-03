@@ -19,9 +19,9 @@
         "GreenCircle": {
             "type": "ellipse",
             "left": "10w",
-            "bottom": "10h",
+            "bottom": "40w",
             "width": "80w",
-            "height": "80h",
+            "height": "80w",
             "fill": "green",
             "id": "greencircle"
         }
