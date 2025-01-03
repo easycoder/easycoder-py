@@ -8,7 +8,7 @@
 `load Data from Path`
 
 ## Description:
-Loads the contents of a file into a variable.
+Loads the contents of a file into a variable. See also [save](save.md).
 
 Next: [multiply](multiply.md)  
 Prev: [init](init.md)

@@ -8,7 +8,7 @@
 `save Data to FileName`
 
 ## Description:
-Saves data to a file.
+Saves data to a file. See also [load](load.md).
 
 Next: [set](set.md)  
 Prev: [return](return.md)
