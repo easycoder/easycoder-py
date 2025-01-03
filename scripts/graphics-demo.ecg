@@ -25,7 +25,7 @@
     create window title `Learning Kivy` at 300 300 size 640 480 fill color 255 255 200
     run graphics
 
-    load Spec from `graphics-demo.json`
+    load Spec from `json/graphics-demo.json`
     render Spec
 
     attach BlueRect to `bluerect`

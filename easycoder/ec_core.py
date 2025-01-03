@@ -646,6 +646,28 @@ class Core(Handler):
         self.putSymbolValue(symbolRecord, value)
         return self.nextPC()
 
+    # Load a variable from a file
+    def k_load(self, command):
+        if self.nextIsSymbol():
+            command['target'] = self.getToken()
+            if self.nextIs('from'):
+                command['file'] = self.nextValue()
+                self.add(command)
+                return True
+        return False
+
+    def r_load(self, command):
+        target = self.getVariable(command['target'])
+        file = self.getRuntimeValue(command['file'])
+        f = open(file, 'r')
+        content = f.read()
+        f.close()
+        value = {}
+        value['type'] = 'text'
+        value['content'] = content
+        self.putSymbolValue(target, value)
+        return self.nextPC()
+
     # Arithmetic multiply
     # multiply {variable} by {value}[ giving {variable}]}
     def k_multiply(self, command):
@@ -1020,6 +1042,23 @@ class Core(Handler):
     def k_script(self, command):
         self.program.name = self.nextToken()
         return True
+
+    # Save a value to a file
+    def k_save(self, command):
+        command['content'] = self.nextValue()
+        if self.nextIs('to'):
+            command['file'] = self.nextValue()
+            self.add(command)
+            return True
+        return False
+
+    def r_save(self, command):
+        content = self.getRuntimeValue(command['content'])
+        file = self.getRuntimeValue(command['file'])
+        f = open(file, 'w')
+        f.write(content)
+        f.close()
+        return self.nextPC()
 
     # Set a value
     # set {variable}
@@ -2021,19 +2060,12 @@ class Core(Handler):
         value['content'] = json.dumps(item)
         return value
 
+    # This is used by the expression evaluator to get the value of a symbol
     def v_symbol(self, symbolRecord):
         result = {}
         if symbolRecord['keyword'] == 'variable':
             symbolValue = self.getSymbolValue(symbolRecord)
             return symbolValue
-            # if symbolValue == None:
-            #     return None
-            # result['type'] = symbolValue['type']
-            # content = symbolValue['content']
-            # if content == None:
-            #     return ''
-            # result['content'] = content
-            # return result
         else:
             return None
 
