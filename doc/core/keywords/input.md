@@ -9,7 +9,7 @@
 ## Description:
 `input` lets the user provide data from the keyboard, with an optional prompt string.
 
-Next: [multiply](multiply.md)  
+Next: [load](load.md)  
 Prev: [init](init.md)
 
 [Back](../../README.md)

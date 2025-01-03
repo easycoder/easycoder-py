@@ -11,6 +11,6 @@
 Multiplies a numeric variable by a numeric value or multiplies one value by another and puts the result into a variable. See elsewhere in this documentation for an explanation of what is meant by a value. If you multiply a variable it must already hold a numeric value, and if you assign a variable to hold the result of a multiplication it will lose whatever value it previously held. 
 
 Next: [negate](negate.md)  
-Prev: [input](input.md)
+Prev: [load](load.md)
 
 [Back](../../README.md)
