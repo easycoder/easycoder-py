@@ -6,6 +6,7 @@ For the JavaScript version of **_EasyCoder_**, which provides a full set of grap
 Repository: [https://github.com/easycoder/easycoder.github.io](https://github.com/easycoder/easycoder.github.io)  
 Website: [https://easycoder.github.io](https://easycoder.github.io)
 <hr>
+
 ## Quick Start
 Install **_EasyCoder_** in your Python environment:
 ```
