@@ -18,7 +18,7 @@ print `Hello, world!`
 ```
 This is traditionally the first program to be written in virtually any language. To run it, use `easycoder hello.ecs`.
 
-The output will look like this:
+The output will look like this (the version number will differ):
 
 ```
 EasyCoder version 250101.1
