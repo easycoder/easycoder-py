@@ -62,6 +62,19 @@ A couple of demo graphical scripts are included in the `scripts` directory:
 
 **_EasyCoder_** graphics are handled by a library module, `ec_renderer` that can be used outside of the **_EasyCoder_** environment, in other Python programs.
 
+## Significant features
+
+ - English-like syntax based on vocabulary rather than structure. Scripts can be read as English
+ - Comprehensive feature set
+ - Runs directly from source scripts, using a fast compiler to create efficient intermediate runtime code that is run immediately
+ - Low memory requirements
+ - Minimim dependency on other 3rd-party packages
+ - Built-in co-operative multitasking
+ - Dynamic loading of scripts on demand
+ - The language can be extended seamlessly using plugin function modules
+ - Plays well with any Python code
+ - Fully Open Source
+
 ## Programming reference
 
 **_EasyCoder_** comprises a set of modules to handle tokenisation, compilation and runtime control. Syntax and grammar are defined by [packages](doc/README.md), of which there are currently two; the [core](doc/core/README.md) package, which implements a comprehensive set of command-line programming features, and and the [graphics](doc/graphics/README.md) package, which adds graphical features in a windowing environment.
