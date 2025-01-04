@@ -367,8 +367,7 @@ class Core(Handler):
         return True
 
     def r_exit(self, command):
-        sys.exit()
-        return 0
+        return -1
 
     # Declare a file variable
     def k_file(self, command):
@@ -462,7 +461,7 @@ class Core(Handler):
             else:
                 RuntimeError(self.program, f'Error: {errorReason}')
         retval['content'] = response.text
-        self.program.putSymbolValue(target, retval);
+        self.program.putSymbolValue(target, retval)
         return self.nextPC()
 
     # Go to a label
@@ -553,15 +552,45 @@ class Core(Handler):
             self.program.pc += 1
         return self.program.pc
 
-    # Import a plugin. This is done at compile time.
-    # import {class} from {source}
+    # Import one or more variables
     def k_import(self, command):
-        clazz = self.nextToken()
-        if self.nextIs('from'):
-            source = self.nextToken()
-            self.program.importPlugin(f'{source}:{clazz}')
-            return True
-        return False
+        imports = []
+        while True:
+            keyword = self.nextToken()
+            name = self.nextToken()
+            item = [keyword, name]
+            imports.append(item)
+            self.symbols[name] = self.getPC()
+            variable = {}
+            variable['domain'] = None
+            variable['name'] = name
+            variable['keyword'] = keyword
+            variable['import'] = None
+            self.addCommand(variable)
+            if self.peek() != 'and':
+                break
+            self.nextToken()
+        command['imports'] = json.dumps(imports)
+        self.add(command)
+        return True
+
+    def r_import(self, command):
+        exports = self.program.exports
+        imports = json.loads(command['imports'])
+        if len(imports) < len(exports):
+            RuntimeError(self.program, 'Too few imports')
+        elif len(imports) > len(exports):
+            RuntimeError(self.program, 'Too many imports')
+        for n in range(0, len(imports)):
+            exportRecord = exports[n]
+            exportKeyword = exportRecord['keyword']
+            name = imports[n][1]
+            symbolRecord = self.program.getSymbolRecord(name)
+            symbolKeyword = symbolRecord['keyword']
+            if symbolKeyword != exportKeyword:
+                RuntimeError(self.program, f'Import {n} ({symbolKeyword}) does not match export {n} ({exportKeyword})')
+            symbolRecord['import'] = exportRecord
+        return self.nextPC()
 
     # Increment a variable
     def k_increment(self, command):
@@ -646,9 +675,17 @@ class Core(Handler):
         self.putSymbolValue(symbolRecord, value)
         return self.nextPC()
 
-    # Load a variable from a file
+    # 1 Load a plugin. This is done at compile time.
+    # 2 Load text from a file
     def k_load(self, command):
-        if self.nextIsSymbol():
+        self.nextToken()
+        if self.tokenIs('plugin'):
+            clazz = self.nextToken()
+            if self.nextIs('from'):
+                source = self.nextToken()
+                self.program.importPlugin(f'{source}:{clazz}')
+                return True
+        elif self.isSymbol():
             command['target'] = self.getToken()
             if self.nextIs('from'):
                 command['file'] = self.nextValue()
@@ -657,8 +694,11 @@ class Core(Handler):
         return False
 
     def r_load(self, command):
+        print(command)
         target = self.getVariable(command['target'])
+        print(target)
         file = self.getRuntimeValue(command['file'])
+        print(file)
         f = open(file, 'r')
         content = f.read()
         f.close()
@@ -666,6 +706,27 @@ class Core(Handler):
         value['type'] = 'text'
         value['content'] = content
         self.putSymbolValue(target, value)
+        return self.nextPC()
+
+    # Lock a variable
+    def k_lock(self, command):
+        if self.nextIsSymbol():
+            symbolRecord = self.getSymbolRecord()
+            command['target'] = symbolRecord['name']
+            self.add(command)
+            return True
+        return False
+
+    def r_lock(self, command):
+        target = self.getVariable(command['target'])
+        target['locked'] = True
+        return self.nextPC()
+
+    # Declare a module variable
+    def k_module(self, command):
+        return self.compileVariable(command)
+
+    def r_module(self, command):
         return self.nextPC()
 
     # Arithmetic multiply
@@ -1030,6 +1091,16 @@ class Core(Handler):
         self.putSymbolValue(templateRecord, value)
         return self.nextPC()
 
+    # Release the parent script
+    def k_release(self, command):
+        if self.nextIs('parent'):
+            self.add(command)
+        return True
+
+    def r_release(self, command):
+        self.program.releaseParent()
+        return self.nextPC()
+
     # Return from subroutine
     def k_return(self, command):
         self.add(command)
@@ -1037,6 +1108,43 @@ class Core(Handler):
 
     def r_return(self, command):
         return self.stack.pop()
+
+    # Compile and run a script
+    def k_run(self, command):
+        if self.nextIsSymbol():
+            record = self.getSymbolRecord()
+            if record['keyword'] == 'module':
+                command['target'] = record['name']
+                if self.nextIs('as'):
+                    command['path'] = self.nextValue()
+                    exports = []
+                    if self.nextIs('with'):
+                        while True:
+                            name = self.nextToken()
+                            record = self.getSymbolRecord()
+                            exports.append(name)
+                            if self.peek() != 'and':
+                                break
+                            self.nextToken()
+                    command['exports'] = json.dumps(exports)
+                    self.add(command)
+                    return True
+        return False
+
+    def r_run(self, command):
+        target = self.getVariable(command['target'])
+        path = self.getRuntimeValue(command['path'])
+        exports = json.loads(command['exports'])
+        for n in range(0, len(exports)):
+            exports[n] = self.getVariable(exports[n])
+        target['path'] = path
+        parent = Object()
+        parent.program = self.program
+        parent.pc = self.nextPC()
+        parent.waiting = True
+        p = self.program.__class__
+        p(path).start(parent, exports)
+        return 0
 
     # Provide a name for the script
     def k_script(self, command):
@@ -1362,6 +1470,20 @@ class Core(Handler):
     def r_truncate(self, command):
         fileRecord = self.getVariable(command['file'])
         fileRecord['file'].truncate()
+        return self.nextPC()
+
+    # Unlock a variable
+    def k_unlock(self, command):
+        if self.nextIsSymbol():
+            symbolRecord = self.getSymbolRecord()
+            command['target'] = symbolRecord['name']
+            self.add(command)
+            return True
+        return False
+
+    def r_unlock(self, command):
+        target = self.getVariable(command['target'])
+        target['locked'] = False
         return self.nextPC()
 
     # Declare a general-purpose variable

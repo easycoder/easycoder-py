@@ -1,7 +1,9 @@
+import sys, threading, json
 from .ec_classes import FatalError, RuntimeError, Object
 from .ec_handler import Handler
 from .ec_screenspec import ScreenSpec
 from .ec_renderer import Renderer
+from .ec_program import flush
 
 class Graphics(Handler):
 
@@ -173,7 +175,7 @@ class Graphics(Handler):
             if type == 'window':
                 self.windowSpec = Object()
                 self.windowSpec.title = command['title']['content']
-                self.windowSpec.flush = self.program.flush
+                self.windowSpec.flush = flush
                 self.windowSpec.finish = self.program.finish
                 self.windowSpec.pos = (self.getRuntimeValue(command['pos'][0]), self.getRuntimeValue(command['pos'][1]))
                 self.windowSpec.size = (self.getRuntimeValue(command['size'][0]), self.getRuntimeValue(command['size'][1]))
@@ -219,7 +221,7 @@ class Graphics(Handler):
         if self.nextIsSymbol():
             record = self.getSymbolRecord()
             type = record['keyword']
-            if type in ['ellipse', 'rectangle']:
+            if self.isGraphicType(type):
                 command['target'] = record['id']
                 token = self.nextToken()
                 if token == 'to':
@@ -283,7 +285,7 @@ class Graphics(Handler):
         if command['type'] == 'tap':
             record = self.getVariable(command['target'])
             keyword = record['keyword']
-            if keyword in ['ellipse', 'rectangle', 'text', 'image']:
+            if self.isGraphicType(keyword):
                 id = record['value'][record['index']]['content']
                 self.ui.setOnClick(id, lambda: self.run(pc))
             else:
@@ -294,12 +296,6 @@ class Graphics(Handler):
         return self.compileVariable(command)
 
     def r_rectangle(self, command):
-        return self.nextPC()
-
-    def k_text(self, command):
-        return self.compileVariable(command)
-
-    def r_text(self, command):
         return self.nextPC()
 
     # render {spec}
@@ -332,6 +328,7 @@ class Graphics(Handler):
     def r_run(self, command):
         self.renderer = Renderer()
         self.renderer.init(self.windowSpec)
+        self.ui = self.renderer.getUI()
         self.program.setExternalControl()
         self.program.run(self.nextPC())
         self.renderer.run()
@@ -343,7 +340,7 @@ class Graphics(Handler):
             if self.nextIs('of'):
                 if self.nextIsSymbol():
                     record = self.getSymbolRecord()
-                    if record['keyword'] in ['ellipse', 'rectangle', 'text', 'image']:
+                    if self.isGraphicType(record['keyword']):
                         command['target'] = record['name']
                         if self.nextIs('to'):
                             command['value'] = self.nextValue()
@@ -363,6 +360,12 @@ class Graphics(Handler):
         self.ui.setAttribute(id, attribute, value)
         return self.nextPC()
 
+    def k_text(self, command):
+        return self.compileVariable(command)
+
+    def r_text(self, command):
+        return self.nextPC()
+
     #############################################################################
     # Modify a value or leave it unchanged.
     def modifyValue(self, value):
@@ -373,6 +376,16 @@ class Graphics(Handler):
     def compileValue(self):
         value = {}
         value['domain'] = self.getName()
+        token = self.getToken()
+        if self.isSymbol():
+            value['name'] = token
+            symbolRecord = self.getSymbolRecord()
+            keyword = symbolRecord['keyword']
+            if keyword == 'graphic':
+                value['type'] = 'symbol'
+                return value
+            return None
+        
         if self.tokenIs('the'):
             self.nextToken()
         kwd = self.getToken()
@@ -382,7 +395,7 @@ class Graphics(Handler):
             if self.nextIs('of'):
                 if self.nextIsSymbol():
                     record = self.getSymbolRecord()
-                    if record['keyword'] in ['ellipse', 'rectangle']:
+                    if self.isGraphicType(record['keyword']):
                         value['attribute'] = attribute
                         value['target'] = record['name']
                         return value
@@ -392,6 +405,12 @@ class Graphics(Handler):
                 value['attribute'] = attribute
                 return value
         return None
+
+    #############################################################################
+    # Test if a graphic type
+
+    def isGraphicType(self, type):
+        return type in ['ellipse', 'rectangle', 'text', 'image']
 
     #############################################################################
     # Value handlers
@@ -408,6 +427,15 @@ class Graphics(Handler):
             return value
         except Exception as e:
             RuntimeError(self.program, e)
+
+    # This is used by the expression evaluator to get the value of a symbol
+    def v_symbol(self, symbolRecord):
+        result = {}
+        if symbolRecord['keyword'] == 'graphic':
+            symbolValue = self.getSymbolValue(symbolRecord)
+            return symbolValue
+        else:
+            return None
 
     def v_window(self, v):
         try:

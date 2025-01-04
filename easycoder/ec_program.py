@@ -1,11 +1,20 @@
 import time, json, sys
 from copy import deepcopy
 from collections import deque
-from .ec_classes import Script, Token, FatalError, RuntimeError
+from .ec_classes import Script, Token, FatalError, RuntimeError, Object
 from .ec_compiler import Compiler
 from .ec_core import Core
 import importlib
 from importlib.metadata import version
+
+queue = deque()
+
+# Flush the queue
+def flush():
+	global queue
+	while len(queue):
+		item = queue.popleft()
+		item.program.flush(item.pc)
 
 class Program:
 
@@ -15,7 +24,7 @@ class Program:
 			print('No script supplied')
 			exit()
 		self.classes=[Core]
-		scriptName = argv[0]
+		scriptName = argv
 		if scriptName.endswith('.ecg'):
 			from .ec_graphics import Graphics
 			self.classes.append(Graphics)
@@ -23,6 +32,7 @@ class Program:
 		f = open(scriptName, 'r')
 		source = f.read()
 		f.close()
+		self.argv = argv
 		self.domains = []
 		self.domainIndex = {}
 		self.name = '<anon>'
@@ -37,11 +47,12 @@ class Program:
 		self.value = self.compiler.value
 		self.condition = self.compiler.condition
 		self.processClasses()
-		self.queue = deque()
 		self.externalControl = False
-		self.quit = False
+		self.finished = False
 
-	def start(self):
+	def start(self, parent=None, exports=[]):
+		self.parent = parent
+		self.exports = exports
 		startCompile = time.time()
 		self.tokenise(self.script)
 		if self.compiler.compileFrom(0, []):
@@ -98,11 +109,11 @@ class Program:
 	def getSymbolRecord(self, name):
 		try:
 			target = self.code[self.symbols[name]]
+			if target['import'] != None:
+				target = target['import']
+			return target
 		except:
-			RuntimeError(self.compiler.program, f'Unknown symbol \'{name}\'')
-			return None
-
-		return target
+			RuntimeError(self, f'Unknown symbol \'{name}\'')
 
 	def doValue(self, value):
 		if value == None:
@@ -184,6 +195,8 @@ class Program:
 		return copy
 
 	def putSymbolValue(self, symbolRecord, value):
+		if symbolRecord['locked']:
+			RuntimeError(self, f'Symbol \'{symbolRecord['name']}\' is locked')
 		if symbolRecord['value'] == None or symbolRecord['value'] == []:
 			symbolRecord['value'] = [value]
 		else:
@@ -192,11 +205,11 @@ class Program:
 				index = 0
 			symbolRecord['value'][index] = value
 
-	def encode(self, value, encoding='UTF-8'):
-		return value.encode(encoding)
+	def encode(self, value):
+		return value
 
-	def decode(self, value, encoding='UTF-8'):
-		return value.decode(encoding)
+	def decode(self, value):
+		return value
 
 	# Tokenise the script
 	def tokenise(self, script):
@@ -256,48 +269,60 @@ class Program:
 					token = ''
 		return
 	
-	def finish(self):
-		self.quit = True
+	def releaseParent(self):
+		if self.parent.waiting and self.parent.program.running:
+			self.parent.waiting = False
+			self.parent.program.run(self.parent.pc)
 
 	# Flush the queue
-	def flush(self):
-		while len(self.queue):
-			self.pc = self.queue.popleft()
-			while True:
-				if self.quit:
-					return
-				command = self.code[self.pc]
-				domainName = command['domain']
-				if domainName == None:
-					self.pc += 1
-				else:
-					keyword = command['keyword']
-					if self.debugStep and command['debug']:
-						lino = command['lino'] + 1
-						line = self.script.lines[command['lino']].strip()
-						print(f'{self.name}: Line {lino}: {domainName}:{keyword}:  {line}')
-					domain = self.domainIndex[domainName]
-					handler = domain.runHandler(keyword)
-					if handler:
-						command = self.code[self.pc]
-						command['program'] = self
-						self.pc = handler(command)
-						try:
-							if self.pc == 0 or self.pc >= len(self.code):
-								break
-						except:
-							break
-
-	def setExternalControl(self):
-		self.externalControl = True
+	def flush(self, pc):
+		global queue
+		self.running = True
+		self.pc = pc
+		while True:
+			command = self.code[self.pc]
+			domainName = command['domain']
+			if domainName == None:
+				self.pc += 1
+			else:
+				keyword = command['keyword']
+				if self.debugStep and command['debug']:
+					lino = command['lino'] + 1
+					line = self.script.lines[command['lino']].strip()
+					print(f'{self.name}: Line {lino}: {domainName}:{keyword}:  {line}')
+				domain = self.domainIndex[domainName]
+				handler = domain.runHandler(keyword)
+				if handler:
+					command = self.code[self.pc]
+					command['program'] = self
+					self.pc = handler(command)
+					# Deal with 'exit'
+					if self.pc == -1:
+						queue = deque()
+						self.running = False
+						if self.parent != None:
+							self.releaseParent()
+							sys.exit()
+					elif self.pc == None or self.pc == 0 or self.pc >= len(self.code):
+						break
 
 	# Run the script
 	def run(self, pc):
-		length = len(self.queue)
-		self.queue.append(pc)
+		global queue
+		length = len(queue)
+		item = Object()
+		item.program = self
+		item.pc = pc
+		queue.append(item)
 		if not self.externalControl:
 			if length == 0:
-				return self.flush()
+				return flush()
+	
+	def finish(self):
+		self.running = False
+
+	def setExternalControl(self):
+		self.externalControl = True
 
 	def nonNumericValueError(self):
 		FatalError(self.compiler, 'Non-numeric value')
@@ -343,3 +368,10 @@ class Program:
 		if v1 < v2:
 			return -1
 		return 0
+
+# This is the program launcher
+def Main():
+	if (len(sys.argv) > 1):
+		Program(sys.argv[1]).start()
+	else:
+		print('Syntax: easycoder <scriptname> [plugins]')

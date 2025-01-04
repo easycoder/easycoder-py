@@ -232,10 +232,10 @@ class Renderer(App):
     
     def build(self):
         Clock.schedule_interval(self.flushQueue, 0.01)
-        self.ui = UI()
         return self.ui
 
     def init(self, spec):
+        self.ui = UI()
         self.title = spec.title
         self.flush = spec.flush
         Window.size = spec.size

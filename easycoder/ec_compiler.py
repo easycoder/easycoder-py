@@ -128,6 +128,7 @@ class Compiler:
 			FatalError(self, f'Duplicate symbol name "{name}"')
 			return False
 		self.symbols[name] = self.getPC()
+		command['program'] = self.program
 		command['type'] = 'symbol'
 		command['valueHolder'] = valueHolder
 		command['name'] = name
@@ -136,6 +137,8 @@ class Compiler:
 		command['value'] = [None]
 		command['used'] = False
 		command['debug'] = False
+		command['import'] = None
+		command['locked'] = False
 		self.addCommand(command)
 		return True
 
