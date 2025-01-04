@@ -10,6 +10,6 @@
 Replaces all occurrences of one string with another in a string [variable](variable.md).
 
 Next: [return](return.md)  
-Prev: [read](read.md)
+Prev: [release](release.md)
 
 [Back](../../README.md)

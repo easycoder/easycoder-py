@@ -10,7 +10,7 @@
 ## Description:
 Truncate a file
 
-Next: [variable](variable.md)  
+Next: [unlock](variable.md)  
 Prev: [toggle](toggle.md)
 
 [Back](../../README.md)

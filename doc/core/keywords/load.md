@@ -10,7 +10,7 @@
 ## Description:
 Loads the contents of a file into a variable. See also [save](save.md).
 
-Next: [multiply](multiply.md)  
+Next: [lock](lock.md)  
 Prev: [init](init.md)
 
 [Back](../../README.md)
