@@ -1,5 +1,5 @@
 # Introduction
-**_EasyCoder_** is a high-level English-like scripting language suited for prototyping and rapid testing of ideas. It operates on the command line and a graphics module is under construction. This version of the language is written in Python and its runtime acts as a fairly thin wrapper around Python functions, giving good performance for general applications.
+**_EasyCoder_** is a high-level English-like scripting language suited for prototyping and rapid testing of ideas. It operates on the command line and a graphics module is under construction. This version of the language is written in Python and it acts as a fairly thin wrapper around Python functions, giving fast compilation and good runtime performance for general applications.
 <hr>
 For the JavaScript version of **_EasyCoder_**, which provides a full set of graphical features to run in a browser, please visit
 
