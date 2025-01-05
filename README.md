@@ -66,7 +66,7 @@ A couple of demo graphical scripts are included in the `scripts` directory:
 
  - English-like syntax based on vocabulary rather than structure. Scripts can be read as English
  - Comprehensive feature set
- - Runs directly from source scripts, using a fast compiler to create efficient intermediate runtime code that is run immediately
+ - Runs directly from source scripts. A fast compiler creates efficient intermediate code that runs immediately after compilation
  - Low memory requirements
  - Minimim dependency on other 3rd-party packages
  - Built-in co-operative multitasking
