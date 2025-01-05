@@ -12,3 +12,4 @@ begin
   else if Number modulo 15 is 0 print `FizzBuzz`
   else print Number
 end
+exit

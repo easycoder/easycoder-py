@@ -189,6 +189,8 @@ Loop1:
     print Data
     print the index of 5 in Data
 
+	wait 2
+	print `All done!`
 	exit
 
 Print:

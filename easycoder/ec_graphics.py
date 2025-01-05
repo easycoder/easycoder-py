@@ -176,7 +176,7 @@ class Graphics(Handler):
                 self.windowSpec = Object()
                 self.windowSpec.title = command['title']['content']
                 self.windowSpec.flush = flush
-                self.windowSpec.finish = self.program.finish
+                self.windowSpec.kill = self.program.kill
                 self.windowSpec.pos = (self.getRuntimeValue(command['pos'][0]), self.getRuntimeValue(command['pos'][1]))
                 self.windowSpec.size = (self.getRuntimeValue(command['size'][0]), self.getRuntimeValue(command['size'][1]))
                 self.windowSpec.fill = (self.getRuntimeValue(command['fill'][0])/255, self.getRuntimeValue(command['fill'][1])/255, self.getRuntimeValue(command['fill'][2])/255)

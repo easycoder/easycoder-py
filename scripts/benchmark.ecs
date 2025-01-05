@@ -60,3 +60,4 @@
 	put now into Finish
 	take Start from Finish giving N
 	print N cat ` seconds`
+	exit

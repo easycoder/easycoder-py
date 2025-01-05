@@ -2,7 +2,7 @@
 
     script Points
     
-    import Points from plugins/example.py
+    import plugin Points from plugins/example.py
     
     point Point1
     point Point2
@@ -14,3 +14,4 @@
     put the distance between Point1 and Point2 into Distance
     assert Distance is 250 with `Distance is ` cat Distance cat `: should be 250`
     print `The distance is ` cat Distance cat ` units`
+    exit

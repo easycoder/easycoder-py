@@ -7,8 +7,6 @@ from .ec_core import Core
 import importlib
 from importlib.metadata import version
 
-queue = deque()
-
 # Flush the queue
 def flush():
 	global queue
@@ -19,6 +17,7 @@ def flush():
 class Program:
 
 	def __init__(self, argv):
+		global queue
 		print(f'EasyCoder version {version("easycoder")}')
 		if len(argv) == 0:
 			print('No script supplied')
@@ -32,6 +31,7 @@ class Program:
 		f = open(scriptName, 'r')
 		source = f.read()
 		f.close()
+		queue = deque()
 		self.argv = argv
 		self.domains = []
 		self.domainIndex = {}
@@ -48,11 +48,13 @@ class Program:
 		self.condition = self.compiler.condition
 		self.processClasses()
 		self.externalControl = False
-		self.finished = False
+		self.running = True
 
-	def start(self, parent=None, exports=[]):
+	def start(self, parent=None, module = None, exports=[]):
 		self.parent = parent
 		self.exports = exports
+		if module != None:
+			module['child'] = self
 		startCompile = time.time()
 		self.tokenise(self.script)
 		if self.compiler.compileFrom(0, []):
@@ -70,7 +72,15 @@ class Program:
 				self.run(0)
 		else:
 			self.compiler.showWarnings()
-			return
+
+		# If this is the main script and there's no graphics, run a main loop
+		if parent == None and self.externalControl == False:
+			while True:
+				if self.running == True:
+					flush()
+					time.sleep(0.1)
+				else:
+					break
 
 	# Import a plugin
 	def importPlugin(self, source):
@@ -140,7 +150,7 @@ class Program:
 			name = value['name']
 			symbolRecord = self.getSymbolRecord(name)
 			if symbolRecord['value'] == [None]:
-				RuntimeWarning(self.compiler.program, f'Variable "{name}" has no value')
+				RuntimeWarning(self.program, f'Variable "{name}" has no value')
 				return None
 			handler = self.domainIndex[symbolRecord['domain']].valueHandler('symbol')
 			result = handler(symbolRecord)
@@ -277,7 +287,6 @@ class Program:
 	# Flush the queue
 	def flush(self, pc):
 		global queue
-		self.running = True
 		self.pc = pc
 		while True:
 			command = self.code[self.pc]
@@ -299,26 +308,23 @@ class Program:
 					# Deal with 'exit'
 					if self.pc == -1:
 						queue = deque()
-						self.running = False
 						if self.parent != None:
 							self.releaseParent()
-							sys.exit()
+						else:
+							self.running = False
+							break
 					elif self.pc == None or self.pc == 0 or self.pc >= len(self.code):
 						break
 
 	# Run the script
 	def run(self, pc):
 		global queue
-		length = len(queue)
 		item = Object()
 		item.program = self
 		item.pc = pc
 		queue.append(item)
-		if not self.externalControl:
-			if length == 0:
-				return flush()
 	
-	def finish(self):
+	def kill(self):
 		self.running = False
 
 	def setExternalControl(self):
@@ -368,6 +374,15 @@ class Program:
 		if v1 < v2:
 			return -1
 		return 0
+	
+	# Set up a message handler
+	def onMessage(self, pc):
+		self.onMessagePC = pc
+
+	# Handle a message from our parent program
+	def handleMessage(self, message):
+		self.message = message
+		self.run(self.onMessagePC)
 
 # This is the program launcher
 def Main():

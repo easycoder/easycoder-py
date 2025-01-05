@@ -225,6 +225,7 @@ class Renderer(App):
     
     def request_close(self):
         print('close window')
+        self.kill()
         Window.close()
     
     def flushQueue(self, dt):
@@ -238,6 +239,7 @@ class Renderer(App):
         self.ui = UI()
         self.title = spec.title
         self.flush = spec.flush
+        self.kill = spec.kill
         Window.size = spec.size
         Window.left = spec.pos[0]
         Window.top = spec.pos[1]

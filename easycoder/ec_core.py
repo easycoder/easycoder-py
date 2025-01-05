@@ -552,27 +552,37 @@ class Core(Handler):
             self.program.pc += 1
         return self.program.pc
 
-    # Import one or more variables
     def k_import(self, command):
-        imports = []
-        while True:
-            keyword = self.nextToken()
-            name = self.nextToken()
-            item = [keyword, name]
-            imports.append(item)
-            self.symbols[name] = self.getPC()
-            variable = {}
-            variable['domain'] = None
-            variable['name'] = name
-            variable['keyword'] = keyword
-            variable['import'] = None
-            self.addCommand(variable)
-            if self.peek() != 'and':
-                break
+        if self.peek() == 'plugin':
+            # Import a plugin
             self.nextToken()
-        command['imports'] = json.dumps(imports)
-        self.add(command)
-        return True
+            clazz = self.nextToken()
+            if self.nextIs('from'):
+                source = self.nextToken()
+                self.program.importPlugin(f'{source}:{clazz}')
+                return True
+            return False
+        else:
+            # Import one or more variables
+            imports = []
+            while True:
+                keyword = self.nextToken()
+                name = self.nextToken()
+                item = [keyword, name]
+                imports.append(item)
+                self.symbols[name] = self.getPC()
+                variable = {}
+                variable['domain'] = None
+                variable['name'] = name
+                variable['keyword'] = keyword
+                variable['import'] = None
+                self.addCommand(variable)
+                if self.peek() != 'and':
+                    break
+                self.nextToken()
+            command['imports'] = json.dumps(imports)
+            self.add(command)
+            return True
 
     def r_import(self, command):
         exports = self.program.exports
@@ -694,11 +704,8 @@ class Core(Handler):
         return False
 
     def r_load(self, command):
-        print(command)
         target = self.getVariable(command['target'])
-        print(target)
         file = self.getRuntimeValue(command['file'])
-        print(file)
         f = open(file, 'r')
         content = f.read()
         f.close()
@@ -809,6 +816,36 @@ class Core(Handler):
 
     def r_object(self, command):
         return self.nextPC()
+
+    # on message {action}
+    def k_on(self, command):
+        if self.nextIs('message'):
+            self.nextToken()
+            command['goto'] = 0
+            self.add(command)
+            cmd = {}
+            cmd['domain'] = 'core'
+            cmd['lino'] = command['lino']
+            cmd['keyword'] = 'gotoPC'
+            cmd['goto'] = 0
+            cmd['debug'] = False
+            self.addCommand(cmd)
+            # Add the action and a 'stop'
+            self.compileOne()
+            cmd = {}
+            cmd['domain'] = 'core'
+            cmd['lino'] = command['lino']
+            cmd['keyword'] = 'stop'
+            cmd['debug'] = False
+            self.addCommand(cmd)
+            # Fixup the link
+            command['goto'] = self.getPC()
+            return True
+        return False
+
+    def r_on(self, command):
+        self.program.onMessage(self.nextPC()+1)
+        return command['goto']
 
     # Open a file
     # open {file} for reading/writing/appending
@@ -1002,13 +1039,13 @@ class Core(Handler):
             if self.nextIsSymbol():
                 symbolRecord = self.getSymbolRecord()
                 command['target'] = symbolRecord['name']
-                if symbolRecord['valueHolder']:
+                if 'valueholder' in symbolRecord and symbolRecord['valueHolder'] == False:
+                    FatalError(self.program.compiler, f'Symbol {symbolRecord["name"]} is not a value holder')
+                else:
                     self.add(command)
                     return True
-                else:
-                    FatalError(self.program.compiler, f'Symbol {symbolRecord["name"]} is not a value holder')
             else:
-                FatalError(self.program.compiler, f'No such variable: "{self.getToken()}"')
+                FatalError(self.program.compiler, f'Symbol {self.getToken()} is not a variable')
         return False
 
     def r_put(self, command):
@@ -1111,12 +1148,16 @@ class Core(Handler):
 
     # Compile and run a script
     def k_run(self, command):
-        if self.nextIsSymbol():
-            record = self.getSymbolRecord()
-            if record['keyword'] == 'module':
-                command['target'] = record['name']
-                if self.nextIs('as'):
-                    command['path'] = self.nextValue()
+        try:
+            command['path'] = self.nextValue()
+        except Exception as e:
+            self.warning(f'Core.run: Path expected')
+            return False
+        if self.nextIs('as'):
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                if record['keyword'] == 'module':
+                    command['module'] = record['name']
                     exports = []
                     if self.nextIs('with'):
                         while True:
@@ -1132,18 +1173,18 @@ class Core(Handler):
         return False
 
     def r_run(self, command):
-        target = self.getVariable(command['target'])
+        module = self.getVariable(command['module'])
         path = self.getRuntimeValue(command['path'])
         exports = json.loads(command['exports'])
         for n in range(0, len(exports)):
             exports[n] = self.getVariable(exports[n])
-        target['path'] = path
+        module['path'] = path
         parent = Object()
         parent.program = self.program
         parent.pc = self.nextPC()
         parent.waiting = True
         p = self.program.__class__
-        p(path).start(parent, exports)
+        p(path).start(parent, module, exports)
         return 0
 
     # Provide a name for the script
@@ -1166,6 +1207,24 @@ class Core(Handler):
         f = open(file, 'w')
         f.write(content)
         f.close()
+        return self.nextPC()
+
+    # Send a message to a module
+    def k_send(self, command):
+        command['message'] = self.nextValue()
+        if self.nextIs('to'):
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                if record['keyword'] == 'module':
+                    command['module'] = record['name']
+                    self.add(command)
+                    return True
+        return False
+
+    def r_send(self, command):
+        message = self.getRuntimeValue(command['message'])
+        module = self.getVariable(command['module'])
+        module['child'].handleMessage(message)
         return self.nextPC()
 
     # Set a value
@@ -1791,7 +1850,6 @@ class Core(Handler):
                     return value
 
         if token == 'message':
-            self.nextToken()
             return value
 
         if token == 'timestamp':
@@ -2095,6 +2153,12 @@ class Core(Handler):
         value = {}
         value['type'] = 'float'
         value['content'] = megabytes
+        return value
+
+    def v_message(self, v):
+        value = {}
+        value['type'] = 'text'
+        value['content'] = self.program.message
         return value
 
     def v_modification(self, v):
