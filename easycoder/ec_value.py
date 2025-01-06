@@ -51,14 +51,14 @@ class Value:
 			if item != None:
 				return item
 			self.compiler.rewindTo(mark)
-		self.compiler.warning(f'I don\'t understand \'{token}\'')
+		# self.compiler.warning(f'I don\'t understand \'{token}\'')
 		return None
 
 	def compileValue(self):
 		token = self.getToken()
 		item = self.getItem()
 		if item == None:
-			FatalError(self.compiler, f'Cannot get the value of "{token}"')
+			self.compiler.warning(f'ec_value.compileValue: Cannot get the value of "{token}"')
 			return None
 
 		value = {}

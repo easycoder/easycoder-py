@@ -61,17 +61,14 @@ class ScreenSpec():
             self.createWidget(spec[widgets], parent)
 
     # Render a graphic specification
-    def render(self, spec, ui):
+    def render(self, spec, parent, ui):
         self.ui = ui
 
         # If it'a string, process it
         if isinstance(spec, str):
-            self.renderSpec(loads(spec), None)
+            self.renderSpec(loads(spec), parent)
 
         # If it's a 'dict', extract the spec and the args
-        elif isinstance(spec, dict):
-            spec = loads(spec['spec'])
-            self.renderSpec(spec, None)
-
         else:
-            raise Exception('Spec is an unknown type')
+            self.renderSpec(spec, parent)
+

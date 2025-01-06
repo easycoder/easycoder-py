@@ -36,7 +36,7 @@ class Graphics(Handler):
             FatalError(self.program.compiler, f'There is no screen element with id \'{id}\'')
             return -1
         if element.getType() != keyword:
-            FatalError(self.program.compiler, f'Mismatched element type ({element['type']} and {keyword})')
+            FatalError(self.program.compiler, f'Mismatched element type: \'{element['type']}\' and \'{keyword}\'')
         self.putSymbolValue(targetRecord, {'type': 'text', 'content': id})
         return self.nextPC()
 
@@ -301,13 +301,22 @@ class Graphics(Handler):
     # render {spec}
     def k_render(self, command):
         command['spec'] = self.nextValue()
+        command['parent'] = None
+        if self.peek() == 'in':
+            self.nextToken()
+            if self.nextIsSymbol():
+                command['parent'] = self.getSymbolRecord()['name']
         self.add(command)
         return True
 
     def r_render(self, command):
+        spec = self.getRuntimeValue(command['spec'])
+        parent = command['parent']
+        if parent !=None:
+            parent = self.getVariable(command['parent'])
         self.ui = self.renderer.getUI()
         try:
-            ScreenSpec().render(self.getRuntimeValue(command['spec']), self.ui)
+            ScreenSpec().render(spec, parent, self.ui)
         except Exception as e:
             RuntimeError(self.program, e)
         return self.nextPC()
@@ -316,12 +325,6 @@ class Graphics(Handler):
     def k_run(self, command):
         if self.nextIs('graphics'):
             self.add(command)
-            cmd = {}
-            cmd['domain'] = 'graphics'
-            cmd['lino'] = command['lino'] + 1
-            cmd['keyword'] = 'getui'
-            cmd['debug'] = False
-            self.addCommand(cmd)
             return True
         return False
 

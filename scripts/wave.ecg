@@ -97,7 +97,7 @@
         increment N
     end
 
-    wait 2
+    wait 1
     ! Run the main animation
     while true
     begin

@@ -102,7 +102,7 @@ class Compiler:
 
 	def showWarnings(self):
 		for warning in self.warnings:
-			print(f'Warning at line {self.getLino() + 1} from {warning}')
+			print(f'Warning at line {self.getLino() + 1} of {self.program.name}: {warning}')
 
 	def getSymbolRecord(self):
 		token = self.getToken()

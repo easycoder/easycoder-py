@@ -1900,7 +1900,6 @@ class Core(Handler):
                     return value
             return None
 
-        self.warning(f'Core.compileValue: Unknown token "{token}"')
         return None
 
     #############################################################################
