@@ -103,8 +103,8 @@ MoveEllipse:
 FlashGreen:
     while true
     begin
-        wait 5
-        set attribute `opacity` of GreenCircle to 0
-        wait 1
-        set attribute `opacity` of GreenCircle to 1
+        wait 50 ticks
+        hide GreenCircle
+        wait 50 ticks
+        show GreenCircle
     end

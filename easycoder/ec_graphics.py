@@ -228,6 +228,21 @@ class Graphics(Handler):
         self.ui = self.renderer.getUI()
         return self.nextPC()
 
+    # Hide an element
+    def k_hide(self, command):
+        if self.nextIsSymbol():
+            record = self.getSymbolRecord()
+            type = record['keyword']
+            if self.isGraphicType(type):
+                command['target'] = record['id']
+                self.add(command)
+                return True
+        return False
+
+    def r_hide(self, command):
+        self.ui.setVisible(self.getRuntimeValue(command['target']), False)
+        return self.nextPC()
+
     def k_image(self, command):
         return self.compileVariable(command)
 
@@ -391,6 +406,21 @@ class Graphics(Handler):
         id = target['value'][target['index']]['content']
         value = self.getRuntimeValue(command['value'])
         self.ui.setAttribute(id, attribute, value)
+        return self.nextPC()
+
+    # Show an element (restore it to its current position)
+    def k_show(self, command):
+        if self.nextIsSymbol():
+            record = self.getSymbolRecord()
+            type = record['keyword']
+            if self.isGraphicType(type):
+                command['target'] = record['id']
+                self.add(command)
+                return True
+        return False
+
+    def r_show(self, command):
+        self.ui.setVisible(self.getRuntimeValue(command['target']), True)
         return self.nextPC()
 
     def k_text(self, command):

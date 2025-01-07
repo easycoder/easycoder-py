@@ -35,6 +35,7 @@ class Element():
     def __init__(self, type, spec):
         self.type = type
         self.spec = spec
+        self.visible= True
         self.actionCB = None
 
     def getRelativePosition(self):
@@ -57,10 +58,11 @@ class Element():
         return pos
 
     def setPos(self, pos):
-        # Update the spec
-        self.spec.realpos = pos
-        # Update the displayed item
-        self.spec.item.pos = pos
+        if self.visible:
+            # Update the spec
+            self.spec.realpos = pos
+            # Update the displayed item
+            self.spec.item.pos = pos
 
     def getSize(self):
         return self.spec.realsize
@@ -68,6 +70,13 @@ class Element():
     def setSize(self, size):
         self.spec.realsize = size
         self.spec.item.size = size
+
+    def setVisible(self, vis):
+        self.visible = vis
+        if vis:
+            self.setPos(self.spec.realpos)
+        else:
+            self.spec.item.pos = (Window.width, self.getPos()[1])
 
     def getChildren(self):
         return self.spec.children
@@ -140,6 +149,14 @@ class UI(Widget):
         element = self.getElement(id)
         if element != None:
             self.moveElementBy(id, Vector(pos) - element.getPos())
+        return
+
+    def setVisible(self, id, vis):
+        element = self.getElement(id)
+        if element != None:
+            element.setVisible(vis)
+            for id in element.getChildren():
+                self.setVisible(id, vis)
         return
 
     def on_touch_down(self, touch):

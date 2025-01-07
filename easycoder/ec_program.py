@@ -18,7 +18,6 @@ class Program:
 
 	def __init__(self, argv):
 		global queue
-		print(f'EasyCoder version {version("easycoder")}')
 		if len(argv) == 0:
 			print('No script supplied')
 			exit()
@@ -387,6 +386,7 @@ class Program:
 
 # This is the program launcher
 def Main():
+	print(f'EasyCoder version {version("easycoder")}')
 	if (len(sys.argv) > 1):
 		Program(sys.argv[1]).start()
 	else:
