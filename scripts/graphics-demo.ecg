@@ -37,6 +37,8 @@
     attach Image to `dawn`
     on click Image print ` Click Image`
 
+    fork to FlashGreen
+
     gosub to InitEllipse
     clear UpDown
     put 0 into N
@@ -97,3 +99,12 @@ MoveEllipse:
     increment Step
     if Step is Steps gosub to InitEllipse
     return
+
+FlashGreen:
+    while true
+    begin
+        wait 5
+        set attribute `opacity` of GreenCircle to 0
+        wait 1
+        set attribute `opacity` of GreenCircle to 1
+    end
