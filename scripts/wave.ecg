@@ -14,8 +14,14 @@
     variable L
     variable N
 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Create the window and start the graphics
+
     create window title `Mexican Wave` at 300 300 size 640 480 fill color 255 255 200
     run graphics
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Define a set of 10 bars
 
     put `{
         `   "#": [
@@ -32,6 +38,9 @@
         `   ],
         `
         `` into Spec
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Create the specifications for each of the 10 barsm then render the spec
 
     put 0 into N
     while N is less than 10
@@ -59,6 +68,9 @@
 
     render Spec
 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Attach a script variable to each of the 10 bars
+
     divide the window height by 2 giving Mid
     multiply Mid by 9 giving Range
     divide Range by 10
@@ -75,8 +87,10 @@
         increment N
     end
 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! This section animates the bars growing up fro the bottom of the screen
+
     wait 1
-    ! Run the setup
     put 0 into N
     while N is less than 10
     begin
@@ -96,9 +110,12 @@
         set attribute `height` of Bar to Height
         increment N
     end
+    on click Bar print `Click ` cat the index of Bar
+    end
 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! This section runs the main animation
     wait 1
-    ! Run the main animation
     while true
     begin
         put 0 into N
