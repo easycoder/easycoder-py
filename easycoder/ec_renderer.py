@@ -209,8 +209,6 @@ class UI(Widget):
         elif attribute == 'height':
             spec.realsize = (spec.realsize[0], value)
             spec.item.size = (spec.realsize[0], value)
-        elif attribute == 'opacity':
-            spec.item.opacity = value
         else:
             raise Exception(f'Unknown attribute: {attribute}')
 
