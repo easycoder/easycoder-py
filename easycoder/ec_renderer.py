@@ -9,14 +9,39 @@ from kivy.clock import Clock
 from kivy.vector import Vector
 import math
 
-class Object():
-    pass
+# Get a real position or size value
+# These are {n}w/h, where w/h are percentages
+# e.g. 25w or 50h
+def getReal(spec, val):
+    if isinstance(val, str):
+        c = val[-1]
+        if c in ['w', 'h']:
+            val = int(val[0:len(val)-1])
+            if spec.parent == None:
+                if c == 'w':
+                    n = Window.width
+                else:
+                    n = Window.height
+            else:
+                if c == 'w':
+                    n = spec.parent.realsize[0]
+                else:
+                    n = spec.parent.realsize[1]
+            return val * n / 100
+    return val
 
 class Element():
 
     def __init__(self, type, spec):
         self.type = type
         self.spec = spec
+        self.actionCB = None
+
+    def getRelativePosition(self):
+        spec = self.spec
+        x = getReal(spec, spec.pos[0])
+        y = getReal(spec, spec.pos[1])
+        return Vector(x, y)
 
     def getType(self):
         return self.spec.type
@@ -24,38 +49,26 @@ class Element():
     def getID(self):
         return self.spec.id
 
-    def getRealPos(self):
+    def getPos(self):
         spec = self.spec
         pos = spec.realpos
         if spec.parent != None:
-            pos = Vector(pos) + spec.parent.realpos
-        return pos
-
-    def getPos(self):
-        spec = self.spec
-        pos = spec.pos
-        if spec.parent != None:
-            pos = Vector(pos) + spec.parent.pos
+            pos = self.getRelativePosition() + spec.parent.realpos
         return pos
 
     def setPos(self, pos):
+        # Update the spec
         self.spec.realpos = pos
+        # Update the displayed item
         self.spec.item.pos = pos
-    
-    # Called when the parent moves
-    def repos(self):
-        spec = self.spec
-        spec.item.pos = Vector(spec.realpos) + spec.parent.realpos
-            
-    def getRealSize(self):
-        return self.spec.realsize
-            
+
     def getSize(self):
-        return self.spec.size
+        return self.spec.realsize
 
     def setSize(self, size):
-        self.spec.size = size
-    
+        self.spec.realsize = size
+        self.spec.item.size = size
+
     def getChildren(self):
         return self.spec.children
 
@@ -68,7 +81,7 @@ class UI(Widget):
         if id in self.elements.keys():
             return self.elements[id]
         return None
-    
+
     def addElement(self, id, spec):
         if id in self.elements.keys():
             raise(Exception(f'Element {id} already exists'))
@@ -78,25 +91,6 @@ class UI(Widget):
         self.zlist.append(element)
 
     def createElement(self, spec):
-        # Get a real position or size value
-        def getReal(val):
-            if isinstance(val, str):
-                c = val[-1]
-                if c in ['w', 'h']:
-                    val = int(val[0:len(val)-1])
-                    if spec.parent == None:
-                        if c == 'w':
-                            n = Window.width
-                        else:
-                            n = Window.height
-                    else:
-                        if c == 'w':
-                            n = spec.parent.realsize[0]
-                        else:
-                            n = spec.parent.realsize[1]
-                    return val * n / 100
-            return val
-
         with self.canvas:
             if hasattr(spec, 'fill'):
                 c = spec.fill
@@ -105,9 +99,9 @@ class UI(Widget):
                     Color(c[0], c[1], c[2])
                 else:
                     Color(c[0]/255, c[1]/255, c[2]/255)
-            pos = (getReal(spec.pos[0]), getReal(spec.pos[1]))
+            pos = (getReal(spec, spec.pos[0]), getReal(spec, spec.pos[1]))
             spec.realpos = pos
-            size = (getReal(spec.size[0]), getReal(spec.size[1]))
+            size = (getReal(spec, spec.size[0]), getReal(spec, spec.size[1]))
             spec.realsize = size
             if spec.parent != None:
                 pos = Vector(pos) + spec.parent.realpos
@@ -133,19 +127,19 @@ class UI(Widget):
                 item = AsyncImage(pos=pos, size=size, source=spec.source)
             spec.item = item
             self.addElement(spec.id, spec)
-    
+
     def moveElementBy(self, id, dist):
         element = self.getElement(id)
         if element != None:
-            element.setPos(Vector(element.getRealPos()) + dist)
+            element.setPos(Vector(element.getPos()) + dist)
             for id in element.getChildren():
-                self.getElement(id).repos()
+                self.moveElementBy(id, dist)
         return
-    
+
     def moveElementTo(self, id, pos):
         element = self.getElement(id)
         if element != None:
-            self.moveElementBy(id, Vector(pos) - element.getRealPos())
+            self.moveElementBy(id, Vector(pos) - element.getPos())
         return
 
     def on_touch_down(self, touch):
@@ -153,28 +147,28 @@ class UI(Widget):
         x = tp[0]
         y = tp[1]
         for element in reversed(self.zlist):
-            if element.cb != None:
+            if element.actionCB != None:
                 spec = element.spec
-                pos = self.getRealPos()
-                if spec.parent != None:
-                    pos = Vector(pos) + spec.parent.getRealPos()
-                size = spec.size
+                pos = spec.realpos
+                size = element.getSize()
                 if spec.type == 'ellipse':
-                    a = size[0]/2
-                    b = size[1]/2
+                    a = int(size[0])/2
+                    b = int(size[1])/2
                     ctr = (pos[0] + a, pos[1] +b)
                     h = ctr[0]
                     k = ctr[1]
                     if (math.pow((x - h), 2) / math.pow(a, 2)) + (math.pow((y - k), 2) / math.pow(b, 2)) <= 1:
-                        element.cb()
+                        element.actionCB(element.data)
                         break
                 elif spec.type in ['rectangle', 'text', 'image']:
                     if tp[0] >= pos[0] and tp[0] < pos[0] + size[0] and tp[1] >= pos[1] and tp[1] < pos[1] + size[1]:
-                        element.cb()
+                        element.actionCB(element.data)
                         break
-    
-    def setOnClick(self, id, callback):
-        self.getElement(id).cb = callback
+
+    def setOnClick(self, id, data, callback):
+        element = self.getElement(id)
+        element.data = data
+        element.actionCB = callback
 
     def getWindowAttribute(self, attribute):
         if attribute == 'left':
@@ -200,7 +194,7 @@ class UI(Widget):
             return spec.realsize[1]
         else:
             raise Exception(f'Unknown attribute: {attribute}')
-        
+
     def setAttribute(self, id, attribute, value):
         spec = self.getElement(id).spec
         if attribute == 'left':
@@ -222,15 +216,15 @@ class Renderer(App):
 
     def getUI(self):
         return self.ui
-    
+
     def request_close(self):
         print('close window')
         self.kill()
         Window.close()
-    
+
     def flushQueue(self, dt):
         self.flush()
-    
+
     def build(self):
         Clock.schedule_interval(self.flushQueue, 0.01)
         return self.ui
@@ -240,8 +234,16 @@ class Renderer(App):
         self.title = spec.title
         self.flush = spec.flush
         self.kill = spec.kill
-        Window.size = spec.size
-        Window.left = spec.pos[0]
-        Window.top = spec.pos[1]
         Window.clearcolor = spec.fill
         Window.on_request_close=self.request_close
+        if spec.fullscreen:
+            Window.fullscreen = True
+        elif spec.borderless:
+            Window.borderless = True
+        else:
+            Window.size = spec.size
+            Window.left = spec.pos[0]
+            Window.top = spec.pos[1]
+
+class Object():
+    pass

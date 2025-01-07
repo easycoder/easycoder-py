@@ -9,6 +9,7 @@ class Graphics(Handler):
 
     def __init__(self, compiler):
         Handler.__init__(self, compiler)
+        self.windowCreated = False
 
     def getName(self):
         return 'graphics'
@@ -31,12 +32,13 @@ class Graphics(Handler):
         targetRecord = self.getVariable(command['name'])
         keyword = targetRecord['keyword']
         id = self.getRuntimeValue(command['id'])
-        element = self.ui.getElement(id)
-        if element == None:
+        uiElement = self.ui.getElement(id)
+        if uiElement == None:
             FatalError(self.program.compiler, f'There is no screen element with id \'{id}\'')
             return -1
-        if element.getType() != keyword:
-            FatalError(self.program.compiler, f'Mismatched element type: \'{element['type']}\' and \'{keyword}\'')
+        if uiElement.getType() != keyword:
+            etype = uiElement['type']
+            FatalError(self.program.compiler, f'Mismatched element type: "{etype}" and "{keyword}"')
         self.putSymbolValue(targetRecord, {'type': 'text', 'content': id})
         return self.nextPC()
 
@@ -65,11 +67,19 @@ class Graphics(Handler):
             r = self.compileConstant(255)
             g = self.compileConstant(255)
             b = self.compileConstant(255)
+            fullscreen = False
+            borderless = False
             while True:
                 token = self.peek()
                 if token == 'title':
                     self.nextToken()
                     t = self.nextValue()
+                elif token == 'fullscreen':
+                    fullscreen = True
+                    self.nextToken()
+                elif token == 'borderless':
+                    borderless = True
+                    self.nextToken()
                 elif token == 'at':
                     self.nextToken()
                     left = self.nextValue()
@@ -91,9 +101,11 @@ class Graphics(Handler):
             command['pos'] = (left, top)
             command['size'] = (width, height)
             command['fill'] = (r, g, b)
+            command['fullscreen'] = fullscreen
+            command['borderless'] = borderless
             self.add(command)
             return True
-        
+
         elif self.isSymbol():
             record = self.getSymbolRecord()
             command['target'] = record['name']
@@ -113,7 +125,7 @@ class Graphics(Handler):
             self.add(command)
             record['elementID'] = command['id']
         return False
-    
+
     def getElementData(self, type, command):
         width = None
         height = None
@@ -170,23 +182,29 @@ class Graphics(Handler):
             command['source'] = source
 
     def r_create(self, command):
+
         try:
             type = command['type']
             if type == 'window':
+                if self.windowCreated == True:
+                    RuntimeError(self.program, 'A window has already been created')
                 self.windowSpec = Object()
                 self.windowSpec.title = command['title']['content']
+                self.windowSpec.fullscreen = command['fullscreen']
+                self.windowSpec.borderless = command['borderless']
                 self.windowSpec.flush = flush
                 self.windowSpec.kill = self.program.kill
                 self.windowSpec.pos = (self.getRuntimeValue(command['pos'][0]), self.getRuntimeValue(command['pos'][1]))
                 self.windowSpec.size = (self.getRuntimeValue(command['size'][0]), self.getRuntimeValue(command['size'][1]))
                 self.windowSpec.fill = (self.getRuntimeValue(command['fill'][0])/255, self.getRuntimeValue(command['fill'][1])/255, self.getRuntimeValue(command['fill'][2])/255)
+                self.windowCreated = True
             else:
                 element = self.ui.createWidget(self.getWidgetSpec(command))
                 print(element)
         except Exception as e:
             RuntimeError(self.program, e)
         return self.nextPC()
-    
+
     def getWidgetSpec(self, command):
         spec = Object()
         spec.id = self.getRuntimeValue(command['id'])
@@ -247,6 +265,7 @@ class Graphics(Handler):
         self.ui.moveElementBy(self.getRuntimeValue(command['target']), dist)
         return self.nextPC()
 
+    # on click/tap {element} {action}
     def k_on(self, command):
         token = self.nextToken()
         if token in ['click', 'tap']:
@@ -280,16 +299,25 @@ class Graphics(Handler):
             return True
         return False
 
+     # Set a handler on every element
     def r_on(self, command):
         pc = command['goto']
         if command['type'] == 'tap':
             record = self.getVariable(command['target'])
+            def oncb(data):
+                record['index'] = data.index
+                self.run(data.pc)
             keyword = record['keyword']
             if self.isGraphicType(keyword):
-                id = record['value'][record['index']]['content']
-                self.ui.setOnClick(id, lambda: self.run(pc))
+                for index in range(0, record['elements']):
+                    id = record['value'][index]['content']
+                    data = Object()
+                    data.pc = pc
+                    data.index = index
+                    self.ui.setOnClick(id, data, oncb)
             else:
-                RuntimeError(self.program, f'{record['name']} is not a clickable object')
+                name = record['name']
+                RuntimeError(self.program, f'{name} is not a clickable object')
         return self.nextPC()
 
     def k_rectangle(self, command):
@@ -350,9 +378,11 @@ class Graphics(Handler):
                             self.addCommand(command)
                             return True
                     else:
-                        FatalError(self.program.compiler, f'Invalid type: {record['keyword']}')
+                        rtype = record['type']
+                        FatalError(self.program.compiler, f'Invalid type: {rtype}')
                 else:
-                    FatalError(self.program.compiler, f'\'{self.getToken()}\' is not a variable')
+                    token = self.getToken()
+                    FatalError(self.program.compiler, f'{token} is not a variable')
         return False
 
     def r_set(self, command):
@@ -388,7 +418,7 @@ class Graphics(Handler):
                 value['type'] = 'symbol'
                 return value
             return None
-        
+
         if self.tokenIs('the'):
             self.nextToken()
         kwd = self.getToken()

@@ -206,7 +206,8 @@ class Program:
 
 	def putSymbolValue(self, symbolRecord, value):
 		if symbolRecord['locked']:
-			RuntimeError(self, f'Symbol \'{symbolRecord['name']}\' is locked')
+			name = symbolRecord['name']
+			RuntimeError(self, f'Symbol "{name}" is locked')
 		if symbolRecord['value'] == None or symbolRecord['value'] == []:
 			symbolRecord['value'] = [value]
 		else:
