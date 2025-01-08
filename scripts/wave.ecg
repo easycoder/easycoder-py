@@ -66,7 +66,7 @@
     end
     put Spec cat newline cat `}` cat newline into Spec
 
-    render Spec
+    render spec Spec
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Attach a script variable to each of the 10 bars

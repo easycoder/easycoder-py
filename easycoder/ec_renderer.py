@@ -9,15 +9,21 @@ from kivy.clock import Clock
 from kivy.vector import Vector
 import math
 
-# Get a real position or size value
-# These are {n}w/h, where w/h are percentages
+ec_ui = None
+
+def getUI():
+    global ec_ui
+    return ec_ui
+
+# Get an actual screeen position or size value from a specified value
+# such as {n}w/h, where w/h are percentages
 # e.g. 25w or 50h
-def getReal(spec, val):
+def getActual(val, spec=None):
     if isinstance(val, str):
         c = val[-1]
         if c in ['w', 'h']:
             val = int(val[0:len(val)-1])
-            if spec.parent == None:
+            if spec == None or spec.parent == None:
                 if c == 'w':
                     n = Window.width
                 else:
@@ -40,8 +46,8 @@ class Element():
 
     def getRelativePosition(self):
         spec = self.spec
-        x = getReal(spec, spec.pos[0])
-        y = getReal(spec, spec.pos[1])
+        x = getActual(spec.pos[0], spec)
+        y = getActual(spec.pos[1], spec)
         return Vector(x, y)
 
     def getType(self):
@@ -108,9 +114,9 @@ class UI(Widget):
                     Color(c[0], c[1], c[2])
                 else:
                     Color(c[0]/255, c[1]/255, c[2]/255)
-            pos = (getReal(spec, spec.pos[0]), getReal(spec, spec.pos[1]))
+            pos = (getActual(spec.pos[0], spec), getActual(spec.pos[1], spec))
             spec.realpos = pos
-            size = (getReal(spec, spec.size[0]), getReal(spec, spec.size[1]))
+            size = (getActual(spec.size[0], spec), getActual(spec.size[1], spec))
             spec.realsize = size
             if spec.parent != None:
                 pos = Vector(pos) + spec.parent.realpos
@@ -231,9 +237,6 @@ class UI(Widget):
 
 class Renderer(App):
 
-    def getUI(self):
-        return self.ui
-
     def request_close(self):
         print('close window')
         self.kill()
@@ -247,7 +250,9 @@ class Renderer(App):
         return self.ui
 
     def init(self, spec):
-        self.ui = UI()
+        global ec_ui
+        ec_ui = UI()
+        self.ui = ec_ui
         self.title = spec.title
         self.flush = spec.flush
         self.kill = spec.kill

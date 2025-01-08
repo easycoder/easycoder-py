@@ -1,0 +1,16 @@
+!   Keyboard tester
+
+    script Keyboard
+    
+    import plugin Keyboard from plugins/ec_keyboard.py
+    
+!    debug step
+
+    create window title `Keyboard` at 300 300 size 640 480 fill color 255 255 200
+    run graphics
+
+    create keyboard `4-function`
+    render keyboard at `25w` `10h` width `40w` using `keyboards/round-button.png`
+    on click keyboard print the key
+
+    stop

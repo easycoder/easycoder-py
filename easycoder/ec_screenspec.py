@@ -1,21 +1,28 @@
 # screenspec.py
 
 from json import loads
-from .ec_renderer import Object
+from .ec_renderer import Object, getUI
+
+global_id = 0
 
 class ScreenSpec():
 
+    id = 0
+
     # Get an attribute of an element
     def getAttribute(self, id, attribute):
-        element = self.ui.getElement(id)
+        element = getUI().getElement(id)
         return element[attribute]
 
     # Render a single widget
     def createWidget(self, widget, parent):
+        global global_id
         spec = Object()
         type = widget['type']
         spec.type = type
-        spec.id = widget['id']
+        global_id += 1
+        if 'id' in widget: spec.id = widget['id']
+        else: spec.id = f'_{global_id}'
         spec.pos = (widget['left'], widget['bottom'])
         spec.size = (widget['width'], widget['height'])
         if widget.get('fill') != None:
@@ -30,7 +37,7 @@ class ScreenSpec():
             spec.color = widget['color']
         spec.parent = parent
         spec.children = []
-        self.ui.createElement(spec)
+        getUI().createElement(spec)
 
         if '#' in widget:
             children = widget['#']
@@ -61,8 +68,7 @@ class ScreenSpec():
             self.createWidget(spec[widgets], parent)
 
     # Render a graphic specification
-    def render(self, spec, parent, ui):
-        self.ui = ui
+    def render(self, spec, parent):
 
         # If it'a string, process it
         if isinstance(spec, str):
@@ -71,4 +77,3 @@ class ScreenSpec():
         # If it's a 'dict', extract the spec and the args
         else:
             self.renderSpec(spec, parent)
-

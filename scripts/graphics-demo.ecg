@@ -26,7 +26,7 @@
     run graphics
 
     load Spec from `json/graphics-demo.json`
-    render Spec
+    render spec Spec
 
     attach BlueRect to `bluerect`
     on click BlueRect print `Click Blue`

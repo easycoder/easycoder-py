@@ -1,8 +1,7 @@
-import sys, threading, json
 from .ec_classes import FatalError, RuntimeError, Object
 from .ec_handler import Handler
 from .ec_screenspec import ScreenSpec
-from .ec_renderer import Renderer
+from .ec_renderer import Renderer, getUI
 from .ec_program import flush
 
 class Graphics(Handler):
@@ -32,7 +31,7 @@ class Graphics(Handler):
         targetRecord = self.getVariable(command['name'])
         keyword = targetRecord['keyword']
         id = self.getRuntimeValue(command['id'])
-        uiElement = self.ui.getElement(id)
+        uiElement = getUI().getElement(id)
         if uiElement == None:
             FatalError(self.program.compiler, f'There is no screen element with id \'{id}\'')
             return -1
@@ -122,6 +121,7 @@ class Graphics(Handler):
                 for item in ['width', 'height', 'left', 'bottom', 'r', 'g', 'b', 'text']:
                     if command[item] == None:
                         FatalError(self.program.compiler, f'Missing property \'{item}\'')
+            else: return False
             self.add(command)
             record['elementID'] = command['id']
         return False
@@ -199,7 +199,7 @@ class Graphics(Handler):
                 self.windowSpec.fill = (self.getRuntimeValue(command['fill'][0])/255, self.getRuntimeValue(command['fill'][1])/255, self.getRuntimeValue(command['fill'][2])/255)
                 self.windowCreated = True
             else:
-                element = self.ui.createWidget(self.getWidgetSpec(command))
+                element = getUI().createWidget(self.getWidgetSpec(command))
                 print(element)
         except Exception as e:
             RuntimeError(self.program, e)
@@ -224,10 +224,6 @@ class Graphics(Handler):
     def r_ellipse(self, command):
         return self.nextPC()
 
-    def r_getui(self, command):
-        self.ui = self.renderer.getUI()
-        return self.nextPC()
-
     # Hide an element
     def k_hide(self, command):
         if self.nextIsSymbol():
@@ -240,7 +236,7 @@ class Graphics(Handler):
         return False
 
     def r_hide(self, command):
-        self.ui.setVisible(self.getRuntimeValue(command['target']), False)
+        getUI().setVisible(self.getRuntimeValue(command['target']), False)
         return self.nextPC()
 
     def k_image(self, command):
@@ -272,12 +268,12 @@ class Graphics(Handler):
 
     def r_move(self, command):
         pos = (self.getRuntimeValue(command['x']), self.getRuntimeValue(command['y']))
-        self.ui.moveElementTo(self.getRuntimeValue(command['target']), pos)
+        getUI().moveElementTo(self.getRuntimeValue(command['target']), pos)
         return self.nextPC()
 
     def r_moveBy(self, command):
         dist = (self.getRuntimeValue(command['dx']), self.getRuntimeValue(command['dy']))
-        self.ui.moveElementBy(self.getRuntimeValue(command['target']), dist)
+        getUI().moveElementBy(self.getRuntimeValue(command['target']), dist)
         return self.nextPC()
 
     # on click/tap {element} {action}
@@ -288,7 +284,7 @@ class Graphics(Handler):
             if self.nextIsSymbol():
                 target = self.getSymbolRecord()
             else:
-                FatalError(self.program.compiler, f'{self.getToken()} is not a screen element')
+                Warning(f'{self.getToken()} is not a screen element')
                 return False
             command['target'] = target['name']
             command['goto'] = self.getPC() + 2
@@ -329,7 +325,7 @@ class Graphics(Handler):
                     data = Object()
                     data.pc = pc
                     data.index = index
-                    self.ui.setOnClick(id, data, oncb)
+                    getUI().setOnClick(id, data, oncb)
             else:
                 name = record['name']
                 RuntimeError(self.program, f'{name} is not a clickable object')
@@ -341,25 +337,26 @@ class Graphics(Handler):
     def r_rectangle(self, command):
         return self.nextPC()
 
-    # render {spec}
+    # render spec {spec}
     def k_render(self, command):
-        command['spec'] = self.nextValue()
-        command['parent'] = None
-        if self.peek() == 'in':
-            self.nextToken()
-            if self.nextIsSymbol():
-                command['parent'] = self.getSymbolRecord()['name']
-        self.add(command)
-        return True
+        if self.nextToken() in ['specification', 'spec']:
+            command['spec'] = self.nextValue()
+            command['parent'] = None
+            if self.peek() == 'in':
+                self.nextToken()
+                if self.nextIsSymbol():
+                    command['parent'] = self.getSymbolRecord()['name']
+            self.add(command)
+            return True
+        return False
 
     def r_render(self, command):
         spec = self.getRuntimeValue(command['spec'])
         parent = command['parent']
         if parent !=None:
             parent = self.getVariable(command['parent'])
-        self.ui = self.renderer.getUI()
         try:
-            ScreenSpec().render(spec, parent, self.ui)
+            ScreenSpec().render(spec, parent)
         except Exception as e:
             RuntimeError(self.program, e)
         return self.nextPC()
@@ -374,7 +371,6 @@ class Graphics(Handler):
     def r_run(self, command):
         self.renderer = Renderer()
         self.renderer.init(self.windowSpec)
-        self.ui = self.renderer.getUI()
         self.program.setExternalControl()
         self.program.run(self.nextPC())
         self.renderer.run()
@@ -405,7 +401,7 @@ class Graphics(Handler):
         target = self.getVariable(command['target'])
         id = target['value'][target['index']]['content']
         value = self.getRuntimeValue(command['value'])
-        self.ui.setAttribute(id, attribute, value)
+        getUI().setAttribute(id, attribute, value)
         return self.nextPC()
 
     # Show an element (restore it to its current position)
@@ -420,7 +416,7 @@ class Graphics(Handler):
         return False
 
     def r_show(self, command):
-        self.ui.setVisible(self.getRuntimeValue(command['target']), True)
+        getUI().setVisible(self.getRuntimeValue(command['target']), True)
         return self.nextPC()
 
     def k_text(self, command):
@@ -483,7 +479,7 @@ class Graphics(Handler):
             attribute = self.getRuntimeValue(v['attribute'])
             target = self.getVariable(v['target'])
             val = self.getSymbolValue(target)
-            v = self.ui.getAttribute(val['content'], attribute)
+            v = getUI().getAttribute(val['content'], attribute)
             value = {}
             value['type'] = 'int'
             value['content'] = int(round(v))
@@ -505,7 +501,7 @@ class Graphics(Handler):
             attribute = v['attribute']
             value = {}
             value['type'] = 'int'
-            value['content'] = int(round(self.ui.getWindowAttribute(attribute)))
+            value['content'] = int(round(getUI().getWindowAttribute(attribute)))
             return value
         except Exception as e:
             RuntimeError(self.program, e)
