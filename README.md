@@ -56,7 +56,7 @@ Here in the repository is a folder called `scripts` containing some sample scrip
 
 Graphical scripts look much like any other script but their file names must use the extension `.ecg` to signal to **_EasyCoder_** that it needs to load the graphics module. Non-graphical applications can use any extension but `.ecs` is recommended. This allows the **_EasyCoder_** application to be used wherever Python is installed, in either a command-line or a graphical environment, but graphics will of course not be available in the former.
 
-A couple of demo graphical scripts are included in the `scripts` directory:
+Some demo graphical scripts are included in the `scripts` directory:
 
 `graphics-demo.ecg` shows some of the elements that can be created, and demonstrates a variety of the graphical features of the language such as detecting when elements are clicked.
 
