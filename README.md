@@ -14,6 +14,7 @@ Install **_EasyCoder_** in your Python environment:
 pip install easycoder
 ```
 You may also need to install `pytz`, as some commands need it.
+
 Write a test script, 'hello.ecs', containing the following:
 ```
 print `Hello, world!`
