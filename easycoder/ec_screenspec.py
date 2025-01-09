@@ -58,6 +58,8 @@ class ScreenSpec():
 
     # Render a complete specification
     def renderSpec(self, spec, parent):
+        if 'font' in spec: getUI().font = spec['font']
+        else: getUI().font = None
         widgets = spec['#']
         # If a list, iterate it
         if isinstance(widgets, list):

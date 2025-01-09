@@ -1,4 +1,4 @@
-!   Keyboard tester
+!   Keyboard demo
 
     script Keyboard
     
@@ -6,11 +6,17 @@
     
 !    debug step
 
-    create window title `Keyboard` at 300 300 size 640 480 fill color 255 255 200
+    create window title `Number Pad` at 300 300 size 640 480 fill color 255 255 200
     run graphics
 
-    create keyboard `4-function`
-    render keyboard at `25w` `10h` width `40w` using `keyboards/round-button.png`
+    create keyboard `plugins/keyboards/4-function.json`
+        button style image
+        button template `plugins/keyboards/round-button.png`
+        button text color `black`
+        button text width `30w`
+        button text height `30h`
+        button font `/usr/share/fonts/truetype/msttcorefonts/arial.ttf`
+    render keyboard at `25w` `10h` width `40w`
     on click keyboard print the key
 
     stop

@@ -1,5 +1,6 @@
 from easycoder import Object, FatalError, RuntimeError
 from easycoder import Handler
+from easycoder import getConstant
 from easycoder.ec_screenspec import ScreenSpec
 from easycoder.ec_renderer import getActual, getUI
 import json
@@ -21,16 +22,74 @@ class Keyboard(Handler):
     # Create a keyboard
     def k_create(self, command):
         if self.nextIs('keyboard'):
-            command['style'] = self.nextValue()
+            command['template'] = self.nextValue()
+            buttonStyle = 'ellipse'
+            buttonTemplate = None
+            buttonTextWidth = getConstant('50w')
+            buttonTextHeight = getConstant('50h')
+            buttonTextColor = getConstant('black')
+            buttonTextX = getConstant('center')
+            buttonTextY = getConstant('center')
+            buttonColor = getConstant('white')
+            buttonFont = None
+            while True:
+                token = self.peek()
+                if token == 'button':
+                    self.nextToken()
+                    token = self.nextToken()
+                    if token == 'style':
+                        token = self.nextToken()
+                        if token in ['ellipse', 'rectangle', 'image']:
+                            buttonStyle = token
+                        else: RuntimeError(self.program, f'Unknown style \'token\'')
+                    elif token == 'color':
+                        buttonColor = self.nextValue()
+                    elif token == 'font':
+                        buttonFont = self.nextValue()
+                    elif token == 'template':
+                        buttonTemplate = self.nextValue()
+                    elif token == 'text':
+                        token = self.nextToken()
+                        if token =='width':
+                            buttonTextWidth = self.nextValue()
+                        elif token == 'height':
+                            buttonTextHeight = self.nextValue()
+                        elif token == 'color':
+                            buttonTextColor = self.nextValue()
+                        elif token == 'x':
+                            buttonTextX = self.nextValue()
+                        elif token == 'y':
+                            buttonTextY = self.nextValue()
+                        else: RuntimeError(self.program, f'Unknown property \'token\'')
+                else:
+                    break
+            command['button-style'] = buttonStyle
+            command['button-template'] = buttonTemplate
+            command['button-text-width'] = buttonTextWidth
+            command['button-text-height'] = buttonTextHeight
+            command['button-text-color'] = buttonTextColor
+            command['button-text-x'] = buttonTextX
+            command['button-text-y'] = buttonTextY
+            command['button-color'] = buttonColor
+            command['button-font'] = buttonFont
             self.add(command)
             return True
         return False
 
     def r_create(self, command):
         self.keyboard = Object()
-        style = self.getRuntimeValue(command['style'])
-        with open(f'plugins/keyboards/{style}.json') as f: s = f.read()
+        template = self.getRuntimeValue(command['template'])
+        with open(f'{template}') as f: s = f.read()
         self.keyboard.layout = json.loads(s)
+        self.keyboard.buttonStyle = command['button-style']
+        self.keyboard.buttonTemplate = self.getRuntimeValue(command['button-template'])
+        self.keyboard.buttonTextWidth =  self.getRuntimeValue(command['button-text-width'])
+        self.keyboard.buttonTextHeight =  self.getRuntimeValue(command['button-text-height'])
+        self.keyboard.buttonTextColor =  self.getRuntimeValue(command['button-text-color'])
+        self.keyboard.buttonTextX =  self.getRuntimeValue(command['button-text-x'])
+        self.keyboard.buttonTextY =  self.getRuntimeValue(command['button-text-y'])
+        self.keyboard.buttonColor =  self.getRuntimeValue(command['button-color'])
+        self.keyboard.buttonFont =  self.getRuntimeValue(command['button-font'])
         return self.nextPC()
 
     # on click/tap keyboard
@@ -60,26 +119,24 @@ class Keyboard(Handler):
                 self.getCommandAt(pcNext)['goto'] = self.getPC()
                 return True
         return False
-    
+
      # Set a handler
     def r_on(self, command):
         self.onTap = command['goto']
         return self.nextPC()
 
     # Render a keyboard
-    # render keyboard at {left} {bottom} width {width} using {button image}
+    # render keyboard at {left} {bottom} width {width}
     def k_render(self, command):
         if self.nextIs('keyboard'):
             token = self.peek()
-            while token in ['at', 'width', 'using']:
+            while token in ['at', 'width']:
                     self.nextToken()
                     if token == 'at':
                         command['x'] = self.nextValue()
                         command['y'] = self.nextValue()
                     elif token == 'width':
                         command['w'] = self.nextValue()
-                    elif token == 'using':
-                        command['u'] = self.nextValue()
                     token = self.peek()
             self.add(command)
             return True
@@ -89,7 +146,6 @@ class Keyboard(Handler):
         x = getActual(self.getRuntimeValue(command['x']))
         y = getActual(self.getRuntimeValue(command['y']))
         w = getActual(self.getRuntimeValue(command['w']))
-        u = self.getRuntimeValue(command['u'])
         # Scan the keyboard layout to find the longest row
         max = 0
         nrows = len(self.keyboard.layout)
@@ -111,19 +167,21 @@ class Keyboard(Handler):
             for b in range(0, len(row)):
                 button = row[b]
                 id = button['id']
-                button['type'] = 'ellipse'
+                button['type'] = self.keyboard.buttonStyle
+                button['source'] = self.keyboard.buttonTemplate
                 button['left'] = bx
                 button['bottom'] = by
                 button['width'] = bs
                 button['height'] = bs
-                button['fill'] = 'magenta'
+                button['fill'] = self.keyboard.buttonColor
                 label = {}
                 label['type'] = 'text'
-                label['left'] = '25w'
-                label['bottom'] = '25h'
-                label['width'] = '50w'
-                label['height'] = '50h'
+                label['left'] = self.keyboard.buttonTextX
+                label['bottom'] = self.keyboard.buttonTextY
+                label['width'] = self.keyboard.buttonTextWidth
+                label['height'] = self.keyboard.buttonTextHeight
                 label['text'] = id
+                label['color'] = self.keyboard.buttonTextColor
                 button['#'] = 'Label'
                 button['Label'] = label
                 buttons.append(button)
@@ -135,6 +193,7 @@ class Keyboard(Handler):
         for n in range(0, len(list)):
             spec[list[n]] = buttons[n]
 
+        spec['font'] = self.keyboard.buttonFont
         try:
             ScreenSpec().render(spec, None)
         except Exception as e:

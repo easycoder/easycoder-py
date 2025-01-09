@@ -1,13 +1,15 @@
 from kivy.app import App
 from kivy.uix.widget import Widget
+from kivy.graphics import Color, Ellipse, Rectangle
 from kivy.uix.label import CoreLabel
 from kivy.uix.image import AsyncImage
 from kivy.core.window import Window
-from kivy.graphics import Color, Ellipse, Rectangle
 from kivy.utils import colormap
 from kivy.clock import Clock
 from kivy.vector import Vector
-import math
+import math, os
+
+os.environ['KIVY_TEXT'] = 'pango'
 
 ec_ui = None
 
@@ -114,10 +116,19 @@ class UI(Widget):
                     Color(c[0], c[1], c[2])
                 else:
                     Color(c[0]/255, c[1]/255, c[2]/255)
-            pos = (getActual(spec.pos[0], spec), getActual(spec.pos[1], spec))
-            spec.realpos = pos
             size = (getActual(spec.size[0], spec), getActual(spec.size[1], spec))
             spec.realsize = size
+            # Deal with special case of 'center'
+            if spec.pos[0] == 'center':
+                left = getActual('50w', spec) - spec.realsize[0]/2
+            else:
+                left = getActual(spec.pos[0], spec)
+            if spec.pos[1] == 'center':
+                bottom = getActual('50h', spec) - spec.realsize[1]/2
+            else:
+                bottom = getActual(spec.pos[1], spec)
+            pos = (left, bottom)
+            spec.realpos = pos
             if spec.parent != None:
                 pos = Vector(pos) + spec.parent.realpos
             if spec.type == 'ellipse':
@@ -134,10 +145,12 @@ class UI(Widget):
                         Color(c[0]/255, c[1]/255, c[2]/255)
                 else:
                     Color(1, 1, 1, 1)
-                label = CoreLabel(text=spec.text, font_size=1000, halign='center', valign='center')
+                if self.font == None:
+                    label = CoreLabel(text=spec.text, font_size=1000, halign='center', valign='center')
+                else:
+                    label = CoreLabel(text=spec.text, font_context = None, font_name=self.font, font_size=1000, halign='center', valign='center')
                 label.refresh()
-                text = label.texture
-                item = Rectangle(pos=pos, size=size, texture=text)
+                item = Rectangle(pos=pos, size=size, texture=label.texture)
             elif spec.type == 'image':
                 item = AsyncImage(pos=pos, size=size, source=spec.source)
             spec.item = item

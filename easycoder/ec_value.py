@@ -1,5 +1,12 @@
 from .ec_classes import FatalError
 
+# Create a constant
+def getConstant(str):
+	value = {}
+	value['type'] = 'text'
+	value['content'] = str
+	return value
+
 class Value:
 
 	def __init__(self, compiler):
@@ -15,7 +22,7 @@ class Value:
 			return None
 
 		value = {}
-			
+
 		if token == 'true':
 			value['type'] = 'boolean'
 			value['content'] = True
@@ -80,7 +87,7 @@ class Value:
 			value = domain.modifyValue(value)
 
 		return value
-	
+
 	def compileConstant(self, token):
 		value = {}
 		if type(token) == 'str':
