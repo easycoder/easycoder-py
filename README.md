@@ -13,6 +13,7 @@ Install **_EasyCoder_** in your Python environment:
 ```
 pip install easycoder
 ```
+You may also need to install `pytz`, as some commands need it.
 Write a test script, 'hello.ecs', containing the following:
 ```
 print `Hello, world!`
@@ -20,28 +21,27 @@ print `Hello, world!`
 This is traditionally the first program to be written in virtually any language. To run it, use `easycoder hello.ecs`.
 
 The output will look like this (the version number will differ):
-
 ```
 EasyCoder version 250101.1
 Compiled <anon>: 1 lines (2 tokens) in 0 ms
 Run <anon>
 1-> Hello, world!
 ```
-It's conventional to add a program title to a script:
 
+It's conventional to add a program title to a script:
 ```
 !   Test script
     script Test
     print `Hello, world!`
 ```
 The first line here is just a comment and has no effect on the running of the script.   The second line gives the script a name, which is useful in debugging as it says which script was running. When run, the output is now
-
 ```
 EasyCoder version 250101.1
 Compiled Test: 3 lines (4 tokens) in 0 ms
 Run Test
 3-> Hello, world!
 ```
+
 As you might guess from the above, the print command shows the line in the script it was called from. This is very useful in tracking down debugging print commands in large scripts.
 
 Here in the repository is a folder called `scripts` containing some sample scripts:
@@ -61,7 +61,9 @@ A couple of demo graphical scripts are included in the `scripts` directory:
 
 `wave.ecg` is a "Mexican Wave" simulation.
 
-**_EasyCoder_** graphics are handled by a library module, `ec_renderer` that can be used outside of the **_EasyCoder_** environment, in other Python programs.
+`keyboard.ecg` creates an on-screen keyboard (currently a 4-function calculator keypad) that responds to clicks on its keys. This is currently under development so its features are likely to change. The intention is to support a wide range of keyboard styles with the minimum mount of coding.
+
+**_EasyCoder_** graphics are handled by a library module, `ec_renderer` that can be used outside of the **_EasyCoder_** environment, in other Python programs. The renderer works with JSON-formatted specifications of the itens to be displayed.
 
 ## Significant features
 
