@@ -3,11 +3,8 @@
     script Keyboard
     
     import plugin Keyboard from plugins/ec_keyboard.py
-    
-!    debug step
 
     create window title `Number Pad` at 300 300 size 640 480 fill color 255 255 200
-    run graphics
 
     create keyboard `plugins/keyboards/4-function.json`
         button style image

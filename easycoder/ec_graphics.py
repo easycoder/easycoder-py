@@ -182,7 +182,6 @@ class Graphics(Handler):
             command['source'] = source
 
     def r_create(self, command):
-
         try:
             type = command['type']
             if type == 'window':
@@ -198,6 +197,11 @@ class Graphics(Handler):
                 self.windowSpec.size = (self.getRuntimeValue(command['size'][0]), self.getRuntimeValue(command['size'][1]))
                 self.windowSpec.fill = (self.getRuntimeValue(command['fill'][0])/255, self.getRuntimeValue(command['fill'][1])/255, self.getRuntimeValue(command['fill'][2])/255)
                 self.windowCreated = True
+                self.renderer = Renderer()
+                self.renderer.init(self.windowSpec)
+                self.program.setExternalControl()
+                self.program.run(self.nextPC())
+                self.renderer.run()
             else:
                 element = getUI().createWidget(self.getWidgetSpec(command))
                 print(element)
@@ -360,20 +364,6 @@ class Graphics(Handler):
         except Exception as e:
             RuntimeError(self.program, e)
         return self.nextPC()
-
-    # run graphics
-    def k_run(self, command):
-        if self.nextIs('graphics'):
-            self.add(command)
-            return True
-        return False
-
-    def r_run(self, command):
-        self.renderer = Renderer()
-        self.renderer.init(self.windowSpec)
-        self.program.setExternalControl()
-        self.program.run(self.nextPC())
-        self.renderer.run()
 
     # Set something
     def k_set(self, command):

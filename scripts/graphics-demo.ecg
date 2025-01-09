@@ -22,8 +22,7 @@
 
 !    debug step
 
-    create window title `Learning Kivy` at 300 300 size 640 480 fill color 255 255 200
-    run graphics
+    create window title `Graphics demo` at 300 300 size 640 480 fill color 255 255 200
 
     load Spec from `json/graphics-demo.json`
     render spec Spec
