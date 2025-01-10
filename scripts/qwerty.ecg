@@ -1,0 +1,12 @@
+!   Keyboard demo
+
+    script Keyboard
+    
+    import plugin Keyboard from plugins/ec_keyboard.py
+
+    create window title `Qwerty keyboard` at 300 300 size 640 480 fill color 255 255 200
+
+    render keyboard `plugins/keyboards/qwerty.json` at `3w` `10h` width `94w`
+    on click keyboard print the key
+
+    stop

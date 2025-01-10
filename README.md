@@ -62,7 +62,7 @@ Some demo graphical scripts are included in the `scripts` directory:
 
 `wave.ecg` is a "Mexican Wave" simulation.
 
-`keyboard.ecg` creates an on-screen keyboard (currently a 4-function calculator keypad) that responds to clicks on its keys. This is currently under development so its features are likely to change. The intention is to support a wide range of keyboard styles with the minimum mount of coding.
+`keyboard.ecg` creates an on-screen keyboard (currently a 4-function calculator keypad) that responds to clicks on its keys. It uses a plugin module (see below) to add extra vocabulary and syntax to the language. This is currently under development so its features are likely to change. The intention is to support a wide range of keyboard styles with the minimum mount of coding. The plugin (`ec_keyword.py`) can be downloaded from the repository.
 
 **_EasyCoder_** graphics are handled by a library module, `ec_renderer` that can be used outside of the **_EasyCoder_** environment, in other Python programs. The renderer works with JSON-formatted specifications of the itens to be displayed.
 

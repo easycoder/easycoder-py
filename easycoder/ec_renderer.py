@@ -9,8 +9,6 @@ from kivy.clock import Clock
 from kivy.vector import Vector
 import math, os
 
-os.environ['KIVY_TEXT'] = 'pango'
-
 ec_ui = None
 
 def getUI():
@@ -108,53 +106,54 @@ class UI(Widget):
         self.zlist.append(element)
 
     def createElement(self, spec):
-        with self.canvas:
-            if hasattr(spec, 'fill'):
-                c = spec.fill
-                if isinstance(c, str):
-                    c = colormap[c]
-                    Color(c[0], c[1], c[2])
-                else:
-                    Color(c[0]/255, c[1]/255, c[2]/255)
-            size = (getActual(spec.size[0], spec), getActual(spec.size[1], spec))
-            spec.realsize = size
-            # Deal with special case of 'center'
-            if spec.pos[0] == 'center':
-                left = getActual('50w', spec) - spec.realsize[0]/2
-            else:
-                left = getActual(spec.pos[0], spec)
-            if spec.pos[1] == 'center':
-                bottom = getActual('50h', spec) - spec.realsize[1]/2
-            else:
-                bottom = getActual(spec.pos[1], spec)
-            pos = (left, bottom)
-            spec.realpos = pos
-            if spec.parent != None:
-                pos = Vector(pos) + spec.parent.realpos
-            if spec.type == 'ellipse':
-                item = Ellipse(pos=pos, size=size)
-            elif spec.type == 'rectangle':
-                item = Rectangle(pos=pos, size=size)
-            elif spec.type == 'text':
-                if hasattr(spec, 'color'):
-                    c = spec.color
+        size = (getActual(spec.size[0], spec), getActual(spec.size[1], spec))
+        spec.realsize = size
+        # Deal with special case of 'center'
+        if spec.pos[0] == 'center':
+            left = getActual('50w', spec) - spec.realsize[0]/2
+        else:
+            left = getActual(spec.pos[0], spec)
+        if spec.pos[1] == 'center':
+            bottom = getActual('50h', spec) - spec.realsize[1]/2
+        else:
+            bottom = getActual(spec.pos[1], spec)
+        pos = (left, bottom)
+        spec.realpos = pos
+        if spec.parent != None:
+            pos = Vector(pos) + spec.parent.realpos
+        if spec.type != 'hotspot':
+            with self.canvas:
+                if hasattr(spec, 'fill'):
+                    c = spec.fill
                     if isinstance(c, str):
                         c = colormap[c]
                         Color(c[0], c[1], c[2])
                     else:
                         Color(c[0]/255, c[1]/255, c[2]/255)
-                else:
-                    Color(1, 1, 1, 1)
-                if self.font == None:
-                    label = CoreLabel(text=spec.text, font_size=1000, halign='center', valign='center')
-                else:
-                    label = CoreLabel(text=spec.text, font_context = None, font_name=self.font, font_size=1000, halign='center', valign='center')
-                label.refresh()
-                item = Rectangle(pos=pos, size=size, texture=label.texture)
-            elif spec.type == 'image':
-                item = AsyncImage(pos=pos, size=size, source=spec.source)
-            spec.item = item
-            self.addElement(spec.id, spec)
+                if spec.type == 'ellipse':
+                    item = Ellipse(pos=pos, size=size)
+                elif spec.type == 'rectangle':
+                    item = Rectangle(pos=pos, size=size)
+                elif spec.type == 'text':
+                    if hasattr(spec, 'color'):
+                        c = spec.color
+                        if isinstance(c, str):
+                            c = colormap[c]
+                            Color(c[0], c[1], c[2])
+                        else:
+                            Color(c[0]/255, c[1]/255, c[2]/255)
+                    else:
+                        Color(1, 1, 1, 1)
+                    if self.font == None:
+                        label = CoreLabel(text=spec.text, font_size=1000, halign='center', valign='center')
+                    else:
+                        label = CoreLabel(text=spec.text, font_context = None, font_name=self.font, font_size=1000, halign='center', valign='center')
+                    label.refresh()
+                    item = Rectangle(pos=pos, size=size, texture=label.texture)
+                elif spec.type == 'image':
+                    item = AsyncImage(pos=pos, size=size, source=spec.source)
+                spec.item = item
+        self.addElement(spec.id, spec)
 
     def moveElementBy(self, id, dist):
         element = self.getElement(id)
@@ -185,19 +184,19 @@ class UI(Widget):
         for element in reversed(self.zlist):
             if element.actionCB != None:
                 spec = element.spec
-                pos = spec.realpos
+                pos = element.getPos()
                 size = element.getSize()
                 if spec.type == 'ellipse':
                     a = int(size[0])/2
                     b = int(size[1])/2
-                    ctr = (pos[0] + a, pos[1] +b)
+                    ctr = (pos[0]+a, pos[1]+b)
                     h = ctr[0]
                     k = ctr[1]
                     if (math.pow((x - h), 2) / math.pow(a, 2)) + (math.pow((y - k), 2) / math.pow(b, 2)) <= 1:
                         element.actionCB(element.data)
                         break
-                elif spec.type in ['rectangle', 'text', 'image']:
-                    if tp[0] >= pos[0] and tp[0] < pos[0] + size[0] and tp[1] >= pos[1] and tp[1] < pos[1] + size[1]:
+                elif spec.type in ['rectangle', 'text', 'image', 'hotspot']:
+                    if x >= pos[0] and x < pos[0] + size[0] and y >= pos[1] and y < pos[1] + size[1]:
                         element.actionCB(element.data)
                         break
 

@@ -58,16 +58,16 @@ class ScreenSpec():
 
     # Render a complete specification
     def renderSpec(self, spec, parent):
-        if 'font' in spec: getUI().font = spec['font']
-        else: getUI().font = None
-        widgets = spec['#']
-        # If a list, iterate it
-        if isinstance(widgets, list):
-            for widget in widgets:
-                self.createWidget(spec[widget], parent)
-        # Otherwise, process the single widget
+        if 'type' in spec: self.createWidget(spec, parent)
         else:
-            self.createWidget(spec[widgets], parent)
+            widgets = spec['#']
+            # If a list, iterate it
+            if isinstance(widgets, list):
+                for widget in widgets:
+                    self.createWidget(spec[widget], parent)
+            # Otherwise, process the single widget
+            else:
+                self.createWidget(spec[widgets], parent)
 
     # Render a graphic specification
     def render(self, spec, parent):

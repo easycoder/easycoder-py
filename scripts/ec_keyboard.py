@@ -1,8 +1,8 @@
-from easycoder import Object, FatalError, RuntimeError
-from easycoder import Handler
-from easycoder import getConstant
-from easycoder.ec_screenspec import ScreenSpec
-from easycoder.ec_renderer import getActual, getUI
+from ec_classes import Object, RuntimeError
+from ec_handler import Handler
+from ec_value import getConstant
+from ec_screenspec import ScreenSpec
+from ec_renderer import getActual, getUI
 import json
 
 class Keyboard(Handler):
