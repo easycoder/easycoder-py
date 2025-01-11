@@ -1,6 +1,6 @@
 !   Keyboard demo
 
-    script Keyboard
+    script Calculator
     
     import plugin Keyboard from plugins/ec_keyboard.py
 

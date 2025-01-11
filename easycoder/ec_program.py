@@ -18,6 +18,7 @@ class Program:
 
 	def __init__(self, argv):
 		global queue
+		print(f'EasyCoder version {version("easycoder")}')
 		if len(argv) == 0:
 			print('No script supplied')
 			exit()
@@ -106,7 +107,7 @@ class Program:
 			handler = clazz(self.compiler)
 			self.domains.append(handler)
 			self.domainIndex[handler.getName()] = handler
-	
+
 	# Get the domain list
 	def getDomains(self):
 		return self.domains
@@ -278,7 +279,7 @@ class Program:
 					script.tokens.append(Token(lino, token))
 					token = ''
 		return
-	
+
 	def releaseParent(self):
 		if self.parent.waiting and self.parent.program.running:
 			self.parent.waiting = False
@@ -288,7 +289,7 @@ class Program:
 	def flush(self, pc):
 		global queue
 		self.pc = pc
-		while True:
+		while self.running:
 			command = self.code[self.pc]
 			domainName = command['domain']
 			if domainName == None:
@@ -323,7 +324,7 @@ class Program:
 		item.program = self
 		item.pc = pc
 		queue.append(item)
-	
+
 	def kill(self):
 		self.running = False
 
@@ -374,7 +375,7 @@ class Program:
 		if v1 < v2:
 			return -1
 		return 0
-	
+
 	# Set up a message handler
 	def onMessage(self, pc):
 		self.onMessagePC = pc
@@ -386,7 +387,6 @@ class Program:
 
 # This is the program launcher
 def Main():
-	print(f'EasyCoder version {version("easycoder")}')
 	if (len(sys.argv) > 1):
 		Program(sys.argv[1]).start()
 	else:

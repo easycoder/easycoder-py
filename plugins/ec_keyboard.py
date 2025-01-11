@@ -99,7 +99,7 @@ class Keyboard(Handler):
                 else: count += 1.0
             if count > max: max = count
         # Divide the keyboard width by the number of buttons to get the button size
-        # The basic key is always a square
+        # The basic key is a square (1:1)
         bs = w / max
         # Compute the keyboard height
         h = bs * nrows
@@ -114,6 +114,7 @@ class Keyboard(Handler):
         spec['height'] = h
         buttons = []
         list = []
+        spans = [0] * nrows
         by = h
         for r in range(0, nrows):
             by -= bs
@@ -134,6 +135,11 @@ class Keyboard(Handler):
                 buttons.append(button)
                 list.append(id)
                 bx += width
+            spans[r] = round(bx)
+        # Check the rows are all the same length
+        for r in range(1, nrows):
+            if spans[r] != spans[0]:
+                RuntimeError(self.program, f'Row {r} has a different span to previous row(s)')
         spec['#'] = list
         for n in range(0, len(list)):
             spec[list[n]] = buttons[n]
