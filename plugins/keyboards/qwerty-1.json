@@ -1,5 +1,5 @@
 {
-    "face": "plugins/keyboards/qwerty-0.png",
+    "face": "plugins/keyboards/qwerty-1.png",
     "rows":
     [
             [
@@ -53,34 +53,34 @@
                     "span": "1.5"
                 },
                 {
-                    "id": "q"
+                    "id": "Q"
                 },
                 {
-                    "id": "w"
+                    "id": "W"
                 },
                 {
-                    "id": "e"
+                    "id": "E"
                 },
                 {
-                    "id": "r"
+                    "id": "R"
                 },
                 {
-                    "id": "t"
+                    "id": "T"
                 },
                 {
-                    "id": "y"
+                    "id": "Y"
                 },
                 {
-                    "id": "u"
+                    "id": "U"
                 },
                 {
-                    "id": "i"
+                    "id": "I"
                 },
                 {
-                    "id": "o"
+                    "id": "O"
                 },
                 {
-                    "id": "p"
+                    "id": "P"
                 },
                 {
                     "id": "["
@@ -98,31 +98,31 @@
                     "span": "2.0"
                 },
                 {
-                    "id": "a"
+                    "id": "A"
                 },
                 {
-                    "id": "s"
+                    "id": "S"
                 },
                 {
-                    "id": "d"
+                    "id": "D"
                 },
                 {
-                    "id": "f"
+                    "id": "F"
                 },
                 {
-                    "id": "g"
+                    "id": "G"
                 },
                 {
-                    "id": "h"
+                    "id": "H"
                 },
                 {
-                    "id": "j"
+                    "id": "J"
                 },
                 {
-                    "id": "k"
+                    "id": "K"
                 },
                 {
-                    "id": "l"
+                    "id": "L"
                 },
                 {
                     "id": ";"
@@ -141,25 +141,25 @@
                     "span": "2.5"
                 },
                 {
-                    "id": "z"
+                    "id": "Z"
                 },
                 {
-                    "id": "x"
+                    "id": "X"
                 },
                 {
-                    "id": "c"
+                    "id": "C"
                 },
                 {
-                    "id": "v"
+                    "id": "V"
                 },
                 {
-                    "id": "b"
+                    "id": "B"
                 },
                 {
-                    "id": "n"
+                    "id": "N"
                 },
                 {
-                    "id": "m"
+                    "id": "M"
                 },
                 {
                     "id": ","

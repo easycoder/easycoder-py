@@ -53,10 +53,16 @@ class Keyboard(Handler):
         return self.nextPC()
 
     # Render a keyboard
-    # render keyboard {layout) at {left} {bottom} width {width}
+    # render keyboard {face) [and {face)...] at {left} {bottom} width {width}
     def k_render(self, command):
         if self.nextIs('keyboard'):
-            command['layout'] = self.nextValue()
+            faces = []
+            while True:
+                faces.append(self.nextValue())
+                token = self.peek()
+                if token != 'and': break
+                self.nextToken()
+            command['faces'] = json.dumps(faces)
             x = getConstant('10w')
             y = getConstant('10h')
             w = getConstant('50w')
@@ -78,16 +84,18 @@ class Keyboard(Handler):
 
     def r_render(self, command):
         self.keyboard = Object()
-        layout = self.getRuntimeValue(command['layout'])
-        with open(f'{layout}') as f: spec = f.read()
-        self.keyboard.layout = json.loads(spec)
-        layout = self.keyboard.layout[0]
+        faces = json.loads(command['faces'])
+        self.keyboard.faces = []
+        for f in range(0, len(faces)):
+            with open(f'{self.getRuntimeValue(faces[f])}') as f: spec = f.read()
+            self.keyboard.faces.append(json.loads(spec))
+        layout = self.keyboard.faces[0]
         x = getActual(self.getRuntimeValue(command['x']))
         y = getActual(self.getRuntimeValue(command['y']))
         w = getActual(self.getRuntimeValue(command['w']))
         # Scan the keyboard layout to find the longest row
         max = 0
-        rows = self.keyboard.layout[0]['rows']
+        rows = layout['rows']
         nrows = len(rows)
         for r in range(0, nrows):
             row = rows[r]
