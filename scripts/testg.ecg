@@ -11,19 +11,19 @@
     popup `Hello!`
 !    debug step
 
-    set Row to g_text text `Date (YYYY-MM-DD):` and expand_x true
-    add g_input key `-DATE-` and size `20 1` to Row
+    set Row to Text text `Date (YYYY-MM-DD):` and expand_x true
+    add Input key `-DATE-` and size `20 1` to Row
     add Row to Layout
 
-    set Row to g_text text `Time (HH:MM):` and expand_x true
-    add g_input key `-TIME-` and size `20 1` to Row
+    set Row to Text text `Time (HH:MM):` and expand_x true
+    add Input key `-TIME-` and size `20 1` to Row
     add Row to Layout
 
-    set Row to g_text text `Your name:` and expand_x true
-    add g_input key `-NAME-` and size `20 1` to Row
+    set Row to Text text `Your name:` and expand_x true
+    add Input key `-NAME-` and size `20 1` to Row
     add Row to Layout
 
-    set Row to g_button button_text `Click me`
+    set Row to Button button_text `Click me`
     add Row to Layout
 
     create Window `Graphics Test`

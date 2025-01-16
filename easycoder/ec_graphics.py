@@ -27,10 +27,9 @@ class Graphics(Handler):
                 elements.append(name)
                 command['args'] = name
             else: FatalError(self.compiler.program, f'\'{name}\' is not a layout')
-        elif token[0:2] == 'g_':
+        else:
             command['type'] = token
             command['args'] = self.utils.getArgs(self)
-        else: return False
         if self.nextIs('to'):
             if self.nextIsSymbol():
                 symbolRecord = self.getSymbolRecord()

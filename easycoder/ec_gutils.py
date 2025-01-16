@@ -21,13 +21,13 @@ class GUtils:
     # Get the default args for a graphic element
     def getDefaultArgs(self, type):
         args = {}
-        if type == 'g_text':
+        if type == 'Text':
             args['text'] = '(empty)'
             args['expand_x'] = False
-        elif type == 'g_input':
+        elif type == 'Input':
             args['key'] = None
             args['size'] = (None, None)
-        elif type == 'g_button':
+        elif type == 'Button':
             args['button_text'] = '(empty)'
         return args
 
@@ -43,10 +43,10 @@ class GUtils:
 
     # Create an element
     def createElement(self, type, args):
-        if type == 'g_text': return psg.Text(text=args['text'], expand_x=args['expand_x'])
-        elif type == 'g_input':
+        if type == 'Text': return psg.Text(text=args['text'], expand_x=args['expand_x'])
+        elif type == 'Input':
             size = args['size'].split()
             size = (size[0], size[1])
             return psg.Input(key=args['key'], size=size)
-        elif type == 'g_button': return psg.Button(button_text=args['button_text'])
+        elif type == 'Button': return psg.Button(button_text=args['button_text'])
         else: return None
