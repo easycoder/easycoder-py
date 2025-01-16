@@ -1257,7 +1257,7 @@ class Core(Handler):
                 command['elements'] = self.nextValue()
                 self.add(command)
                 return True
-            
+
         elif token == 'encoding':
             if self.nextIs('to'):
                 command['encoding'] = self.nextValue()

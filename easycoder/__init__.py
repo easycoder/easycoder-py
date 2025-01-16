@@ -1,6 +1,5 @@
 '''EasyCoder for Python'''
 
-from .ec import Main
 from .ec_classes import *
 from .ec_compiler import *
 from .ec_condition import *
@@ -10,4 +9,4 @@ from .ec_program import *
 from .ec_timestamp import *
 from .ec_value import *
 
-__version__ = "250111.2"
+__version__ = "250116.1"

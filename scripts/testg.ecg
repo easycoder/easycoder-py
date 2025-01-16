@@ -1,0 +1,44 @@
+!	A test script
+
+	script Test
+
+    layout Row
+    layout Layout
+    window Window
+    g_input Input
+    g_button Button
+    variable N
+
+    init Layout
+
+!    popup `Hello!`
+!    debug step
+
+    init Row with g_text text `Date (YYYY-MM-DD):` and expand_x true
+    create Input key `-DATE-` and size `20 1`
+    add Input to Row
+    add Row to Layout
+    init Row with g_text text `Time (HH:MM):` and expand_x true
+    create Input key `-TIME-` and size `20 1`
+    add Input to Row
+    add Row to Layout
+    init Row with g_text text `Your name:` and expand_x true
+    create Input key `-NAME-` and size `20 1`
+    add Input to Row
+    add Row to Layout
+    create Button button_text `Click me`
+    init Row with Button
+    add Row to Layout
+
+    create Window `Graphics Test`
+        layout Layout
+
+    put 0 into N
+    while true
+    begin
+        if N modulo 1000 is 0 print `Running ` cat N
+        increment N
+        wait 10 ticks
+    end
+
+    stop

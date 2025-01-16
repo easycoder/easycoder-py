@@ -285,6 +285,9 @@ class Program:
 			self.parent.waiting = False
 			self.parent.program.run(self.parent.pc)
 
+	def flushCB(self):
+		flush()
+
 	# Flush the queue
 	def flush(self, pc):
 		global queue
@@ -391,3 +394,7 @@ def Main():
 		Program(sys.argv[1]).start()
 	else:
 		print('Syntax: easycoder <scriptname> [plugins]')
+
+if __name__ == '__main__':
+    Main()
+

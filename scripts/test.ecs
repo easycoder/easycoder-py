@@ -1,0 +1,12 @@
+!	A test script
+
+	script Test
+
+	variable M
+	put 0 into M
+	while true
+	begin
+		print M
+		increment M
+		wait 5
+	end

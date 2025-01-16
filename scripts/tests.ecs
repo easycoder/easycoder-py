@@ -147,7 +147,7 @@ Loop1:
 	close File
 	delete file `test.txt`
 	assert X is `Hello, world!`  cat newline cat `I'm back!`
-	
+
     put now into N
     multiply N by 1000
     print N

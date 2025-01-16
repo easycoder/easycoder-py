@@ -11,15 +11,30 @@ Website: [https://easycoder.github.io](https://easycoder.github.io)
 ## Quick Start
 Install **_EasyCoder_** in your Python environment:
 ```
-pip install easycoder
+pip install requests pytz easycoder
 ```
-You may also need to install `pytz`, as some commands need it.
 
-Write a test script, 'hello.ecs', containing the following:
+Test the install by typing the command `easycoder`.
+<hr>
+On Linux, this will probably fail as the installer places the executable file in the `$HOME/.local/bin` directory. So give the command
+```
+    export PATH=$HOME/.local/bin:$PATH
+```
+
+To make this change permanent, edit your `.profile` file, adding the following:
+```
+# set PATH so it includes user's private .local/bin if it exists
+if [ -d "$HOME/.local/bin" ] ; then
+    PATH="$HOME/.local/bin:$PATH"
+fi
+```
+<hr>
+
+Now write a test script, 'hello.ecs', containing the following:
 ```
 print `Hello, world!`
 ```
-This is traditionally the first program to be written in virtually any language. To run it, use `easycoder hello.ecs`.
+(Note the backticks.) This is traditionally the first program to be written in virtually any language. To run it, use `easycoder hello.ecs`.
 
 The output will look like this (the version number will differ):
 ```
@@ -52,19 +67,18 @@ Here in the repository is a folder called `scripts` containing some sample scrip
 `benchmark.ecs` allows the performance of **_EasyCoder_** to be compared to other languages if a similar script is written for each one.
 
 ## Graphical programmming
-**_EasyCoder_** includes a graphical programming environment that is in the early stages of development. A couple of demo scripts are included in the `scripts` directory. To run them, first install the Python `kivy` graphics library if it's not already present on your system. This is done with `pip install kivy`. Then run your **_EasyCoder_** script using `easycoder {scriptname}.ecg`.
+**_EasyCoder_** includes a graphical programming environment that is in the early stages of development. Some demo scripts will be included in the `scripts` directory; these can be recognised by the extension`.ecg`. To run them, first install `tkinter`. On Linux this is done with
+```
+    sudo apt install python3-tk
+```
+
+Next, install the Python `pySimpleGUI` graphics library; this is done with `pip install pysimplegui`. Then run your **_EasyCoder_** script using `easycoder {scriptname}.ecg`.
 
 Graphical scripts look much like any other script but their file names must use the extension `.ecg` to signal to **_EasyCoder_** that it needs to load the graphics module. Non-graphical applications can use any extension but `.ecs` is recommended. This allows the **_EasyCoder_** application to be used wherever Python is installed, in either a command-line or a graphical environment, but graphics will of course not be available in the former.
 
-Some demo graphical scripts are included in the `scripts` directory:
+Some demo graphical scripts will included in the `scripts` directory as development proceeds.
 
-`graphics-demo.ecg` shows some of the elements that can be created, and demonstrates a variety of the graphical features of the language such as detecting when elements are clicked.
-
-`wave.ecg` is a "Mexican Wave" simulation.
-
-`keyboard.ecg` creates an on-screen keyboard (currently a 4-function calculator keypad) that responds to clicks on its keys. It uses a plugin module (see below) to add extra vocabulary and syntax to the language. This is currently under development so its features are likely to change. The intention is to support a wide range of keyboard styles with the minimum mount of coding. The plugin (`ec_keyword.py`) can be downloaded from the repository.
-
-**_EasyCoder_** graphics are handled by a library module, `ec_renderer` that can be used outside of the **_EasyCoder_** environment, in other Python programs. The renderer works with JSON-formatted specifications of the itens to be displayed.
+`gtest.ecg` contains sample code to demonstrate and test basic features.
 
 ## Significant features
 
