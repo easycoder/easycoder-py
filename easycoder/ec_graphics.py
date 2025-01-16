@@ -9,6 +9,7 @@ class Graphics(Handler):
     def __init__(self, compiler):
         Handler.__init__(self, compiler)
         self.utils = GUtils()
+        self.eventHandlers = {}
 
     def getName(self):
         return 'graphics'
@@ -56,6 +57,21 @@ class Graphics(Handler):
             target['layout'].append(v['layout'])
         return self.nextPC()
 
+    def k_capture(self, command):
+        if self.nextIs('event'):
+            if self.nextIs('as'):
+                if self.nextIsSymbol():
+                    record = self.getSymbolRecord()
+                    command['target'] = record['name']
+                    self.addCommand(command)
+                    return True
+        return False
+
+    def r_capture(self, command):
+        target = self.getVariable(command['target'])
+        self.putSymbolValue(target, self.getConstant(self.eventValues))
+        return self.nextPC()
+
     def k_close(self, command):
         if self.nextIsSymbol():
             symbolRecord = self.getSymbolRecord()
@@ -87,10 +103,6 @@ class Graphics(Handler):
                             command['layout'] = symbolRecord['name']
                             self.addCommand(command)
                             return True
-            elif type[0:2] == 'g_':
-                command['args'] = self.compileConstant(self.utils.getArgs(self))
-                self.addCommand(command)
-                return True
         return False
 
     def r_create(self, command):
@@ -104,20 +116,10 @@ class Graphics(Handler):
             self.mainLoop()
             self.program.kill()
             return 0
-        elif 'iselement' in record:
-            layout = json.loads(self.getRuntimeValue(command['args']))
-            args = self.utils.getDefaultArgs(type)
-            content = json.loads(layout['content'])
-            for n in range(0, len(content)):
-                args = self.utils.decode(args, content[n])
-            element = self.utils.createElement(type, args)
-            record['layout'] = element
-            return self.nextPC()
         else:
             RuntimeError(self.program, 'Variable is not a window or an element')
 
     def k_layout(self, command):
-        command['iselement'] = True
         return self.compileVariable(command)
 
     def r_layout(self, command):
@@ -125,42 +127,8 @@ class Graphics(Handler):
 
     def k_on(self, command):
         token = self.nextToken()
-        command['type'] = token
-        if token == 'click':
-            command['event'] = token
-            if self.peek() == 'in':
-                self.nextToken()
-            if self.nextIs('screen'):
-                command['target'] = None
-            elif self.isSymbol():
-                target = self.getSymbolRecord()
-                command['target'] = target['name']
-            else:
-                FatalError(self.program.compiler, f'{self.getToken()} is not a screen element')
-                return False
-            command['goto'] = self.getPC() + 2
-            self.add(command)
-            self.nextToken()
-            pcNext = self.getPC()
-            cmd = {}
-            cmd['domain'] = 'core'
-            cmd['lino'] = command['lino']
-            cmd['keyword'] = 'gotoPC'
-            cmd['goto'] = 0
-            cmd['debug'] = False
-            self.addCommand(cmd)
-            self.compileOne()
-            cmd = {}
-            cmd['domain'] = 'core'
-            cmd['lino'] = command['lino']
-            cmd['keyword'] = 'stop'
-            cmd['debug'] = False
-            self.addCommand(cmd)
-            # Fixup the link
-            self.getCommandAt(pcNext)['goto'] = self.getPC()
-            return True
-        elif token == 'tick':
-            command['event'] = token
+        if token == 'event':
+            command['key'] = self.nextValue()
             command['goto'] = self.getPC() + 2
             self.add(command)
             self.nextToken()
@@ -185,17 +153,9 @@ class Graphics(Handler):
         return False
 
     def r_on(self, command):
+        key = self.getRuntimeValue(command['key'])
         pc = command['goto']
-        if command['type'] == 'click':
-            event = command['event']
-            if event == 'click':
-                target = command['target']
-                if target == None:
-                    value = 'screen'
-                else:
-                    widget = self.getVariable(target)
-                value = widget['value'][widget['index']]
-                self.renderer.setOnClick(value['content'], lambda: self.run(pc))
+        self.eventHandlers[key] = lambda: self.run(pc)
         return self.nextPC()
 
     def k_popup(self, command):
@@ -210,7 +170,8 @@ class Graphics(Handler):
     def k_set(self, command):
         if self.nextIsSymbol():
             record = self.getSymbolRecord()
-            if record['keyword'] == 'layout':
+            keyword = record['keyword']
+            if keyword == 'layout':
                 command['target'] = record['name']
                 if self.peek() == 'to':
                     self.nextToken()
@@ -219,6 +180,8 @@ class Graphics(Handler):
                 else: command['args'] = None
                 self.addCommand(command)
                 return True
+            elif keyword == 'event':
+                pass
             return False
 
     def r_set(self, command):
@@ -248,19 +211,20 @@ class Graphics(Handler):
     # Compile a value in this domain
     def compileValue(self):
         value = {}
-        value['domain'] = 'graphics'
+        value['domain'] = self.getName()
         token = self.getToken()
         if self.isSymbol():
+            value['name'] = token
+            symbolRecord = self.getSymbolRecord()
+            keyword = symbolRecord['keyword']
+            if keyword == 'event':
+                value['type'] = 'symbol'
+                return value
             return None
-
-        if self.tokenIs('the'):
-            self.nextToken()
-        token = self.getToken()
 
         value['type'] = token
 
         if token == 'test':
-            name = self.nextToken()
             value = {}
             value['type'] = 'text'
             value['content'] = 'test'
@@ -275,6 +239,13 @@ class Graphics(Handler):
 
     #############################################################################
     # Value handlers
+
+    # This is used by the expression evaluator to get the value of a symbol
+    def v_symbol(self, symbolRecord):
+        if symbolRecord['keyword'] == 'event':
+            return self.getSymbolValue(symbolRecord)
+        else:
+            return None
 
     def v_test(self, v):
         return v
@@ -297,4 +268,7 @@ class Graphics(Handler):
                 break
             if event == '__TIMEOUT__': self.program.flushCB()
             else:
-                print(event, values)
+                if event in self.eventHandlers:
+                    self.eventValues = values
+                    self.eventHandlers[event]()
+

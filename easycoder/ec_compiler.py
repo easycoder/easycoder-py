@@ -98,11 +98,11 @@ class Compiler:
 		return self.tokens[self.index].lino
 
 	def warning(self, message):
-		self.warnings.append(message)
+		self.warnings.append(f'Warning at line {self.getLino() + 1} of {self.program.name}: {message}')
 
 	def showWarnings(self):
 		for warning in self.warnings:
-			print(f'Warning at line {self.getLino() + 1} of {self.program.name}: {warning}')
+			print(warning)
 
 	def getSymbolRecord(self):
 		token = self.getToken()

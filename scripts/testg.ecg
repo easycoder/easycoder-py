@@ -5,6 +5,7 @@
     layout Row
     layout Layout
     window Window
+    variable Event
     variable N
 
     popup `Hello!`
@@ -27,6 +28,14 @@
 
     create Window `Graphics Test`
         layout Layout
+
+    on event `Click me`
+    begin
+        capture event as Event
+        print `Date: ` cat property `-DATE-` of Event
+        print `Time: ` cat property `-TIME-` of Event
+        print `Name: ` cat property `-NAME-` of Event
+    end
 
     put 0 into N
     while true
