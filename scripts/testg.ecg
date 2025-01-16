@@ -5,29 +5,24 @@
     layout Row
     layout Layout
     window Window
-    g_input Input
-    g_button Button
     variable N
 
-    init Layout
-
-!    popup `Hello!`
+    popup `Hello!`
 !    debug step
 
-    init Row with g_text text `Date (YYYY-MM-DD):` and expand_x true
-    create Input key `-DATE-` and size `20 1`
-    add Input to Row
+    set Row to g_text text `Date (YYYY-MM-DD):` and expand_x true
+    add g_input key `-DATE-` and size `20 1` to Row
     add Row to Layout
-    init Row with g_text text `Time (HH:MM):` and expand_x true
-    create Input key `-TIME-` and size `20 1`
-    add Input to Row
+
+    set Row to g_text text `Time (HH:MM):` and expand_x true
+    add g_input key `-TIME-` and size `20 1` to Row
     add Row to Layout
-    init Row with g_text text `Your name:` and expand_x true
-    create Input key `-NAME-` and size `20 1`
-    add Input to Row
+
+    set Row to g_text text `Your name:` and expand_x true
+    add g_input key `-NAME-` and size `20 1` to Row
     add Row to Layout
-    create Button button_text `Click me`
-    init Row with Button
+
+    set Row to g_button button_text `Click me`
     add Row to Layout
 
     create Window `Graphics Test`

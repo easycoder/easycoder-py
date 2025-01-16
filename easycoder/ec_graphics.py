@@ -18,17 +18,18 @@ class Graphics(Handler):
 
     def k_add(self, command):
         elements = []
-        while True:
-            if self.nextIsSymbol():
-                symbolRecord = self.getSymbolRecord()
-                name = symbolRecord['name']
-                if 'iselement' in symbolRecord:
-                    elements.append(name)
-                    if self.peek() != 'and': break
-                else: FatalError(self.program.compiler, f'"{name}" is not a graphic element')
-            else: FatalError(self.program.compiler, f'Element expected; got "{self.getToken()}"')
-            self.nextToken()
-        command['elements'] = json.dumps(elements)
+        token = self.nextToken()
+        if self.isSymbol():
+            symbolRecord = self.getSymbolRecord()
+            name = symbolRecord['name']
+            if symbolRecord['keyword'] == 'layout':
+                elements.append(name)
+                command['args'] = name
+            else: FatalError(self.compiler.program, f'\'{name}\' is not a layout')
+        elif token[0:2] == 'g_':
+            command['type'] = token
+            command['args'] = self.utils.getArgs(self)
+        else: return False
         if self.nextIs('to'):
             if self.nextIsSymbol():
                 symbolRecord = self.getSymbolRecord()
@@ -40,11 +41,18 @@ class Graphics(Handler):
 
     def r_add(self, command):
         target = self.getVariable(command['target'])
-        elements = json.loads(command['elements'])
+        type = command['type']
+        args = command['args']
         if not 'layout' in target:
             target['layout'] = []
-        for element in elements:
-            v = self.getVariable(element)
+        if args[0] == '{':
+            layout = json.loads(self.getRuntimeValue(json.loads(args)))
+            default = self.utils.getDefaultArgs(type)
+            for n in range(0, len(layout)):
+                args = self.utils.decode(default, layout[n])
+            target['layout'].append(self.utils.createElement(type, args))
+        else:
+            v = self.getVariable(args)
             target['layout'].append(v['layout'])
         return self.nextPC()
 
@@ -107,65 +115,6 @@ class Graphics(Handler):
             return self.nextPC()
         else:
             RuntimeError(self.program, 'Variable is not a window or an element')
-
-    def k_g_button(self, command):
-        command['iselement'] = True
-        return self.compileVariable(command)
-
-    def r_g_button(self, command):
-        return self.nextPC()
-
-    def k_g_input(self, command):
-        command['iselement'] = True
-        return self.compileVariable(command)
-
-    def r_g_input(self, command):
-        return self.nextPC()
-
-    def k_g_text(self, command):
-        command['iselement'] = True
-        return self.compileVariable(command)
-
-    def r_g_text(self, command):
-        return self.nextPC()
-
-    def k_init(self, command):
-        if self.nextIsSymbol():
-            record = self.getSymbolRecord()
-            if record['keyword'] == 'layout':
-                command['target'] = record['name']
-                if self.peek() == 'with':
-                    self.nextToken()
-                    if self.nextIsSymbol():
-                        record = self.getSymbolRecord()
-                        name = record['name']
-                        if record['iselement']:
-                            command['args'] = name
-                        else: FatalError(self.program.compiler, f'\'{name}\' is not a graphic element')
-                    else:
-                        command['type'] = self.getToken()
-                        command['args'] = self.utils.getArgs(self)
-                else: command['args'] = None
-                self.addCommand(command)
-                return True
-            return False
-
-    def r_init(self, command):
-        record = self.getVariable(command['target'])
-        record['layout'] = []
-        type = command['type']
-        args = command['args']
-        if args != None:
-            if args[0] == '{':
-                layout = json.loads(self.getRuntimeValue(json.loads(args)))
-                args = self.utils.getDefaultArgs(type)
-                for n in range(0, len(layout)):
-                    args = self.utils.decode(args, layout[n])
-                record['layout'].append(self.utils.createElement(type, args))
-            else:
-                v = self.getVariable(args)
-                record['layout'].append(v['layout'])
-        return self.nextPC()
 
     def k_layout(self, command):
         command['iselement'] = True
@@ -259,9 +208,34 @@ class Graphics(Handler):
         return self.nextPC()
 
     def k_set(self, command):
-        return True
+        if self.nextIsSymbol():
+            record = self.getSymbolRecord()
+            if record['keyword'] == 'layout':
+                command['target'] = record['name']
+                if self.peek() == 'to':
+                    self.nextToken()
+                    command['type'] = self.nextToken()
+                    command['args'] = self.utils.getArgs(self)
+                else: command['args'] = None
+                self.addCommand(command)
+                return True
+            return False
 
     def r_set(self, command):
+        target = self.getVariable(command['target'])
+        target['layout'] = []
+        type = command['type']
+        args = command['args']
+        if args != None:
+            if args[0] == '{':
+                layout = json.loads(self.getRuntimeValue(json.loads(args)))
+                default = self.utils.getDefaultArgs(type)
+                for n in range(0, len(layout)):
+                    args = self.utils.decode(default, layout[n])
+                target['layout'].append(self.utils.createElement(type, args))
+            else:
+                v = self.getVariable(args)
+                target['layout'].append(v['layout'])
         return self.nextPC()
 
     def k_window(self, command):
