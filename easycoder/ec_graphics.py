@@ -9,7 +9,6 @@ class Graphics(Handler):
     def __init__(self, compiler):
         Handler.__init__(self, compiler)
         self.utils = GUtils()
-        self.eventHandlers = {}
 
     def getName(self):
         return 'graphics'
@@ -18,22 +17,27 @@ class Graphics(Handler):
     # Keyword handlers
 
     def k_add(self, command):
-        elements = []
         token = self.nextToken()
         if self.isSymbol():
             symbolRecord = self.getSymbolRecord()
             name = symbolRecord['name']
-            if symbolRecord['keyword'] == 'layout':
-                elements.append(name)
+            keyword = symbolRecord['keyword']
+            if keyword == 'layout':
                 command['args'] = name
-            else: FatalError(self.compiler.program, f'\'{name}\' is not a layout')
+            elif keyword in ['column', 'frame', 'tab']:
+                command['name'] = name
+                command['type'] = token
+                if self.peek() == 'to':
+                    command['args'] = []
+                else:
+                    command['args'] = self.utils.getArgs(self)
         else:
             command['type'] = token
             command['args'] = self.utils.getArgs(self)
         if self.nextIs('to'):
             if self.nextIsSymbol():
                 symbolRecord = self.getSymbolRecord()
-                if symbolRecord['keyword'] == 'layout':
+                if symbolRecord['keyword'] in ['column', 'frame', 'layout', 'tab']:
                     command['target'] = symbolRecord['name']
                     self.addCommand(command)
                     return True
@@ -43,14 +47,19 @@ class Graphics(Handler):
         target = self.getVariable(command['target'])
         type = command['type']
         args = command['args']
+        param= None
         if not 'layout' in target:
             target['layout'] = []
         if args[0] == '{':
+            if type in ['Column', 'Frame', 'Tab']:
+                record = self.getVariable(command['name'])
+                param = record['layout']
             layout = json.loads(self.getRuntimeValue(json.loads(args)))
             default = self.utils.getDefaultArgs(type)
             for n in range(0, len(layout)):
                 args = self.utils.decode(default, layout[n])
-            target['layout'].append(self.utils.createElement(type, args))
+            item = self.utils.createElement(type, param, args)
+            target['layout'].append(item)
         else:
             v = self.getVariable(args)
             target['layout'].append(v['layout'])
@@ -85,6 +94,12 @@ class Graphics(Handler):
         target['window'].close()
         return self.nextPC()
 
+    def k_column(self, command):
+        return self.compileVariable(command)
+
+    def r_column(self, command):
+        return self.nextPC()
+
     # create {window} layout {layout}
     # create {element} {args...}
     def k_create(self, command):
@@ -110,13 +125,29 @@ class Graphics(Handler):
         if type == 'window':
             layout = self.getVariable(command['layout'])
             title = self.getRuntimeValue(command['title'])
-            self.program.window = psg.Window(title, layout['layout'], finalize=True)
+            record['window'] = psg.Window(title, layout['layout'], finalize=True)
+            record['eventHandlers'] = {}
+            self.program.windowRecord = record
             self.program.run(self.nextPC())
             self.mainLoop()
-            self.program.kill()
+            # self.program.kill()
             return 0
         else:
             RuntimeError(self.program, 'Variable is not a window or an element')
+
+    def k_init(self, command):
+        if self.nextIsSymbol():
+            symbolRecord = self.getSymbolRecord()
+            if symbolRecord['keyword'] in ['column', 'frame', 'layout', 'tab']:
+                command['target'] = symbolRecord['name']
+                self.add(command)
+                return True
+        return False
+
+    def r_init(self, command):
+        target = self.getVariable(command['target'])
+        target['layout'] = []
+        return self.nextPC()
 
     def k_layout(self, command):
         return self.compileVariable(command)
@@ -128,33 +159,38 @@ class Graphics(Handler):
         token = self.nextToken()
         if token == 'event':
             command['key'] = self.nextValue()
-            command['goto'] = self.getPC() + 2
-            self.add(command)
-            self.nextToken()
-            pcNext = self.getPC()
-            cmd = {}
-            cmd['domain'] = 'core'
-            cmd['lino'] = command['lino']
-            cmd['keyword'] = 'gotoPC'
-            cmd['goto'] = 0
-            cmd['debug'] = False
-            self.addCommand(cmd)
-            self.compileOne()
-            cmd = {}
-            cmd['domain'] = 'core'
-            cmd['lino'] = command['lino']
-            cmd['keyword'] = 'stop'
-            cmd['debug'] = False
-            self.addCommand(cmd)
-            # Fixup the link
-            self.getCommandAt(pcNext)['goto'] = self.getPC()
-            return True
+            if self.nextIs('in'):
+                if self.nextIsSymbol():
+                    record = self.getSymbolRecord()
+                    if record['keyword'] == 'window':
+                        command['window'] = record['name']
+                        command['goto'] = self.getPC() + 2
+                        self.add(command)
+                        self.nextToken()
+                        pcNext = self.getPC()
+                        cmd = {}
+                        cmd['domain'] = 'core'
+                        cmd['lino'] = command['lino']
+                        cmd['keyword'] = 'gotoPC'
+                        cmd['goto'] = 0
+                        cmd['debug'] = False
+                        self.addCommand(cmd)
+                        self.compileOne()
+                        cmd = {}
+                        cmd['domain'] = 'core'
+                        cmd['lino'] = command['lino']
+                        cmd['keyword'] = 'stop'
+                        cmd['debug'] = False
+                        self.addCommand(cmd)
+                        # Fixup the link
+                        self.getCommandAt(pcNext)['goto'] = self.getPC()
+                        return True
         return False
 
     def r_on(self, command):
         key = self.getRuntimeValue(command['key'])
-        pc = command['goto']
-        self.eventHandlers[key] = lambda: self.run(pc)
+        window = self.getVariable(command['window'])
+        window['eventHandlers'][key] = lambda: self.run(command['goto'])
         return self.nextPC()
 
     def k_popup(self, command):
@@ -221,13 +257,14 @@ class Graphics(Handler):
                 return value
             return None
 
+        if self.getToken() == 'the':
+            self.nextToken()
+
+        token = self.getToken()
         value['type'] = token
 
-        if token == 'test':
-            value = {}
-            value['type'] = 'text'
-            value['content'] = 'test'
-            return value
+        if token == 'event':
+           return value
 
         return None
 
@@ -246,7 +283,9 @@ class Graphics(Handler):
         else:
             return None
 
-    def v_test(self, v):
+    def v_event(self, v):
+        v['type'] = 'text'
+        v['content'] = self.eventValues
         return v
 
     #############################################################################
@@ -261,13 +300,15 @@ class Graphics(Handler):
     #############################################################################
     # The main loop
     def mainLoop(self):
+        windowRecord = self.program.windowRecord
+        window = windowRecord['window']
+        eventHandlers = windowRecord['eventHandlers']
         while True:
-            event, values = self.program.window.Read(timeout=100)
+            event, values = window.Read(timeout=100)
             if event == psg.WINDOW_CLOSED or event == "EXIT":
                 break
             if event == '__TIMEOUT__': self.program.flushCB()
             else:
-                if event in self.eventHandlers:
+                if event in eventHandlers:
                     self.eventValues = values
-                    self.eventHandlers[event]()
-
+                    eventHandlers[event]()

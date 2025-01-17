@@ -21,14 +21,28 @@ class GUtils:
     # Get the default args for a graphic element
     def getDefaultArgs(self, type):
         args = {}
-        if type == 'Text':
-            args['text'] = '(empty)'
+        if type == 'Button':
+            args['button_text'] = '(empty)'
+            args['size'] = (None, None)
+        if type == 'Checkbox':
+            args['text'] = ''
+            args['key'] = None
+            args['size'] = (None, None)
             args['expand_x'] = False
+        elif type == 'Column':
+            args['expand_x'] = False
+            args['pad'] = (0, 0)
         elif type == 'Input':
             args['key'] = None
             args['size'] = (None, None)
-        elif type == 'Button':
-            args['button_text'] = '(empty)'
+        elif type == 'Multiline':
+            args['default_text'] = ''
+            args['key'] = None
+            args['size'] = (None, None)
+        elif type == 'Text':
+            args['text'] = '(empty)'
+            args['size'] = (None, None)
+            args['expand_x'] = False
         return args
 
     # Decode an argument at runtime
@@ -42,11 +56,29 @@ class GUtils:
         return None
 
     # Create an element
-    def createElement(self, type, args):
-        if type == 'Text': return psg.Text(text=args['text'], expand_x=args['expand_x'])
+    def createElement(self, type, param, args):
+        if type == 'Button':
+            size = self.getSize(args)
+            return psg.Button(button_text=args['button_text'], size=size)
+        if type == 'Checkbox':
+            size = self.getSize(args)
+            return psg.Checkbox(args['text'], key=args['key'], expand_x=args['expand_x'], size=size)
+        if type == 'Column':
+            return psg.Column(param, expand_x=args['expand_x'], pad=args['pad'])
         elif type == 'Input':
-            size = args['size'].split()
-            size = (size[0], size[1])
+            size = self.getSize(args)
             return psg.Input(key=args['key'], size=size)
-        elif type == 'Button': return psg.Button(button_text=args['button_text'])
+        elif type == 'Multiline':
+            size = self.getSize(args)
+            return psg.Multiline(default_text=args['default_text'], key=args['key'], size=size)
+        elif type == 'Text':
+            size = self.getSize(args)
+            return psg.Text(text=args['text'], size=size, expand_x=args['expand_x'])
         else: return None
+
+    def getSize(self, args):
+        size = args['size']
+        if size == (None, None):
+            return size
+        size = size.split()
+        return (size[0], size[1])

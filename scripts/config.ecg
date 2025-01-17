@@ -1,0 +1,190 @@
+!	RBR XR Configurator
+
+	script Config
+
+    layout MainLayout
+    layout SecondLayout
+    layout Row
+    column Column
+    window MainWindow
+    window SecondWindow
+    variable SSID
+    variable Value
+    variable Content
+    variable IPAddr
+    variable N
+
+!    debug step
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Create the main window
+    init MainLayout
+
+    ! The top row is the room name
+    init Row
+    add Text text `Room Name` and expand_x true to Row
+    add Input key `-NAME-` and size `40 1` to Row
+    add Button button_text `Set Name` and size `20 1` to Row
+    add Row to MainLayout
+
+    ! The second row is the host SSID
+    init Row
+    add Text text `Host SSID` and expand_x true to Row
+    add Input key `-SSID-` and size `40 1` to Row
+    add Button button_text `Set Host SSID` and size `20 1` to Row
+    add Row to MainLayout
+
+    ! The third row is the host password
+    init Row
+    add Text text `Host Password` and expand_x true to Row
+    add Input key `-HPASS-` and size `40 1` to Row
+    add Button button_text `Set Host Password` and size `20 1` to Row
+    add Row to MainLayout
+
+    ! The fourth row is the device password
+    init Row
+    add Text text `Device Password` and expand_x true to Row
+    add Input key `-DPASS-` and size `40 1` to Row
+    add Button button_text `Set Device Password` and size `20 1` to Row
+    add Row to MainLayout
+
+    ! The fifth row deals with the LED
+    init Column
+    init Row
+    add Text text `Pin #` to Row
+    add Input key `-LED_PIN-` and size `4 1` to Row
+    add Text text `   ` to Row
+    add Checkbox text `Invert the pin logic` and  key `-LED_INVERT-` to Row
+    add Text text `     ` to Row
+    add Row to Column
+    init Row
+    add Text text `LED` and size `40 1` and expand_x true to Row
+    add Column expand_x true to Row
+    add Button button_text `Set LED Params` and size `20 1` to Row
+    add Row to MainLayout
+
+    ! The sixth row deals with the relay
+    init Column
+    init Row
+    add Text text `Pin #` to Row
+    add Input key `-RELAY_PIN-` and size `4 1` to Row
+    add Text text `   ` to Row
+    add Checkbox text `Invert the pin logic` and  key `-RELAY_INVERT-` to Row
+    add Text text `     ` to Row
+    add Row to Column
+    init Row
+    add Text text `Relay` and size `40 1` and expand_x true to Row
+    add Column expand_x true to Row
+    add Button button_text `Set Relay Params` and size `20 1` to Row
+    add Row to MainLayout
+
+    ! The final row is the various buttons
+    init Row
+    add Button button_text `Connect` to Row
+    add Button button_text `Set All` to Row
+    add Button button_text `Exit` to Row
+    add Row to MainLayout
+
+    create MainWindow `RBR XR Config`
+        layout MainLayout
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Event handlers for the main window
+
+    on event `Set Name` in MainWindow go to SetName
+    on event `Set Host SSID` in MainWindow go to SetHostSSID
+    on event `Set Host Password` in MainWindow go to SetHostPassword
+    on event `Set Device Password` in MainWindow go to SetDevicePassword
+    on event `Set LED Params` in MainWindow go to SetLEDParams
+    on event `Set Relay Params` in MainWindow go to SetRelayParams
+    on event `Connect` in MainWindow go to Connect
+    on event `Set All` in MainWindow go to SetAll
+    on event `Exit` in MainWindow
+    begin
+        close MainWindow
+        exit
+    end
+    stop
+
+SetName:
+    put property `-NAME-` of the event into Value
+    print `Name: ` cat Value
+    stop
+
+SetHostSSID:
+    put property `-SSID-` of the event into Value
+    print `Host SSID: ` cat Value
+    stop
+
+SetHostPassword:
+    put property `-HPASS-` of the event into Value
+    print `Host Password: ` cat Value
+    stop
+
+SetDevicePassword:
+    put property `-DPASS-` of the event into Value
+    print `Device Password: ` cat Value
+    stop
+
+SetLEDParams:
+    put property `-LED_PIN-` of the event into Value
+    print `LED Pin: ` cat Value
+    put property `-LED_INVERT-` of the event into Value
+    print `LED Invert: ` cat Value
+    stop
+
+SetRelayParams:
+    put property `-RELAY_PIN-` of the event into Value
+    print `Relay Pin: ` cat Value
+    put property `-RELAY_INVERT-` of the event into Value
+    print `Relay Invert: ` cat Value
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Set all parameters
+SetAll:
+    fork to SetName
+    fork to SetHostSSID
+    fork to SetHostPassword
+    fork to SetDevicePassword
+    fork to SetLEDParams
+    fork to SetRelayParams
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Specify an access point
+Connect:
+    init SecondLayout
+
+    init Row
+    add Text text `Device SSID` and expand_x true to Row
+    add Input key `-SSID-` and size `20 1` to Row
+    add Row to SecondLayout
+
+    init Row
+    add Button button_text `Connect` to Row
+    add Row to SecondLayout
+
+    create SecondWindow `Connect`
+        layout SecondLayout
+
+    on event `Connect` in SecondWindow
+    begin
+        put property `-SSID-` of the event into SSID
+        go to OpenConnection
+    end
+    stop
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Connect to the access point
+OpenConnection:
+    system `nmcli dev wifi connect ` cat SSID cat ` password 00000000`
+    put system `hostname -I` into IPAddr
+    put the position of the last `.` in IPAddr into N
+    increment N
+    put left N of IPAddr into IPAddr
+    put IPAddr cat `1` into IPAddr
+    print `Connected to ` cat IPAddr
+    close SecondWindow
+    stop

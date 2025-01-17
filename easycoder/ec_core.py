@@ -1427,7 +1427,6 @@ class Core(Handler):
 
     def r_system(self, command):
         value = self.getRuntimeValue(command['value'])
-        background = command['background']
         if value != None:
             if command['background']:
                 subprocess.Popen(["sh",value,"&"])
@@ -1735,6 +1734,9 @@ class Core(Handler):
                     if symbolRecord['valueHolder']:
                         value['target'] = symbolRecord['name']
                         return value
+                else:
+                    value['value'] = self.getValue()
+                    return value
                 self.warning(f'Core.compileValue: Token \'{self.getToken()}\' does not hold a value')
             return None
 
@@ -1899,6 +1901,10 @@ class Core(Handler):
                     value['fileName'] = self.nextValue()
                     return value
             return None
+
+        if token == 'system':
+            value['command'] = self.nextValue()
+            return value
 
         return None
 
@@ -2199,13 +2205,16 @@ class Core(Handler):
 
     def v_property(self, v):
         propertyValue = self.getRuntimeValue(v['name'])
-        targetName = v['target']
-        target = self.getVariable(targetName)
-        targetValue = self.getRuntimeValue(target)
+        if 'target' in v:
+            targetName = v['target']
+            target = self.getVariable(targetName)
+            targetValue = self.getRuntimeValue(target)
+        else:
+            targetValue = self.getRuntimeValue(v['value'])
         try:
             val = targetValue[propertyValue]
         except:
-            RuntimeError(self.program, f'{targetName} does not have the property \'{propertyValue}\'')
+            RuntimeError(self.program, f'This value does not have the property \'{propertyValue}\'')
             return None
         value = {}
         value['content'] = val
@@ -2247,12 +2256,18 @@ class Core(Handler):
 
     # This is used by the expression evaluator to get the value of a symbol
     def v_symbol(self, symbolRecord):
-        result = {}
         if symbolRecord['keyword'] == 'variable':
-            symbolValue = self.getSymbolValue(symbolRecord)
-            return symbolValue
+            return self.getSymbolValue(symbolRecord)
         else:
             return None
+
+    def v_system(self, v):
+        command = self.getRuntimeValue(v['command'])
+        result = os.popen(command).read()
+        value = {}
+        value['type'] = 'text'
+        value['content'] = result
+        return value
 
     def v_tab(self, v):
         value = {}
