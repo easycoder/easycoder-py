@@ -2,51 +2,63 @@
 
 	script Config
 
-    layout MainLayout
-    layout SecondLayout
+    layout Layout
     layout Row
     column Column
-    window MainWindow
-    window SecondWindow
-    variable SSID
+    window Window
+    module Connect
     variable Value
-    variable Content
-    variable IPAddr
+    variable Connected
+    variable HostName
+    variable HostSSID
+    variable HostPassword
+    variable DevicePassword
+    variable List
+    variable SSID
+    variable AccessPoints
     variable N
+    variable P
 
 !    debug step
 
+    clear Connected
+    put empty into HostName
+    put empty into HostSSID
+    put empty into HostPassword
+    put empty into DevicePassword
+    fork to APScan
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Create the main window
-    init MainLayout
+    init Layout
 
     ! The top row is the room name
     init Row
-    add Text text `Room Name` and expand_x true to Row
-    add Input key `-NAME-` and size `40 1` to Row
-    add Button button_text `Set Name` and size `20 1` to Row
-    add Row to MainLayout
+    add Text text `Host Name` and expand_x true to Row
+    add Input default_text HostName and key `-NAME-` and size `40 1` to Row
+    add Button button_text `Set host name` and size `20 1` to Row
+    add Row to Layout
 
     ! The second row is the host SSID
     init Row
     add Text text `Host SSID` and expand_x true to Row
-    add Input key `-SSID-` and size `40 1` to Row
-    add Button button_text `Set Host SSID` and size `20 1` to Row
-    add Row to MainLayout
+    add Input default_text HostSSID and key `-SSID-` and size `40 1` to Row
+    add Button button_text `Set host SSID` and size `20 1` to Row
+    add Row to Layout
 
     ! The third row is the host password
     init Row
     add Text text `Host Password` and expand_x true to Row
-    add Input key `-HPASS-` and size `40 1` to Row
-    add Button button_text `Set Host Password` and size `20 1` to Row
-    add Row to MainLayout
+    add Input default_text HostPassword and key `-HPASS-` and size `40 1` to Row
+    add Button button_text `Set host password` and size `20 1` to Row
+    add Row to Layout
 
     ! The fourth row is the device password
     init Row
     add Text text `Device Password` and expand_x true to Row
-    add Input key `-DPASS-` and size `40 1` to Row
-    add Button button_text `Set Device Password` and size `20 1` to Row
-    add Row to MainLayout
+    add Input default_text DevicePassword and key `-DPASS-` and size `40 1` to Row
+    add Button button_text `Set device password` and size `20 1` to Row
+    add Row to Layout
 
     ! The fifth row deals with the LED
     init Column
@@ -61,7 +73,7 @@
     add Text text `LED` and size `40 1` and expand_x true to Row
     add Column expand_x true to Row
     add Button button_text `Set LED Params` and size `20 1` to Row
-    add Row to MainLayout
+    add Row to Layout
 
     ! The sixth row deals with the relay
     init Column
@@ -76,32 +88,32 @@
     add Text text `Relay` and size `40 1` and expand_x true to Row
     add Column expand_x true to Row
     add Button button_text `Set Relay Params` and size `20 1` to Row
-    add Row to MainLayout
+    add Row to Layout
 
     ! The final row is the various buttons
     init Row
-    add Button button_text `Connect` to Row
+    add Button button_text `Connect` and disabled true to Row
     add Button button_text `Set All` to Row
     add Button button_text `Exit` to Row
-    add Row to MainLayout
+    add Row to Layout
 
-    create MainWindow `RBR XR Config`
-        layout MainLayout
+    create Window `RBR XR Config`
+        layout Layout
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Event handlers for the main window
 
-    on event `Set Name` in MainWindow go to SetName
-    on event `Set Host SSID` in MainWindow go to SetHostSSID
-    on event `Set Host Password` in MainWindow go to SetHostPassword
-    on event `Set Device Password` in MainWindow go to SetDevicePassword
-    on event `Set LED Params` in MainWindow go to SetLEDParams
-    on event `Set Relay Params` in MainWindow go to SetRelayParams
-    on event `Connect` in MainWindow go to Connect
-    on event `Set All` in MainWindow go to SetAll
-    on event `Exit` in MainWindow
+    on event `Set Name` in Window go to SetName
+    on event `Set Host SSID` in Window go to SetHostSSID
+    on event `Set Host Password` in Window go to SetHostPassword
+    on event `Set Device Password` in Window go to SetDevicePassword
+    on event `Set LED Params` in Window go to SetLEDParams
+    on event `Set Relay Params` in Window go to SetRelayParams
+    on event `Connect` in Window run `scripts/connect.ecg` as Connect
+    on event `Set All` in Window go to SetAll
+    on event `Exit` in Window
     begin
-        close MainWindow
+        close Window
         exit
     end
     stop
@@ -152,39 +164,33 @@ SetAll:
     stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Specify an access point
-Connect:
-    init SecondLayout
-
-    init Row
-    add Text text `Device SSID` and expand_x true to Row
-    add Input key `-SSID-` and size `20 1` to Row
-    add Row to SecondLayout
-
-    init Row
-    add Button button_text `Connect` to Row
-    add Row to SecondLayout
-
-    create SecondWindow `Connect`
-        layout SecondLayout
-
-    on event `Connect` in SecondWindow
+!   San for access points
+APScan:
+    wait 10 ticks
+    put system `nmcli device wifi list` into List
+    split List
+    put json `[]` into AccessPoints
+    put 1 into N
+    while N is less than the elements of List
     begin
-        put property `-SSID-` of the event into SSID
-        go to OpenConnection
+        index List to N
+        put List into SSID
+        if left 1 of SSID is `*`
+        begin
+        end
+        else
+        begin
+            put trim SSID into SSID
+            put the position of ` ` in SSID into P
+            put from P of SSID into SSID
+            put trim SSID into SSID
+            put the position of ` ` in SSID into P
+            put left P of SSID into SSID
+            print SSID
+            append SSID to AccessPoints
+        end
+        increment N
     end
-    stop
+    set property `disabled` of `Connect` in Window to false
 
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Connect to the access point
-OpenConnection:
-    system `nmcli dev wifi connect ` cat SSID cat ` password 00000000`
-    put system `hostname -I` into IPAddr
-    put the position of the last `.` in IPAddr into N
-    increment N
-    put left N of IPAddr into IPAddr
-    put IPAddr cat `1` into IPAddr
-    print `Connected to ` cat IPAddr
-    close SecondWindow
     stop

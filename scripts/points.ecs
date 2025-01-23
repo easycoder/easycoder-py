@@ -2,7 +2,7 @@
 
     script Points
     
-    import plugin Points from plugins/example.py
+    import plugin Points from plugins/points.py
     
     point Point1
     point Point2

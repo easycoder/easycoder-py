@@ -127,7 +127,7 @@ class Program:
 
 	def doValue(self, value):
 		if value == None:
-			FatalError(self.compiler, f'Undefined value (variable not initialized?)')
+			RuntimeError(self, f'Undefined value (variable not initialized?)')
 
 		result = {}
 		valType = value['type']
@@ -150,7 +150,7 @@ class Program:
 			name = value['name']
 			symbolRecord = self.getSymbolRecord(name)
 			if symbolRecord['value'] == [None]:
-				RuntimeWarning(self.program, f'Variable "{name}" has no value')
+				RuntimeWarning(self, f'Variable "{name}" has no value')
 				return None
 			handler = self.domainIndex[symbolRecord['domain']].valueHandler('symbol')
 			result = handler(symbolRecord)

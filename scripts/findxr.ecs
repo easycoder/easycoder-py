@@ -1,0 +1,26 @@
+!   Find an XR device
+
+    script FindXR
+
+    variable N
+    variable IPAddr
+    variable Data
+
+    put system `hostname -I` into IPAddr
+    put the position of the last `.` in IPAddr into N
+    increment N
+    put left N of IPAddr into IPAddr
+    print `Looking for an XR server on network ` cat IPAddr cat `x`
+    put 1 into N
+    while N is less than 255
+    begin
+        get Data from `http://` cat IPAddr cat N timeout 1 or put empty into Data
+        if left 6 of Data is `RBR-XR`
+        begin
+            print IPAddr cat N cat `: Data: ` cat Data
+            exit
+        end
+        increment N
+    end
+
+    exit

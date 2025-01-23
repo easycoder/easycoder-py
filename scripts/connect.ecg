@@ -1,0 +1,62 @@
+!	Connect to an AP
+
+	script Connect
+
+    layout Layout
+    layout Row
+    column Column
+    window Window
+    variable Value
+    variable Connected
+    variable IPAddr
+    variable HostName
+    variable HostSSID
+    variable HostPassword
+    variable DevicePassword
+    variable List
+    variable SSID
+    variable AccessPoints
+    variable N
+    variable P
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Specify an access point
+Connect:
+    init Layout
+
+    init Row
+    put stringify AccessPoints into Value
+    add Listbox key `-APLIST-` and size `20 5` to Row
+    add Text text `Device SSID` and expand_x true to Row
+    add Input key `-SSID-` and size `20 1` to Row
+    add Row to Layout
+
+    init Row
+    add Button button_text `Connect` to Row
+    add Row to Layout
+
+    create Window `Connect`
+        layout Layout
+
+    on event `Connect` in Window
+    begin
+        put property `-SSID-` of the event into SSID
+        go to OpenConnection
+    end
+
+    stop
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Connect to the access point
+OpenConnection:
+    system `nmcli dev wifi connect ` cat SSID cat ` password 00000000`
+    put system `hostname -I` into IPAddr
+    put the position of the last `.` in IPAddr into N
+    increment N
+    put left N of IPAddr into IPAddr
+    put IPAddr cat `1` into IPAddr
+    print `Connected to ` cat IPAddr
+    close Window
+    set Connected
+    stop

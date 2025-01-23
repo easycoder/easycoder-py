@@ -2,7 +2,7 @@ import json, math, hashlib, threading, os, subprocess, sys, requests, time, numb
 from psutil import Process
 from datetime import datetime, timezone
 from random import randrange
-from .ec_classes import FatalError, RuntimeWarning, RuntimeError, AssertionError, Condition
+from .ec_classes import FatalError, RuntimeWarning, RuntimeError, AssertionError, Condition, Object
 from .ec_handler import Handler
 from .ec_timestamp import getTimestamp
 
@@ -729,6 +729,12 @@ class Core(Handler):
         target['locked'] = True
         return self.nextPC()
 
+    # Log a message
+    def k_log(self, command):
+        command['log'] = True
+        command['keyword'] = 'print'
+        return self.k_print(command)
+
     # Declare a module variable
     def k_module(self, command):
         return self.compileVariable(command)
@@ -996,10 +1002,9 @@ class Core(Handler):
         program = command['program']
         code = program.code[program.pc]
         lino = code['lino'] + 1
-        if value == None:
-            print(f'{lino}-> <empty>')
-        else:
-            print(f'{lino}-> {value}')
+        if value == None: value = '<empty>'
+        if 'log' in command: print(f'{datetime.now().time()}: {lino}-> {value}')
+        else: print(value)
         return self.nextPC()
 
     # Push a value onto a stack
@@ -1147,6 +1152,7 @@ class Core(Handler):
         return self.stack.pop()
 
     # Compile and run a script
+    # run {path} [as {module}] [with {variable} [and {variable}...]]
     def k_run(self, command):
         try:
             command['path'] = self.nextValue()
@@ -1157,20 +1163,24 @@ class Core(Handler):
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
                 if record['keyword'] == 'module':
-                    command['module'] = record['name']
-                    exports = []
-                    if self.nextIs('with'):
-                        while True:
-                            name = self.nextToken()
-                            record = self.getSymbolRecord()
-                            exports.append(name)
-                            if self.peek() != 'and':
-                                break
-                            self.nextToken()
-                    command['exports'] = json.dumps(exports)
-                    self.add(command)
-                    return True
-        return False
+                    name = record['name']
+                    command['module'] = name
+                else: RuntimeError(self.program, f'Symbol \'name\' is not a module')
+            else: RuntimeError(self.program, 'Module name expected after \'as\'')
+        else: RuntimeError(self.program, '\'as {module name}\' expected')
+        exports = []
+        if self.peek() == 'with':
+            self.nextToken()
+            while True:
+                name = self.nextToken()
+                record = self.getSymbolRecord()
+                exports.append(name)
+                if self.peek() != 'and':
+                    break
+                self.nextToken()
+        command['exports'] = json.dumps(exports)
+        self.add(command)
+        return True
 
     def r_run(self, command):
         module = self.getVariable(command['module'])
@@ -1734,10 +1744,7 @@ class Core(Handler):
                     if symbolRecord['valueHolder']:
                         value['target'] = symbolRecord['name']
                         return value
-                else:
-                    value['value'] = self.getValue()
-                    return value
-                self.warning(f'Core.compileValue: Token \'{self.getToken()}\' does not hold a value')
+                    FatalError(self.program.compiler, 'Variable does not hold a value')
             return None
 
         if token == 'arg':
@@ -2503,7 +2510,7 @@ class Core(Handler):
         return not comparison if condition.negate else comparison
 
     def c_not(self, condition):
-        return not self.getRuntimeValue(condition.value1)
+        return not self.getRuntimeValue(condition.value)
 
     def c_object(self, condition):
         comparison = type(self.getRuntimeValue(condition.value1)) is dict
