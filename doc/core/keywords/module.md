@@ -12,6 +12,6 @@ Declare a module variable, which enables you to run another script as a child of
 Module variables can be assigned any number of elements - see [set the elements](set.md).
 
 Next: [multiply](multiply.md)  
-Prev: [lock](lock.md)
+Prev: [log](log.md)
 
 [Back](../../README.md)
