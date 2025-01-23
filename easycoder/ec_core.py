@@ -1001,9 +1001,10 @@ class Core(Handler):
         value = self.getRuntimeValue(command['value'])
         program = command['program']
         code = program.code[program.pc]
-        lino = code['lino'] + 1
+        lino = str(code['lino'] + 1)
+        while len(lino) < 5: lino = f' {lino}'
         if value == None: value = '<empty>'
-        if 'log' in command: print(f'{datetime.now().time()}: {lino}-> {value}')
+        if 'log' in command: print(f'{datetime.now().time()}:{lino}-> {value}')
         else: print(value)
         return self.nextPC()
 
