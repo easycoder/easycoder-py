@@ -1,4 +1,4 @@
-import json, math, hashlib, threading, os, subprocess, sys, requests, time, numbers, base64
+import json, math, hashlib, threading, os, subprocess, sys, requests, time, numbers, base64, binascii
 from psutil import Process
 from datetime import datetime, timezone
 from random import randrange
@@ -484,7 +484,6 @@ class Core(Handler):
         except:
             pass
         RuntimeError(self.program, f'There is no label "{label}"')
-        return None
 
     def r_gotoPC(self, command):
         return command['goto']
@@ -499,12 +498,14 @@ class Core(Handler):
 
     def r_gosub(self, command):
         label = command['gosub'] + ':'
-        address = self.symbols[label]
-        if address != None:
-            self.stack.append(self.nextPC())
-            return address
-        RuntimeError(self.program, f'There is no label "{label + ":"}"')
-        return None
+        try:
+            address = self.symbols[label]
+            if address != None:
+                self.stack.append(self.nextPC())
+                return address
+        except:
+            pass
+        RuntimeError(self.program, f'There is no label "{label}"')
 
     # if <condition> <action> [else <action>]
     def k_if(self, command):
@@ -1988,6 +1989,10 @@ class Core(Handler):
         value['type'] = 'text'
         if self.encoding == 'utf-8':
             value['content'] = content.decode('utf-8')
+        elif self.encoding == 'hex':
+            b = content.encode('utf-8')
+            mb = binascii.unhexlify(b)
+            value['content'] = mb.decode('utf-8')
         elif self.encoding == 'base64':
             base64_bytes = content.encode('ascii')
             message_bytes = base64.b64decode(base64_bytes)
@@ -2031,6 +2036,10 @@ class Core(Handler):
         value['type'] = 'text'
         if self.encoding == 'utf-8':
             value['content'] = content.encode('utf-8')
+        elif self.encoding == 'hex':
+            b = content.encode('utf-8')
+            mb = binascii.hexlify(b)
+            value['content'] = mb.decode('utf-8')
         elif self.encoding == 'base64':
             data_bytes = content.encode('ascii')
             base64_bytes = base64.b64encode(data_bytes)
