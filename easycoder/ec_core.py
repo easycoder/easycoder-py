@@ -484,6 +484,7 @@ class Core(Handler):
         except:
             pass
         RuntimeError(self.program, f'There is no label "{label}"')
+        return None
 
     def r_gotoPC(self, command):
         return command['goto']
@@ -498,14 +499,12 @@ class Core(Handler):
 
     def r_gosub(self, command):
         label = command['gosub'] + ':'
-        try:
-            address = self.symbols[label]
-            if address != None:
-                self.stack.append(self.nextPC())
-                return address
-        except:
-            pass
-        RuntimeError(self.program, f'There is no label "{label}"')
+        address = self.symbols[label]
+        if address != None:
+            self.stack.append(self.nextPC())
+            return address
+        RuntimeError(self.program, f'There is no label "{label + ":"}"')
+        return None
 
     # if <condition> <action> [else <action>]
     def k_if(self, command):
@@ -1005,8 +1004,10 @@ class Core(Handler):
         lino = str(code['lino'] + 1)
         while len(lino) < 5: lino = f' {lino}'
         if value == None: value = '<empty>'
-        if 'log' in command: print(f'{datetime.now().time()}:{lino}-> {value}')
-        else: print(value)
+        if 'log' in command:
+            print(f'{datetime.now().time()}:{lino}-> {value}')
+        else:
+            print(value)
         return self.nextPC()
 
     # Push a value onto a stack
@@ -1817,10 +1818,12 @@ class Core(Handler):
             return None
 
         if token == 'value':
-            value['type'] = 'valueOf'
             if self.nextIs('of'):
-                value['content'] = self.nextValue()
-                return value
+                v = self.nextValue()
+                if v !=None:
+                    value['type'] = 'valueOf'
+                    value['content'] = v
+                    return value
             return None
 
         if token == 'length':
@@ -1989,10 +1992,6 @@ class Core(Handler):
         value['type'] = 'text'
         if self.encoding == 'utf-8':
             value['content'] = content.decode('utf-8')
-        elif self.encoding == 'hex':
-            b = content.encode('utf-8')
-            mb = binascii.unhexlify(b)
-            value['content'] = mb.decode('utf-8')
         elif self.encoding == 'base64':
             base64_bytes = content.encode('ascii')
             message_bytes = base64.b64decode(base64_bytes)
@@ -2036,10 +2035,6 @@ class Core(Handler):
         value['type'] = 'text'
         if self.encoding == 'utf-8':
             value['content'] = content.encode('utf-8')
-        elif self.encoding == 'hex':
-            b = content.encode('utf-8')
-            mb = binascii.hexlify(b)
-            value['content'] = mb.decode('utf-8')
         elif self.encoding == 'base64':
             data_bytes = content.encode('ascii')
             base64_bytes = base64.b64encode(data_bytes)

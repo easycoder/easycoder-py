@@ -52,14 +52,14 @@ class GUtils:
         keys = values.keys()
         for key in keys:
             v = values[key]
-            element = window.key_dict[key]
-            if type(element) is psg.Listbox:
+            widget = window.key_dict[key]
+            if type(widget) is psg.Listbox:
                 # Only pick one from those selected
                 v = v[0]
             values[key] = v
 
-    # Create an element
-    def createElement(self, type, param, args):
+    # Create a widget
+    def createWidget(self, type, param, args):
         if type == 'Button': return self.createButton(param, args)
         elif type == 'Checkbox': return self.createCheckbox(param, args)
         elif type == 'Column': return self.createColumn(param, args)
@@ -69,10 +69,29 @@ class GUtils:
         elif type == 'Text': return self.createText(param, args)
         else: return None
 
+    # Get the current value of a widget
+    def getWidgetValue(self, window, key):
+        key_dict = window['window'].key_dict
+        widget = key_dict[key]
+        if type(widget) is psg.Button: return widget.get()
+        elif type(widget) is psg.Checkbox: return widget.get()
+        elif type(widget) is psg.Column: return widget.get()
+        elif type(widget) is psg.Input: return widget.get()
+        elif type(widget) is psg.Listbox:
+            items = widget.get()
+            if len(items) > 0:
+                return items[0]
+            return ''
+        elif type(widget) is psg.Multiline: return widget.get()
+        elif type(widget) is psg.Text: return widget.get()
+        return None
+
     # Update a property
     def updateProperty(self, element, property, value):
         if property == 'disabled':
             element.update(disabled=value)
+        elif property == 'text':
+            element.update(text=value)
         elif property == 'value':
             element.update(value=value)
         elif property == 'values':
@@ -136,9 +155,10 @@ class GUtils:
 
     def getDefaultText(self, args):
         args['text'] = '(empty)'
+        args['key'] = None
         args['size'] = (None, None)
         args['expand_x'] = False
 
     def createText(self, param, args):
-        return psg.Text(text=args['text'], expand_x=args['expand_x'], size=self.getSize(args))
+        return psg.Text(text=args['text'], expand_x=args['expand_x'], key=args['key'], size=self.getSize(args))
 
