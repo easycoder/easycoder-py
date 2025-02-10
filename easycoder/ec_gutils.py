@@ -44,8 +44,6 @@ class GUtils:
             if value != None: value = value['content']
             else: raise Exception('Variable has no value')
             args[key] = value
-            return args
-        return None
 
     # Reduce the event properties to a list of strings
     def getEventProperties(self, window, values):
@@ -59,14 +57,14 @@ class GUtils:
             values[key] = v
 
     # Create a widget
-    def createWidget(self, type, param, args):
-        if type == 'Button': return self.createButton(param, args)
-        elif type == 'Checkbox': return self.createCheckbox(param, args)
-        elif type == 'Column': return self.createColumn(param, args)
-        elif type == 'Input': return self.createInput(param, args)
-        elif type == 'Listbox': return self.createListbox(param, args)
-        elif type == 'Multiline': return self.createMultiline(param, args)
-        elif type == 'Text': return self.createText(param, args)
+    def createWidget(self, type, layout, args):
+        if type == 'Button': return self.createButton(layout, args)
+        elif type == 'Checkbox': return self.createCheckbox(layout, args)
+        elif type == 'Column': return self.createColumn(layout, args)
+        elif type == 'Input': return self.createInput(layout, args)
+        elif type == 'Listbox': return self.createListbox(layout, args)
+        elif type == 'Multiline': return self.createMultiline(layout, args)
+        elif type == 'Text': return self.createText(layout, args)
         else: return None
 
     # Get the current value of a widget
@@ -97,6 +95,13 @@ class GUtils:
         elif property == 'values':
             element.update(values=value)
 
+    def getPad(self, args):
+        pad = args['pad']
+        if pad == (None, None):
+            return pad
+        pad = pad.split()
+        return (pad[0], pad[1])
+
     def getSize(self, args):
         size = args['size']
         if size == (None, None):
@@ -109,7 +114,7 @@ class GUtils:
         args['disabled'] = False
         args['size'] = (None, None)
 
-    def createButton(self, param, args):
+    def createButton(self, layout, args):
         return psg.Button(button_text=args['button_text'], disabled=args['disabled'], size=self.getSize(args))
 
     def getDefaultCheckbox(self, args):
@@ -118,39 +123,40 @@ class GUtils:
         args['size'] = (None, None)
         args['expand_x'] = False
 
-    def createCheckbox(self, param, args):
+    def createCheckbox(self, layout, args):
         return psg.Checkbox(args['text'], key=args['key'], expand_x=args['expand_x'], size=self.getSize(args))
 
     def getDefaultColumn(self, args):
         args['expand_x'] = False
-        args['pad'] = (0, 0)
+        args['pad'] = (None, None)
 
-    def createColumn(self, param, args):
-        return psg.Column(param, expand_x=args['expand_x'], pad=args['pad'])
+    def createColumn(self, layout, args):
+        return psg.Column(layout, expand_x=args['expand_x'], pad=self.getPad(args))
 
     def getDefaultInput(self, args):
         args['default_text'] = ''
         args['key'] = None
         args['size'] = (None, None)
 
-    def createInput(self, param, args):
+    def createInput(self, layout, args):
         return psg.Input(default_text=args['default_text'], key=args['key'], size=self.getSize(args))
 
     def getDefaultListbox(self, args):
         args['list'] = []
         args['key'] = [None]
         args['size'] = '10 2'
+        args['pad'] = (None, None)
         args['select_mode'] = None
 
-    def createListbox(self, param, args):
-        return psg.Listbox([], key=args['key'], size=self.getSize(args))
+    def createListbox(self, layout, args):
+        return psg.Listbox([], key=args['key'], pad=self.getPad(args), size=self.getSize(args))
 
     def getDefaultMultiline(self, args):
         args['default_text'] = ''
         args['key'] = None
         args['size'] = (None, None)
 
-    def createMultiline(self, param, args):
+    def createMultiline(self, layout, args):
         return psg.Multiline(default_text=args['default_text'], key=args['key'], size=self.getSize(args))
 
     def getDefaultText(self, args):
@@ -159,6 +165,6 @@ class GUtils:
         args['size'] = (None, None)
         args['expand_x'] = False
 
-    def createText(self, param, args):
+    def createText(self, layouts, args):
         return psg.Text(text=args['text'], expand_x=args['expand_x'], key=args['key'], size=self.getSize(args))
 

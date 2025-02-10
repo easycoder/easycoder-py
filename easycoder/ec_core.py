@@ -706,9 +706,12 @@ class Core(Handler):
     def r_load(self, command):
         target = self.getVariable(command['target'])
         file = self.getRuntimeValue(command['file'])
-        f = open(file, 'r')
-        content = f.read()
-        f.close()
+        try:
+            with open(file, 'r') as f:
+                content = f.read()
+        except:
+            content=None
+        if content != None and file.endswith('.json'): content = json.loads(content)
         value = {}
         value['type'] = 'text'
         value['content'] = content
@@ -1217,9 +1220,9 @@ class Core(Handler):
     def r_save(self, command):
         content = self.getRuntimeValue(command['content'])
         file = self.getRuntimeValue(command['file'])
-        f = open(file, 'w')
-        f.write(content)
-        f.close()
+        if file.endswith('.json'): content = json.dumps(content)
+        with open(file, 'w') as f:
+            f.write(content)
         return self.nextPC()
 
     # Send a message to a module
@@ -1996,6 +1999,10 @@ class Core(Handler):
             base64_bytes = content.encode('ascii')
             message_bytes = base64.b64decode(base64_bytes)
             value['content'] = message_bytes.decode('ascii')
+        elif self.encoding == 'hex':
+            hex_bytes = content.encode('utf-8')
+            message_bytes = binascii.unhexlify(hex_bytes)
+            value['content'] = message_bytes.decode('utf-8')
         else:
             value = v
         return value
@@ -2039,6 +2046,10 @@ class Core(Handler):
             data_bytes = content.encode('ascii')
             base64_bytes = base64.b64encode(data_bytes)
             value['content'] = base64_bytes.decode('ascii')
+        elif self.encoding == 'hex':
+            data_bytes = content.encode('utf-8')
+            hex_bytes = binascii.hexlify(data_bytes)
+            value['content'] = hex_bytes.decode('utf-8')
         else:
             value = v
         return value

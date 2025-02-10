@@ -29,7 +29,7 @@ class Graphics(Handler):
                 command['name'] = name
                 command['type'] = token
                 if self.peek() == 'to':
-                    command['args'] = []
+                    command['args'] = name
                 else:
                     command['args'] = self.utils.getArgs(self)
         else:
@@ -45,28 +45,37 @@ class Graphics(Handler):
         return False
 
     def r_add(self, command):
+        def create(type, layout, args2, target):
+            args = self.utils.getDefaultArgs(type)
+            for n in range(0, len(args2)):
+                try:
+                    self.utils.decode(self, args, args2[n])
+                except Exception as e:
+                    RuntimeError(self.program, e)
+            item = self.utils.createWidget(type, layout, args)
+            target['layout'].append(item)
+
         target = self.getVariable(command['target'])
         type = command['type']
         args = command['args']
-        param= None
         if not 'layout' in target:
             target['layout'] = []
-        if args[0] == '{':
+        if len(args) > 0 and args[0] == '{':
+            args = json.loads(self.getRuntimeValue(json.loads(args)))
             if type in ['Column', 'Frame', 'Tab']:
                 record = self.getVariable(command['name'])
-                param = record['layout']
-            layout = json.loads(self.getRuntimeValue(json.loads(args)))
-            default = self.utils.getDefaultArgs(type)
-            for n in range(0, len(layout)):
-                try:
-                    args = self.utils.decode(self, default, layout[n])
-                except Exception as e:
-                    RuntimeError(self.program, e)
-            item = self.utils.createWidget(type, param, args)
-            target['layout'].append(item)
+                layout = record['layout']
+                create(type, layout, args, target)
+            else:
+                create(type, None, args, target)
         else:
-            v = self.getVariable(args)
-            target['layout'].append(v['layout'])
+            if type in ['Column', 'Frame', 'Tab']:
+                record = self.getVariable(command['name'])
+                layout = record['layout']
+                create(type, layout, args, target)
+            else:
+               v = self.getVariable(args)
+               target['layout'].append(v['layout'])
         return self.nextPC()
 
     def k_close(self, command):
