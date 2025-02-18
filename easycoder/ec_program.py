@@ -149,17 +149,19 @@ class Program:
 		elif valType == 'symbol':
 			name = value['name']
 			symbolRecord = self.getSymbolRecord(name)
-			if symbolRecord['value'] == [None]:
-				RuntimeWarning(self, f'Variable "{name}" has no value')
-				return None
-			handler = self.domainIndex[symbolRecord['domain']].valueHandler('symbol')
-			result = handler(symbolRecord)
+			if symbolRecord['valueHolder']:
+				handler = self.domainIndex[symbolRecord['domain']].valueHandler('symbol')
+				result = handler(symbolRecord)
+			else:
+				# Call the given domain to handle a value
+				domain = self.domainIndex[value['domain']]
+				handler = domain.valueHandler(value['type'])
+				if handler: result = handler(value)
 		else:
 			# Call the given domain to handle a value
 			domain = self.domainIndex[value['domain']]
 			handler = domain.valueHandler(value['type'])
-			if handler:
-				result = handler(value)
+			if handler: result = handler(value)
 
 		return result
 

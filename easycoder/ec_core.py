@@ -696,22 +696,28 @@ class Core(Handler):
                 self.program.importPlugin(f'{source}:{clazz}')
                 return True
         elif self.isSymbol():
-            command['target'] = self.getToken()
-            if self.nextIs('from'):
-                command['file'] = self.nextValue()
-                self.add(command)
-                return True
+            symbolRecord = self.getSymbolRecord()
+            if symbolRecord['valueHolder']:
+                command['target'] = symbolRecord['name']
+                if self.nextIs('from'):
+                    command['file'] = self.nextValue()
+                    self.add(command)
+                    return True
+        else:
+            FatalError(self.program.compiler, f'I don\'t understand \'{self.getToken()}\'')
         return False
 
     def r_load(self, command):
         target = self.getVariable(command['target'])
-        file = self.getRuntimeValue(command['file'])
+        filename = self.getRuntimeValue(command['file'])
         try:
-            with open(file, 'r') as f:
-                content = f.read()
+            with open(filename) as f: content = f.read()
         except:
-            content=None
-        if content != None and file.endswith('.json'): content = json.loads(content)
+            RuntimeError(self.program, f'File \'{filename}\' not found')
+        try:
+            if filename.endswith('.json'): content = json.loads(content)
+        except:
+            RuntimeError(self.program, 'Bad or null JSON string')
         value = {}
         value['type'] = 'text'
         value['content'] = content
@@ -1219,10 +1225,9 @@ class Core(Handler):
 
     def r_save(self, command):
         content = self.getRuntimeValue(command['content'])
-        file = self.getRuntimeValue(command['file'])
-        if file.endswith('.json'): content = json.dumps(content)
-        with open(file, 'w') as f:
-            f.write(content)
+        filename = self.getRuntimeValue(command['file'])
+        if filename.endswith('.json'): content = json.dumps(content)
+        with open(filename, 'w') as f: f.write(content)
         return self.nextPC()
 
     # Send a message to a module
@@ -1691,6 +1696,7 @@ class Core(Handler):
             value['name'] = token
             symbolRecord = self.getSymbolRecord()
             keyword = symbolRecord['keyword']
+
             if keyword == 'module':
                 value['type'] = 'module'
                 return value
@@ -2375,6 +2381,7 @@ class Core(Handler):
     # Compile a condition
     def compileCondition(self):
         condition = Condition()
+
         if self.getToken() == 'not':
             condition.type = 'not'
             condition.value = self.nextValue()
@@ -2404,6 +2411,18 @@ class Core(Handler):
                 condition.type = 'hasProperty'
                 condition.property = prop
                 return condition
+            return None
+
+        if token == 'does':
+            self.nextToken()
+            if self.nextIs('not'):
+                if self.nextIs('have'):
+                    if self.nextToken() == 'property':
+                        prop = self.nextValue()
+                        condition.type = 'hasProperty'
+                        condition.property = prop
+                        condition.negate = not condition.negate
+                        return condition
             return None
 
         if token in ['starts', 'ends']:
@@ -2498,7 +2517,7 @@ class Core(Handler):
             hasProp = True
         except:
             hasProp = False
-        return hasProp
+        return not hasProp if condition.negate else hasProp
 
     def c_includes(self, condition):
         value1 = self.getRuntimeValue(condition.value1)
@@ -2543,4 +2562,3 @@ class Core(Handler):
     def c_string(self, condition):
         comparison = type(self.getRuntimeValue(condition.value1)) is str
         return not comparison if condition.negate else comparison
-# xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

@@ -9,6 +9,7 @@ class Condition:
 		self.tokenIs = compiler.tokenIs
 		self.rewindTo = compiler.rewindTo
 		self.program = compiler.program
+		self.negate = False
 
 	def compileCondition(self):
 		mark = self.getIndex()

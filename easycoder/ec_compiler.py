@@ -13,7 +13,6 @@ class Compiler:
 		self.tokens = self.script.tokens
 		self.symbols = self.program.symbols
 		self.code = self.program.code
-		self.warnings = []
 		self.program.compiler = self
 		self.addCommand = self.program.add
 		self.compileConstant = self.value.compileConstant
@@ -107,11 +106,10 @@ class Compiler:
 	def getSymbolRecord(self):
 		token = self.getToken()
 		symbol = self.symbols[token]
-		if symbol != None:
-			symbolRecord = self.code[symbol]
-			symbolRecord['used'] = True
-			return symbolRecord
-		return None
+		if symbol == None: return None
+		symbolRecord = self.code[symbol]
+		symbolRecord['used'] = True
+		return symbolRecord
 
 	def compileLabel(self, command):
 		return self.compileSymbol(command, self.getToken(), False)
@@ -144,6 +142,7 @@ class Compiler:
 
 	# Compile the current token
 	def compileToken(self):
+		self.warnings = []
 		token = self.getToken()
 #		print(f'Compile {token}')
 		if not token:
