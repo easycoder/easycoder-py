@@ -1393,8 +1393,8 @@ class Core(Handler):
                         self.nextToken()
                     else:
                         command['on'] = self.nextValue()
-                self.add(command)
-                return True
+                    self.add(command)
+                    return True
         return False
 
     def r_split(self, command):
