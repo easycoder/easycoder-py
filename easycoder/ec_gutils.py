@@ -25,6 +25,7 @@ class GUtils:
         if type == 'Button': self.getDefaultButton(args)
         elif type == 'Checkbox': self.getDefaultCheckbox(args)
         elif type == 'Column': self.getDefaultColumn(args)
+        elif type == 'Frame': self.getDefaultFrame(args)
         elif type == 'Input': self.getDefaultInput(args)
         elif type == 'Listbox': self.getDefaultListbox(args)
         elif type == 'Multiline': self.getDefaultMultiline(args)
@@ -61,6 +62,7 @@ class GUtils:
         if type == 'Button': return self.createButton(layout, args)
         elif type == 'Checkbox': return self.createCheckbox(layout, args)
         elif type == 'Column': return self.createColumn(layout, args)
+        elif type == 'Frame': return self.createFrame(layout, args)
         elif type == 'Input': return self.createInput(layout, args)
         elif type == 'Listbox': return self.createListbox(layout, args)
         elif type == 'Multiline': return self.createMultiline(layout, args)
@@ -74,6 +76,7 @@ class GUtils:
         if type(widget) is psg.Button: return widget.get()
         elif type(widget) is psg.Checkbox: return widget.get()
         elif type(widget) is psg.Column: return widget.get()
+        elif type(widget) is psg.Frame: return widget.get()
         elif type(widget) is psg.Input: return widget.get()
         elif type(widget) is psg.Listbox:
             items = widget.get()
@@ -94,13 +97,6 @@ class GUtils:
             element.update(value=value)
         elif property == 'values':
             element.update(values=value)
-
-    def getPad(self, args):
-        pad = args['pad']
-        if pad == (None, None):
-            return pad
-        pad = pad.split()
-        return (pad[0], pad[1])
 
     def getSize(self, args):
         size = args['size']
@@ -128,10 +124,19 @@ class GUtils:
 
     def getDefaultColumn(self, args):
         args['expand_x'] = False
-        args['pad'] = (None, None)
+        args['pad'] = (0, 0)
 
     def createColumn(self, layout, args):
-        return psg.Column(layout, expand_x=args['expand_x'], pad=self.getPad(args))
+        return psg.Column(layout, expand_x=args['expand_x'], pad=args['pad'])
+
+    def getDefaultFrame(self, args):
+        args['title'] = ''
+        args['border_width'] = 1
+        args['expand_x'] = False
+        args['pad'] = (0, 0)
+
+    def createFrame(self, layout, args):
+        return psg.Frame(args['title'], layout, border_width=args['border_width'], expand_x=args['expand_x'], pad=args['pad'])
 
     def getDefaultInput(self, args):
         args['default_text'] = ''
@@ -145,11 +150,11 @@ class GUtils:
         args['list'] = []
         args['key'] = [None]
         args['size'] = '10 2'
-        args['pad'] = (None, None)
+        args['pad'] = 1
         args['select_mode'] = None
 
     def createListbox(self, layout, args):
-        return psg.Listbox([], key=args['key'], pad=self.getPad(args), size=self.getSize(args))
+        return psg.Listbox([], key=args['key'], pad=args['pad'], size=self.getSize(args))
 
     def getDefaultMultiline(self, args):
         args['default_text'] = ''

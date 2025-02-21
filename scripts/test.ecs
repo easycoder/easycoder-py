@@ -1,14 +1,3 @@
-!	A test script
+variable X
+print X
 
-	script Test
-
-	variable File
-	variable Segment
-
-	set the encoding to `hex`
-	load File from `/data/Projects/rbr/roombyroom/Controller/home/orangepi/firmware/NOW/config.py`
-	put left 200 of File into Segment
-	print Segment
-	put encode Segment into Segment
-	print Segment
-	exit

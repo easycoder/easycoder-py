@@ -98,29 +98,54 @@ class Graphics(Handler):
     def r_column(self, command):
         return self.nextPC()
 
+    # create layout {name} from {spec}
     # create {window} layout {layout}
-    # create {element} {args...}
     def k_create(self, command):
-        if self.nextIsSymbol():
+        token = self.nextToken()
+        if token == 'layout':
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                if record['keyword'] == 'layout':
+                    command['layout'] = record['name']
+                    if self.nextIs('from'):
+                        command['spec'] = self.nextValue()
+                        self.addCommand(command)
+                        return True
+        elif self.isSymbol():
             symbolRecord = self.getSymbolRecord()
-            type = symbolRecord['keyword']
-            command['type'] = type
             command['name'] = symbolRecord['name']
-            if type == 'window':
-                command['title'] = self.nextValue()
-                if self.nextIs('layout'):
-                    if self.nextIsSymbol():
-                        symbolRecord = self.getSymbolRecord()
-                        if symbolRecord['keyword'] == 'layout':
-                            command['layout'] = symbolRecord['name']
-                            self.addCommand(command)
-                            return True
+            command['title'] = self.nextValue()
+            if self.nextIs('layout'):
+                if self.nextIsSymbol():
+                    symbolRecord = self.getSymbolRecord()
+                    if symbolRecord['keyword'] == 'layout':
+                        command['layout'] = symbolRecord['name']
+                        self.addCommand(command)
+                        return True
         return False
 
     def r_create(self, command):
-        type = command['type']
-        record = self.getVariable(command['name'])
-        if type == 'window':
+        def processItem(name, item):
+            print(name, item['type'])
+            children = item['#']
+            if isinstance(children, list):
+                print("List")
+                for child in children:
+                    print(child)
+            else:
+                print("Single:", children)
+
+        if 'spec' in command:
+            spec = self.getRuntimeValue(command['spec'])
+            layout = self.getVariable(command['layout'])
+            for key in spec.keys():
+                item = spec[key]
+                print(key, item['type'])
+                if item['type'] == 'column':
+                    for child in item['#']: processItem(child, item[child])
+            return self.nextPC()
+        else:
+            record = self.getVariable(command['name'])
             title = self.getRuntimeValue(command['title'])
             layout = self.getVariable(command['layout'])['layout']
             window = psg.Window(title, layout, finalize=True)
@@ -130,8 +155,12 @@ class Graphics(Handler):
             self.program.run(self.nextPC())
             self.mainLoop()
             return 0
-        else:
-            RuntimeError(self.program, 'Variable is not a window or an element')
+
+    def k_frame(self, command):
+        return self.compileVariable(command)
+
+    def r_frame(self, command):
+        return self.nextPC()
 
     def k_init(self, command):
         if self.nextIsSymbol():

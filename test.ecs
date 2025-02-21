@@ -1,3 +1,13 @@
-variable X
-print X
+!   Test
 
+    script Test
+
+    variable Text
+
+    debug step
+
+    put `12345jj6789 S Room1` into Text
+!    split Text on ` `
+!    index Text to 2
+    print Text
+    exit
