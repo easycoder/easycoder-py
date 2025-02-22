@@ -106,7 +106,7 @@ class GUtils:
         return (size[0], size[1])
 
     def getDefaultButton(self, args):
-        args['button_text'] = '(empty)'
+        args['button_text'] = ''
         args['disabled'] = False
         args['size'] = (None, None)
 
@@ -165,7 +165,7 @@ class GUtils:
         return psg.Multiline(default_text=args['default_text'], key=args['key'], size=self.getSize(args))
 
     def getDefaultText(self, args):
-        args['text'] = '(empty)'
+        args['text'] = ''
         args['key'] = None
         args['size'] = (None, None)
         args['expand_x'] = False
