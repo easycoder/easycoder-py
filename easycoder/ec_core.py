@@ -308,7 +308,7 @@ class Core(Handler):
                     command['target'] = self.getToken()
                     self.add(command)
                     return True
-                FatalError(self.program.compiler, 'Symbol expected')
+                FatalError(self.compiler, 'Symbol expected')
             else:
                 # First value must be a variable
                 if command['value1']['type'] == 'symbol':
@@ -704,7 +704,7 @@ class Core(Handler):
                     self.add(command)
                     return True
         else:
-            FatalError(self.program.compiler, f'I don\'t understand \'{self.getToken()}\'')
+            FatalError(self.compiler, f'I don\'t understand \'{self.getToken()}\'')
         return False
 
     def r_load(self, command):
@@ -764,14 +764,14 @@ class Core(Handler):
                     command['target'] = self.getToken()
                     self.add(command)
                     return True
-                FatalError(self.program.compiler, 'Symbol expected')
+                FatalError(self.compiler, 'Symbol expected')
             else:
                 # First value must be a variable
                 if command['value1']['type'] == 'symbol':
                     command['target'] = command['value1']['name']
                     self.add(command)
                     return True
-                FatalError(self.program.compiler, 'First value must be a variable')
+                FatalError(self.compiler, 'First value must be a variable')
         return False
 
     def r_multiply(self, command):
@@ -880,7 +880,7 @@ class Core(Handler):
                     elif token == 'writing':
                         mode = 'w'
                     else:
-                        FatalError(self.program.compiler, 'Unknown file open mode {self.getToken()}')
+                        FatalError(self.compiler, 'Unknown file open mode {self.getToken()}')
                         return False
                     command['mode'] = mode
                 else:
@@ -1003,7 +1003,7 @@ class Core(Handler):
             command['value'] = value
             self.add(command)
             return True
-        FatalError(self.program.compiler, 'I can\'t print this value')
+        FatalError(self.compiler, 'I can\'t print this value')
         return False
 
     def r_print(self, command):
@@ -1057,12 +1057,12 @@ class Core(Handler):
                 symbolRecord = self.getSymbolRecord()
                 command['target'] = symbolRecord['name']
                 if 'valueholder' in symbolRecord and symbolRecord['valueHolder'] == False:
-                    FatalError(self.program.compiler, f'Symbol {symbolRecord["name"]} is not a value holder')
+                    FatalError(self.compiler, f'Symbol {symbolRecord["name"]} is not a value holder')
                 else:
                     self.add(command)
                     return True
             else:
-                FatalError(self.program.compiler, f'Symbol {self.getToken()} is not a variable')
+                FatalError(self.compiler, f'Symbol {self.getToken()} is not a variable')
         return False
 
     def r_put(self, command):
@@ -1096,9 +1096,9 @@ class Core(Handler):
                             command['file'] = fileRecord['name']
                             self.add(command)
                             return True
-            FatalError(self.program.compiler, f'Symbol "{symbolRecord["name"]}" is not a value holder')
+            FatalError(self.compiler, f'Symbol "{symbolRecord["name"]}" is not a value holder')
             return False
-        FatalError(self.program.compiler, f'Symbol "{self.getToken()}" has not been declared')
+        FatalError(self.compiler, f'Symbol "{self.getToken()}" has not been declared')
         return False
 
     def r_read(self, command):
@@ -1443,7 +1443,7 @@ class Core(Handler):
             command['background'] = background
             self.add(command)
             return True
-        FatalError(self.program.compiler, 'I can\'t give this command')
+        FatalError(self.compiler, 'I can\'t give this command')
         return False
 
     def r_system(self, command):
@@ -1486,7 +1486,7 @@ class Core(Handler):
                         self.add(command)
                         return True
                     else:
-                        FatalError(self.program.compiler, f'\'{self.getToken()}\' is not a symbol')
+                        FatalError(self.compiler, f'\'{self.getToken()}\' is not a symbol')
                 else:
                     self.warning(f'Core.take: Expected "giving"')
         return False
@@ -1756,7 +1756,7 @@ class Core(Handler):
                     if symbolRecord['valueHolder']:
                         value['target'] = symbolRecord['name']
                         return value
-                    FatalError(self.program.compiler, 'Variable does not hold a value')
+                    FatalError(self.compiler, 'Variable does not hold a value')
             return None
 
         if token == 'arg':
