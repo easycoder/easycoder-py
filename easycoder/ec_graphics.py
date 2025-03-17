@@ -151,9 +151,8 @@ class Graphics(Handler):
             window = psg.Window(title, layout, finalize=True)
             record['window'] = window
             record['eventHandlers'] = {}
-            self.program.windowRecord = record
             self.program.run(self.nextPC())
-            self.mainLoop()
+            self.mainLoop(record)
             return 0
 
     def k_frame(self, command):
@@ -266,7 +265,8 @@ class Graphics(Handler):
     def r_set(self, command):
         property = self.getRuntimeValue(command['property'])
         key = self.getRuntimeValue(command['key'])
-        window = self.program.windowRecord['window']
+        windowRecord = self.getVariable(command['window'])
+        window = windowRecord['window']
         value = self.getRuntimeValue(command['value'])
         self.utils.updateProperty(window[key], property, value)
         return self.nextPC()
@@ -374,8 +374,7 @@ class Graphics(Handler):
 
     #############################################################################
     # The main loop
-    def mainLoop(self):
-        windowRecord = self.program.windowRecord
+    def mainLoop(self, windowRecord):
         window = windowRecord['window']
         eventHandlers = windowRecord['eventHandlers']
         while True:

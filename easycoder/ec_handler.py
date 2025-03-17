@@ -3,6 +3,7 @@ import json
 class Handler:
 
 	def __init__(self, compiler):
+		self.compiler = compiler
 		self.program = compiler.program
 		self.getToken = compiler.getToken
 		self.nextToken = compiler.nextToken
