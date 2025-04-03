@@ -161,6 +161,41 @@ class Graphics(Handler):
     def r_frame(self, command):
         return self.nextPC()
 
+    # get {variable} from popup {type} {message} {title}
+    def k_get(self, command):
+        if self.nextIsSymbol():
+            symbolRecord = self.getSymbolRecord()
+            if symbolRecord['valueHolder']:
+                command['target'] = self.getToken()
+            else:
+                FatalError(self.compiler, f'Variable "{symbolRecord["name"]}" does not hold a value')
+            if symbolRecord['valueHolder']:
+                if self.nextIs('from'):
+                    if self.nextIs('popup'):
+                        command['ptype'] = self.nextToken()
+                        command['message'] = self.nextValue()
+                        command['title'] = self.nextValue()
+                        self.addCommand(command)
+                        return True
+        return False
+
+    def r_get(self, command):
+        target = self.getVariable(command['target'])
+        ptype = command['ptype']
+        if ptype == 'text':
+            text = psg.popup_get_text(self.getRuntimeValue(command['message']), title=self.getRuntimeValue(command['title']))
+        elif ptype == 'ok-cancel':
+            text = psg.popup_ok_cancel(self.getRuntimeValue(command['message']), title=self.getRuntimeValue(command['title']))
+        elif ptype == 'yes-no':
+            text = psg.popup_yes_no(self.getRuntimeValue(command['message']), title=self.getRuntimeValue(command['title']))
+        else:
+            return None
+        v = {}
+        v['type'] = 'text'
+        v['content'] = text
+        self.program.putSymbolValue(target, v)
+        return self.nextPC()
+
     def k_init(self, command):
         if self.nextIsSymbol():
             symbolRecord = self.getSymbolRecord()
@@ -219,13 +254,15 @@ class Graphics(Handler):
         window['eventHandlers'][key] = lambda: self.run(command['goto'])
         return self.nextPC()
 
+    # popup {message} {title}
     def k_popup(self, command):
         command['message'] = self.nextValue()
+        command['title'] = self.nextValue()
         self.addCommand(command)
         return True
 
     def r_popup(self, command):
-        psg.popup(self.getRuntimeValue(command['message']))
+        psg.popup(self.getRuntimeValue(command['message']), title=self.getRuntimeValue(command['title']))
         return self.nextPC()
 
     def k_refresh(self, command):

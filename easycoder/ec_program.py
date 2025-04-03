@@ -375,9 +375,6 @@ class Program:
 		if type(v2) == int:
 			if type(v1) != int:
 				v2 = f'{v2}'
-		if type(v1) == dict and type(v2) == dict:
-			v1 = json.dumps(v1)
-			v2 = json.dumps(v2)
 		if v1 > v2:
 			return 1
 		if v1 < v2:

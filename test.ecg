@@ -1,0 +1,17 @@
+!   Test
+
+    script Test
+
+    variable Text
+
+    debug step
+
+    get Text from popup text `Type something` `Input test`
+    popup `You typed ` cat Text `Test`
+
+    get Text from popup ok-cancel `I'm going to explode!` `OK Cancel test`
+    popup `You replied ` cat Text `Test`
+
+    get Text from popup yes-no `Go ahead?` `Yes No test`
+    popup `You replied ` cat Text `Test`
+    exit

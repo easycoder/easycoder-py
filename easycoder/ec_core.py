@@ -1,4 +1,4 @@
-import json, math, hashlib, threading, os, subprocess, sys, requests, time, numbers, base64, binascii
+import json, math, hashlib, threading, os, subprocess, sys, requests, time, numbers, base64, binascii, random
 from psutil import Process
 from datetime import datetime, timezone
 from random import randrange
@@ -144,7 +144,7 @@ class Core(Handler):
         else:
             return self.compileFromHere(['end'])
 
-    # Clear (set False)
+    # Clear (set false)
     # clear {variable}
     def k_clear(self, command):
         if self.nextIsSymbol():
@@ -405,36 +405,40 @@ class Core(Handler):
             else:
                 FatalError(self.compiler, f'Variable "{symbolRecord["name"]}" does not hold a value')
         if self.nextIs('from'):
-            command['url'] = self.nextValue()
-        command['or'] = None
-        get = self.getPC()
-        if self.peek() == 'timeout':
-            self.nextToken()
-            command['timeout'] = self.nextValue()
-        else:
-            timeout = {}
-            timeout['type'] = 'int'
-            timeout['content'] = 5
-            command['timeout'] = timeout
-        self.addCommand(command)
-        if self.peek() == 'or':
-            self.nextToken()
-            self.nextToken()
-            # Add a 'goto' to skip the 'or'
-            cmd = {}
-            cmd['lino'] = command['lino']
-            cmd['domain'] = 'core'
-            cmd['keyword'] = 'gotoPC'
-            cmd['goto'] = 0
-            cmd['debug'] = False
-            skip = self.getPC()
-            self.addCommand(cmd)
-            # Process the 'or'
-            self.getCommandAt(get)['or'] = self.getPC()
-            self.compileOne()
-            # Fixup the skip
-            self.getCommandAt(skip)['goto'] = self.getPC()
-        return True
+            if self.nextIs('url'):
+                url = self.nextValue()
+                if url != None:
+                    command['url'] = url
+                    command['or'] = None
+                    get = self.getPC()
+                    if self.peek() == 'timeout':
+                        self.nextToken()
+                        command['timeout'] = self.nextValue()
+                    else:
+                        timeout = {}
+                        timeout['type'] = 'int'
+                        timeout['content'] = 5
+                        command['timeout'] = timeout
+                    self.addCommand(command)
+                    if self.peek() == 'or':
+                        self.nextToken()
+                        self.nextToken()
+                        # Add a 'goto' to skip the 'or'
+                        cmd = {}
+                        cmd['lino'] = command['lino']
+                        cmd['domain'] = 'core'
+                        cmd['keyword'] = 'gotoPC'
+                        cmd['goto'] = 0
+                        cmd['debug'] = False
+                        skip = self.getPC()
+                        self.addCommand(cmd)
+                        # Process the 'or'
+                        self.getCommandAt(get)['or'] = self.getPC()
+                        self.compileOne()
+                        # Fixup the skip
+                        self.getCommandAt(skip)['goto'] = self.getPC()
+                    return True
+        return False
 
     def r_get(self, command):
         global errorCode, errorReason
@@ -1413,6 +1417,33 @@ class Core(Handler):
             target['value'][index] = element
 
         return self.nextPC()
+
+    # Shuffle a list
+    def k_shuffle(self, command):
+        if self.nextIsSymbol():
+            symbolRecord = self.getSymbolRecord()
+            if symbolRecord['valueHolder']:
+                command['target'] = self.getToken()
+                self.add(command)
+                return True
+            self.warning(f'Core.negate: Variable "{symbolRecord["name"]}" does not hold a value')
+        return False
+
+    def r_shuffle(self, command):
+        symbolRecord = self.getVariable(command['target'])
+        if not symbolRecord['valueHolder']:
+            RuntimeError(self.program, f'{symbolRecord["name"]} does not hold a value')
+            return None
+        value = self.getSymbolValue(symbolRecord)
+        if value == None:
+            RuntimeError(self.program, f'{symbolRecord["name"]} has not been initialised')
+        content = value['content']
+        if isinstance(content, list):
+            random.shuffle(content)
+            value['content'] = content
+            self.putSymbolValue(symbolRecord, value)
+            return self.nextPC()
+        RuntimeError(self.program, f'{symbolRecord["name"]} is not a list')
 
     # Declare a stack variable
     def k_stack(self, command):
