@@ -33,32 +33,37 @@ fi
 Now write a test script, 'hello.ecs', containing the following:
 ```
 print `Hello, world!`
+exit
 ```
 (Note the backticks.) This is traditionally the first program to be written in virtually any language. To run it, use `easycoder hello.ecs`.
 
-The output will look like this (the version number will differ):
+The output will look like this (the version number will likely differ):
 ```
-EasyCoder version 250101.1
+EasyCoder version 250403.1
 Compiled <anon>: 1 lines (2 tokens) in 0 ms
 Run <anon>
-1-> Hello, world!
+Hello, world!
 ```
+
+Why the `exit`? Because EasyCoder can't tell that the program is finished. It might contain elements that are waiting for outside events, so without `exit` it just stops and waits. You can kill it by typing Control-C.
 
 It's conventional to add a program title to a script:
 ```
 !   Test script
     script Test
-    print `Hello, world!`
-```
-The first line here is just a comment and has no effect on the running of the script.   The second line gives the script a name, which is useful in debugging as it says which script was running. When run, the output is now
-```
-EasyCoder version 250101.1
-Compiled Test: 3 lines (4 tokens) in 0 ms
-Run Test
-3-> Hello, world!
+    log `Hello, world!`
+    exit
 ```
 
-As you might guess from the above, the print command shows the line in the script it was called from. This is very useful in tracking down debugging print commands in large scripts.
+The first line here is just a comment and has no effect on the running of the script.   The second line gives the script a name, which is useful in debugging as it says which script was running. I've also changed `print` to `log` to get more information from the script. When run, the output is now
+```
+EasyCoder version 250403.1
+Compiled Test: 3 lines (4 tokens) in 0 ms
+Run Test
+16:37:39.132311:    3-> Hello, world!
+```
+
+As you might guess from the above, the `log` command shows the time and the line in the script it was called from. This is very useful in tracking down debugging print commands in large scripts.
 
 Here in the repository is a folder called `scripts` containing some sample scripts:
 
