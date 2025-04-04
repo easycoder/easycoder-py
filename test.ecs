@@ -10,4 +10,6 @@
 !    split Text on ` `
 !    index Text to 2
     print Text
+    put `junk` into Text
+    if file Text does not exist print `Yes`
     exit

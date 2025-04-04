@@ -2420,11 +2420,16 @@ class Core(Handler):
 
         if self.getToken() == 'file':
             path = self.nextValue()
-            if self.peek() == 'exists':
-                condition.type = 'exists'
-                condition.path = path
-                self.nextToken()
+            condition.path = path
+            condition.type = 'exists'
+            token = self.nextToken()
+            if token == 'exists':
                 return condition
+            elif token == 'does':
+                if self.nextIs('not'):
+                    if self.nextIs('exist'):
+                        condition.negate = not condition.negate
+                        return condition
             return None
 
         value = self.getValue()
@@ -2534,7 +2539,8 @@ class Core(Handler):
 
     def c_exists(self, condition):
         path = self.getRuntimeValue(condition.path)
-        return os.path.exists(path)
+        comparison = os.path.exists(path)
+        return not comparison if condition.negate else comparison
 
     def c_greater(self, condition):
         comparison = self.program.compare(condition.value1, condition.value2)
