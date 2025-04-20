@@ -1,15 +1,57 @@
-!   Test
+!   test.ecs
 
     script Test
 
-    variable Text
+    import plugin Graphics from plugins/ec_pyside6.py
 
-    debug step
+    window Window
+    layout MainPanel
+    layout LeftPanel
+    layout RightPanel
+    label Label
+    pushbutton Button1
+    pushbutton Button2
+    pushbutton Button3
+    pushbutton Button4
+    pushbutton Button5
+    variable N
 
-    put `12345jj6789 S Room1` into Text
-!    split Text on ` `
-!    index Text to 2
-    print Text
-    put `junk` into Text
-    if file Text does not exist print `Yes`
-    exit
+!    debug step
+
+    log `Starting`
+    init graphics
+    create Window title `My window` at 100 100 size 400 300
+    create MainPanel type QHBoxLayout
+
+    create LeftPanel type QVBoxLayout
+    add LeftPanel to MainPanel
+    create Button1 text `Button 1`
+    add Button1 to LeftPanel
+    create Button2 text `Button 2`
+    add Button2 to LeftPanel
+    create Button3 text `Button 3`
+    add Button3 to LeftPanel
+    create Button4 text `Button 4`
+    add Button4 to LeftPanel
+    create Button5 text `Button 5`
+    add Button5 to LeftPanel
+
+    create RightPanel type QVBoxLayout
+    add RightPanel to MainPanel
+    create Label text `Hello, world!`
+    add Label to RightPanel
+    
+    show MainPanel in Window
+
+    start graphics
+    log `Graphics running`
+
+    put 0 into N
+    while true
+    begin
+        log N
+        increment N
+        wait 1
+    end
+
+!    exit

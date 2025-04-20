@@ -1337,6 +1337,7 @@ class Core(Handler):
                         newValue[index] = value
             symbolRecord['elements'] = elements
             symbolRecord['value'] = newValue
+            symbolRecord['index'] = 0
             return self.nextPC()
 
         elif cmdType == 'element':
