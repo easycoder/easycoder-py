@@ -72,18 +72,7 @@ Here in the repository is a folder called `scripts` containing some sample scrip
 `benchmark.ecs` allows the performance of **_EasyCoder_** to be compared to other languages if a similar script is written for each one.
 
 ## Graphical programming
-**_EasyCoder_** includes a graphical programming environment that is in the early stages of development. Some demo scripts will be included in the `scripts` directory; these can be recognised by the extension`.ecg`. To run them, first install `tkinter`. On Linux this is done with
-```
-    sudo apt install python3-tk
-```
-
-Next, install the Python `pySimpleGUI` graphics library; this is done with `pip install pysimplegui`. Then run your **_EasyCoder_** script using `easycoder {scriptname}.ecg`.
-
-Graphical scripts look much like any other script but their file names must use the extension `.ecg` to signal to **_EasyCoder_** that it needs to load the graphics module. Non-graphical applications can use any extension but `.ecs` is recommended. This allows the **_EasyCoder_** application to be used wherever Python is installed, in either a command-line or a graphical environment, but graphics will of course not be available in the former.
-
-Some demo graphical scripts will included in the `scripts` directory as development proceeds.
-
-`gtest.ecg` contains sample code to demonstrate and test basic features.
+**_EasyCoder_** includes a graphical programming environment based on PySide6, that is in the early stages of development. Some demo scripts will be included in the `scripts` directory as development proceeds.
 
 ## Significant features
 

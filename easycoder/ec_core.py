@@ -1597,6 +1597,13 @@ class Core(Handler):
         target['locked'] = False
         return self.nextPC()
 
+    def k_use(self, command):
+        if self.nextIs('graphics'):
+            from .ec_pyside6 import Graphics
+            self.program.classes.append(Graphics)
+            self.program.processClasses()
+            return True
+
     # Declare a general-purpose variable
     def k_variable(self, command):
         return self.compileVariable(command, True)

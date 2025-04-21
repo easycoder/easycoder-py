@@ -2,56 +2,112 @@
 
     script Test
 
-    import plugin Graphics from plugins/ec_pyside6.py
+    use graphics
 
     window Window
     layout MainPanel
     layout LeftPanel
     layout RightPanel
+    layout Layout
     label Label
-    pushbutton Button1
-    pushbutton Button2
-    pushbutton Button3
-    pushbutton Button4
-    pushbutton Button5
+    pushbutton ResetConfigButton
+    pushbutton ScanNetworkButton
+    pushbutton SelectMasterButton
+    pushbutton SelectSlaveButton
+    pushbutton DeleteSlaveButton
+    pushbutton UpdateFilesButton
+    pushbutton DeleteFileButton
+    pushbutton ExitButton
+    pushbutton SelectSystem
+    lineinput SSIDInput
+    lineinput PasswordInput
+    label MasterDeviceLabel
     variable N
 
 !    debug step
 
     log `Starting`
     init graphics
-    create Window title `My window` at 100 100 size 400 300
+    create Window title `My window`
     create MainPanel type QHBoxLayout
 
     create LeftPanel type QVBoxLayout
     add LeftPanel to MainPanel
-    create Button1 text `Button 1`
-    add Button1 to LeftPanel
-    create Button2 text `Button 2`
-    add Button2 to LeftPanel
-    create Button3 text `Button 3`
-    add Button3 to LeftPanel
-    create Button4 text `Button 4`
-    add Button4 to LeftPanel
-    create Button5 text `Button 5`
-    add Button5 to LeftPanel
+    create Label text ``
+    add Label to LeftPanel
+    create ResetConfigButton text `Reset config`
+    on click ResetConfigButton log `Reset the configuration file`
+    add ResetConfigButton to LeftPanel
+    create ScanNetworkButton text `Scan network`
+    on click ScanNetworkButton log `Scan the network`
+    add ScanNetworkButton to LeftPanel
+    create SelectMasterButton text `Select master`
+    on click SelectMasterButton log `Select the master device`
+    add SelectMasterButton to LeftPanel
+    create SelectSlaveButton text `Select slave`
+    on click SelectSlaveButton log `Select a slave device`
+    add SelectSlaveButton to LeftPanel
+    create DeleteSlaveButton text `Delete slave`
+    add DeleteSlaveButton to LeftPanel
+    on click DeleteSlaveButton log `Delete a slave device`
+    create UpdateFilesButton text `Update files`
+    add UpdateFilesButton to LeftPanel
+    on click UpdateFilesButton log `Update the device files`
+    create DeleteFileButton text `Delete file`
+    add DeleteFileButton to LeftPanel
+    on click DeleteFileButton log `Delete a file on a device`
+    create ExitButton text `Exit`
+    add ExitButton to LeftPanel
+    on click ExitButton
+    begin
+        log `Exit the configuator`
+        close Window
+    end
+    create Label text ``
+    add Label to LeftPanel
 
     create RightPanel type QVBoxLayout
     add RightPanel to MainPanel
-    create Label text `Hello, world!`
+    create Label text ``
     add Label to RightPanel
     
+    create Layout type QHBoxLayout
+    add Layout to RightPanel
+    create Label text `System Name`
+    add Label to Layout
+    create SelectSystem text `Select system`
+    add SelectSystem to Layout
+    
+    create Layout type QHBoxLayout
+    add Layout to RightPanel
+    create Label text `SSID`
+    add Label to Layout
+    create SSIDInput size 40
+    add SSIDInput to Layout
+    create Label text `Password`
+    add Label to Layout
+    create PasswordInput size 40
+    add PasswordInput to Layout
+    
+    create Layout type QHBoxLayout
+    add Layout to RightPanel
+    create MasterDeviceLabel text `Master Device`
+    add MasterDeviceLabel to Layout
+    
+    create Label text ``
+    add Label to RightPanel
+
     show MainPanel in Window
 
     start graphics
     log `Graphics running`
 
     put 0 into N
-    while true
+    while N is less than 10
     begin
         log N
         increment N
         wait 1
     end
 
-!    exit
+    stop
