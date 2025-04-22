@@ -1,0 +1,221 @@
+!   config.ecs
+
+    script Configurator
+
+    use graphics
+
+    window Window
+    layout MainPanel
+    layout LeftPanel
+    layout RightPanel
+    layout OuterLayout
+    layout Layout
+    groupbox Group
+    label Label
+    label MasterDeviceLabel
+    pushbutton ResetConfigButton
+    pushbutton ScanNetworkButton
+    pushbutton SelectMasterButton
+    pushbutton SelectSlaveButton
+    pushbutton DeleteSlaveButton
+    pushbutton UpdateSlaveButton
+    pushbutton DeleteFileButton
+    pushbutton ExitButton
+    pushbutton SelectSystemButton
+    lineinput SSIDInput
+    lineinput PasswordInput
+    lineinput DeviceNameInput
+    lineinput ChannelInput
+    lineinput LEDPinInput
+    lineinput RelayPinInput
+    lineinput DHT22PinInput
+    lineinput PathInput
+    listbox SlaveList
+
+!    debug step
+
+    log `Starting`
+    init graphics
+    create Window title `RBR-Now configurator` size 600 500
+    create MainPanel type QHBoxLayout
+
+    create LeftPanel type QVBoxLayout
+    add LeftPanel to MainPanel
+    create ResetConfigButton text `Reset config`
+    on click ResetConfigButton go to ResetConfigFile
+    add ResetConfigButton to LeftPanel
+
+    create ScanNetworkButton text `Scan network`
+    on click ScanNetworkButton go to ScanNetwork
+    add ScanNetworkButton to LeftPanel
+
+    create SelectMasterButton text `Select master`
+    on click SelectMasterButton go to SelectMaster
+    add SelectMasterButton to LeftPanel
+
+    create SelectSlaveButton text `Select slave`
+    on click SelectSlaveButton go to SelectSlave
+    add SelectSlaveButton to LeftPanel
+
+    create UpdateSlaveButton text `Update slave`
+    on click UpdateSlaveButton go to UpdateSlave
+    add UpdateSlaveButton to LeftPanel
+
+    create DeleteFileButton text `Delete file`
+    add DeleteFileButton to LeftPanel
+    on click DeleteFileButton go to DeleteFile
+
+    create DeleteSlaveButton text `Delete slave`
+    add DeleteSlaveButton to LeftPanel
+    on click DeleteSlaveButton go to DeleteSlave
+
+    create ExitButton text `Exit`
+    add ExitButton to LeftPanel
+    on click ExitButton go to Exit
+
+    add stretch to LeftPanel
+
+    create RightPanel type QVBoxLayout
+    add stretch RightPanel to MainPanel
+
+    ! Create the system name group
+    create Group title `System name`
+    set the height of Group to 50
+    add Group to RightPanel
+    create Layout type QHBoxLayout
+    add Layout to Group
+    create Label text `(none)`
+    add stretch Label to Layout
+    create SelectSystemButton text `Select system`
+    on click SelectSystemButton go to SelectSystem
+    add SelectSystemButton to Layout
+    
+    ! Create the host access group
+    create Group title `Host`
+    set the height of Group to 50
+    add Group to RightPanel
+    create Layout type QHBoxLayout
+    add Layout to Group
+    create Label text `SSID:`
+    add Label to Layout
+    create SSIDInput size 40
+    add SSIDInput to Layout
+    create Label text `Password:`
+    add Label to Layout
+    create PasswordInput size 40
+    add PasswordInput to Layout
+    
+    ! Create the Master Device group
+    create Group title `Master device`
+    set the height of Group to 50
+    add Group to RightPanel
+    create Layout type QHBoxLayout
+    add Layout to Group
+    create MasterDeviceLabel text `(none)`
+    add MasterDeviceLabel to Layout
+    
+    ! Create the Slave Devices group
+    create Group title `Slave devices`
+    set the height of Group to 150
+    add Group to RightPanel
+    create Layout type QHBoxLayout
+    add Layout to Group
+    create SlaveList
+    add SlaveList to Layout
+
+    ! Create the Selected Devices group
+    create Group title `Selected device`
+    set the height of Group to 150
+    add Group to RightPanel
+
+    create OuterLayout type QVBoxLayout
+    add OuterLayout to Group
+
+    create Layout type QHBoxLayout
+    add Layout to OuterLayout
+    create Label text `Name:`
+    add Label to Layout
+    create DeviceNameInput size 40
+    add DeviceNameInput to Layout
+    create Label text `Channel:`
+    add Label to Layout
+    create ChannelInput size 5
+    add ChannelInput to Layout
+    add stretch to Layout
+    
+    create Layout type QHBoxLayout
+    add Layout to OuterLayout
+    create Label text `LED Pin:`
+    add Label to Layout
+    create LEDPinInput size 5
+    add LEDPinInput to Layout
+    add stretch to Layout
+    
+    create Layout type QHBoxLayout
+    add Layout to OuterLayout
+    create Label text `Relay Pin:`
+    add Label to Layout
+    create RelayPinInput size 5
+    add RelayPinInput to Layout
+    add stretch to Layout
+    
+    create Layout type QHBoxLayout
+    add Layout to OuterLayout
+    create Label text `DHT22 Pin:`
+    add Label to Layout
+    create DHT22PinInput size 5
+    add DHT22PinInput to Layout
+    add stretch to Layout
+    
+    create Layout type QHBoxLayout
+    add Layout to OuterLayout
+    create Label text `Path:`
+    add Label to Layout
+    create PathInput size 60
+    add PathInput to Layout
+    add stretch to Layout
+    
+    add stretch to RightPanel
+
+    show MainPanel in Window
+
+    start graphics
+    log `Graphics running`
+    stop
+
+ResetConfigFile:
+    log `Reset the configuration file`
+    stop
+
+ScanNetwork:
+    log `Scan the network`
+    stop
+
+SelectMaster:
+    log `Select the master device`
+    stop
+
+SelectSlave:
+    log `Select a slave device`
+    stop
+
+UpdateSlave:
+    log `Update the files om the selected device`
+    stop
+
+DeleteFile:
+    log `Delete a file on the selected device`
+    stop
+
+DeleteSlave:
+    log `Delete the selected slave device`
+    stop
+
+Exit:
+    log `Exit the configuator`
+    close Window
+    exit
+
+SelectSystem:
+    log `Select the system`
+    stop

@@ -1,6 +1,6 @@
 import sys
 from easycoder import Handler, FatalError, RuntimeError
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLCDNumber,
     QLineEdit,
+    QListWidget,
     QMainWindow,
     QProgressBar,
     QPushButton,
@@ -24,7 +25,10 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QGridLayout,
     QStackedLayout,
-    QWidget
+    QGroupBox,
+    QWidget,
+    QSpacerItem,
+    QSizePolicy
 )
 
 class Graphics(Handler):
@@ -47,25 +51,53 @@ class Graphics(Handler):
     # Keyword handlers
 
     # Add a widget to a layout
+    # add [stretch] {widget} to {layout}
+    # add stretch to {layout}
     def k_add(self, command):
-        if self.nextIsSymbol():
+        command['stretch'] = False
+        if self.nextIs('stretch'):
+            if self.peek() == 'to':
+                command['widget'] = 'stretch'
+            elif self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                command['widget'] = record['name']
+                command['stretch'] = True
+            else: return False
+        elif self.isSymbol():
             record = self.getSymbolRecord()
             command['widget'] = record['name']
-            if self.nextIs('to'):
-                if self.nextIsSymbol():
-                    record = self.getSymbolRecord()
-                    command['layout'] = record['name']
-                    self.add(command)
-                    return True
+        else: return False
+        if self.nextIs('to'):
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                command['layout'] = record['name']
+                self.add(command)
+                return True
         return False
     
     def r_add(self, command):
-        widgetRecord = self.getVariable(command['widget'])
         layoutRecord = self.getVariable(command['layout'])
-        if widgetRecord['keyword'] == 'layout':
-            layoutRecord['widget'].addLayout(widgetRecord['widget'])
+        widget = command['widget']
+        if widget == 'stretch':
+            layoutRecord['widget'].addStretch()
         else:
-            layoutRecord['widget'].addWidget(widgetRecord['widget'])
+            widgetRecord = self.getVariable(widget)
+            layoutRecord = self.getVariable(command['layout'])
+            widget = widgetRecord['widget']
+            layout = layoutRecord['widget']
+            stretch = command['stretch']
+            if widgetRecord['keyword'] == 'layout':
+                if layoutRecord['keyword'] == 'groupbox':
+                    if widgetRecord['keyword'] == 'layout':
+                        layout.setLayout(widget)
+                    else:
+                        RuntimeError(self.program, 'Can only add a layout to a groupbox')
+                else:
+                    if stretch: layout.addLayout(widget, stretch=1)
+                    else: layout.addLayout(widget)
+            else:
+                if stretch: layout.addWidget(widget, stretch=1)
+                else: layout.addWidget(widget)
         return self.nextPC()
 
     # Close a window
@@ -85,10 +117,10 @@ class Graphics(Handler):
     # Create a window
     def k_createWindow(self, command):
         command['title'] = 'Default'
-        command['x'] = None
-        command['y'] = None
-        command['w'] = None
-        command['h'] = None
+        command['x'] = self.compileConstant(100)
+        command['y'] = self.compileConstant(100)
+        command['w'] = self.compileConstant(640)
+        command['h'] = self.compileConstant(480)
         while True:
             token = self.peek()
             if token in ['title', 'at', 'size']:
@@ -111,6 +143,15 @@ class Graphics(Handler):
             self.add(command)
             return True
         return False
+
+    def k_createGroupBox(self, command):
+        if self.peek() == 'title':
+            self.nextToken()
+            title = self.nextValue()
+        else: title = ''
+        command['title'] = title
+        self.add(command)
+        return True
 
     def k_createLabel(self, command):
         if self.peek() == 'text':
@@ -139,6 +180,10 @@ class Graphics(Handler):
         self.add(command)
         return True
 
+    def k_createListWidget(self, command):
+        self.add(command)
+        return True
+
     def k_create(self, command):
         if self.nextIsSymbol():
             record = self.getSymbolRecord()
@@ -146,24 +191,21 @@ class Graphics(Handler):
             keyword = record['keyword']
             if keyword == 'window': return self.k_createWindow(command)
             elif keyword == 'layout': return self.k_createLayout(command)
+            elif keyword == 'groupbox': return self.k_createGroupBox(command)
             elif keyword == 'label': return self.k_createLabel(command)
             elif keyword == 'pushbutton': return self.k_createPushbutton(command)
             elif keyword == 'lineinput': return self.k_createLineEdit(command)
+            elif keyword == 'listbox': return self.k_createListWidget(command)
         return False
     
     def r_createWindow(self, command, record):
         window = self.MainWindow()
         window.setWindowTitle(self.getRuntimeValue(command['title']))
-        x = command['x']
-        if x != None: x = self.getRuntimeValue(command['x'])
-        y = command['y']
-        if 'y' in command: y = self.getRuntimeValue(command['y'])
-        w = command['w']
-        if 'w' in command: w = self.getRuntimeValue(command['w'])
-        h = command['h']
-        if 'h' in command: h = self.getRuntimeValue(command['h'])
-        if x != None and y != None and w != None and h != None: 
-            window.setGeometry(x, y, w, h)
+        x = self.getRuntimeValue(command['x'])
+        y = self.getRuntimeValue(command['y'])
+        w = self.getRuntimeValue(command['w'])
+        h = self.getRuntimeValue(command['h'])
+        window.setGeometry(x, y, w, h)
         record['window'] = window
         return self.nextPC()
     
@@ -173,7 +215,14 @@ class Graphics(Handler):
         elif type == 'QGridLayout': layout = QGridLayout()
         elif type == 'QStackedLayout': layout = QStackedLayout()
         else: layout = QVBoxLayout()
+        layout.setContentsMargins(5,0,5,0)
         record['widget'] = layout
+        return self.nextPC()
+    
+    def r_createGroupBox(self, command, record):
+        groupbox = QGroupBox(self.getRuntimeValue(command['title']))
+        groupbox.setAlignment(Qt.AlignLeft)
+        record['widget'] = groupbox
         return self.nextPC()
     
     def r_createLabel(self, command, record):
@@ -188,8 +237,16 @@ class Graphics(Handler):
     
     def r_createLineEdit(self, command, record):
         lineinput = QLineEdit()
-        lineinput.setMaxLength(self.getRuntimeValue(command['size']))
+        fm = lineinput.fontMetrics()
+        m = lineinput.textMargins()
+        c = lineinput.contentsMargins()
+        w = fm.horizontalAdvance('x') * self.getRuntimeValue(command['size']) +m.left()+m.right()+c.left()+c.right()
+        lineinput.setMaximumWidth(w)
         record['widget'] = lineinput
+        return self.nextPC()
+    
+    def r_createListWidget(self, command, record):
+        record['widget'] = QListWidget()
         return self.nextPC()
 
     def r_create(self, command):
@@ -197,10 +254,19 @@ class Graphics(Handler):
         keyword = record['keyword']
         if keyword == 'window': return self.r_createWindow(command, record)
         elif keyword == 'layout': return self.r_createLayout(command, record)
+        elif keyword == 'groupbox': return self.r_createGroupBox(command, record)
         elif keyword == 'label': return self.r_createLabel(command, record)
         elif keyword == 'pushbutton': return self.r_createPushbutton(command, record)
         elif keyword == 'lineinput': return self.r_createLineEdit(command, record)
+        elif keyword == 'listbox': return self.r_createListWidget(command, record)
         return None
+
+    # Create a group box
+    def k_groupbox(self, command):
+        return self.compileVariable(command, False)
+
+    def r_groupbox(self, command):
+        return self.nextPC()
 
     # Initialize the graphics environment
     def k_init(self, command):
@@ -232,6 +298,13 @@ class Graphics(Handler):
         return self.compileVariable(command, False)
 
     def r_lineinput(self, command):
+        return self.nextPC()
+
+    # Declare a listbox input variable
+    def k_listbox(self, command):
+        return self.compileVariable(command, False)
+
+    def r_listbox(self, command):
         return self.nextPC()
 
     # Handle events
@@ -290,6 +363,31 @@ class Graphics(Handler):
     # Resume execution at the line following 'start graphics'
     def resume(self):
         self.program.flush(self.nextPC())
+
+    # Set something
+    def k_set(self, command):
+        token = self.nextToken()
+        if token == 'the': token = self.nextToken()
+        if token == 'height':
+            command['property'] = token
+            if self.nextToken() == 'of':
+                if self.nextIsSymbol():
+                    record = self.getSymbolRecord()
+                    keyword = record['keyword']
+                    if keyword == 'groupbox':
+                        command['name'] = record['name']
+                        if self.nextIs('to'):
+                            command['value'] = self.nextValue()
+                            self.add(command)
+                            return True
+        return False
+    
+    def r_set(self, command):
+        property = command['property']
+        if property == 'height':
+            groupbox = self.getVariable(command['name'])['widget']
+            groupbox.setFixedHeight(self.getRuntimeValue(command['value']))
+        return self.nextPC()
 
     # Show a window with a specified layout
     # show {name} in {window}}

@@ -22,6 +22,7 @@
     lineinput SSIDInput
     lineinput PasswordInput
     label MasterDeviceLabel
+    list SlaveList
     variable N
 
 !    debug step
@@ -93,6 +94,11 @@
     add Layout to RightPanel
     create MasterDeviceLabel text `Master Device`
     add MasterDeviceLabel to Layout
+    
+    create Layout type QHBoxLayout
+    add Layout to RightPanel
+    create SlaveList
+    add SlaveList to Layout
     
     create Label text ``
     add Label to RightPanel
