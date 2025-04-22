@@ -8,11 +8,14 @@
     layout MainPanel
     layout LeftPanel
     layout RightPanel
+    layout DeviceHPanel
     layout OuterLayout
     layout Layout
     groupbox Group
     label Label
     label MasterDeviceLabel
+    label RelayStateLabel
+    label StatusLabel
     pushbutton ResetConfigButton
     pushbutton ScanNetworkButton
     pushbutton SelectMasterButton
@@ -22,6 +25,10 @@
     pushbutton DeleteFileButton
     pushbutton ExitButton
     pushbutton SelectSystemButton
+    pushbutton SaveHostButton
+    pushbutton RelayOffButton
+    pushbutton RelayOnButton
+    pushbutton SaveWidgetDataButton
     lineinput SSIDInput
     lineinput PasswordInput
     lineinput DeviceNameInput
@@ -31,12 +38,14 @@
     lineinput DHT22PinInput
     lineinput PathInput
     listbox SlaveList
+    checkbox LEDInvertCheckbox
+    checkbox RelayInvertCheckbox
 
 !    debug step
 
     log `Starting`
     init graphics
-    create Window title `RBR-Now configurator` size 600 500
+    create Window title `RBR-Now configurator` size 700 500
     create MainPanel type QHBoxLayout
 
     create LeftPanel type QVBoxLayout
@@ -69,11 +78,11 @@
     add DeleteSlaveButton to LeftPanel
     on click DeleteSlaveButton go to DeleteSlave
 
+    add stretch to LeftPanel
+
     create ExitButton text `Exit`
     add ExitButton to LeftPanel
     on click ExitButton go to Exit
-
-    add stretch to LeftPanel
 
     create RightPanel type QVBoxLayout
     add stretch RightPanel to MainPanel
@@ -104,6 +113,9 @@
     add Label to Layout
     create PasswordInput size 40
     add PasswordInput to Layout
+    create SaveHostButton text `Save`
+    on click SaveHostButton go to SaveHostInfo
+    add SaveHostButton to Layout
     
     ! Create the Master Device group
     create Group title `Master device`
@@ -128,8 +140,11 @@
     set the height of Group to 150
     add Group to RightPanel
 
+    create DeviceHPanel type QHBoxLayout
+    add DeviceHPanel to Group
+
     create OuterLayout type QVBoxLayout
-    add OuterLayout to Group
+    add OuterLayout to DeviceHPanel
 
     create Layout type QHBoxLayout
     add Layout to OuterLayout
@@ -149,6 +164,8 @@
     add Label to Layout
     create LEDPinInput size 5
     add LEDPinInput to Layout
+    create LEDInvertCheckbox text `Inverted`
+    add LEDInvertCheckbox to Layout
     add stretch to Layout
     
     create Layout type QHBoxLayout
@@ -157,6 +174,16 @@
     add Label to Layout
     create RelayPinInput size 5
     add RelayPinInput to Layout
+    create RelayInvertCheckbox text `Inverted`
+    add RelayInvertCheckbox to Layout
+    create RelayOffButton size 5 text `-`
+    on click RelayOffButton go to RelayOff
+    add RelayOffButton to Layout
+    create RelayOnButton size 5 text `+`
+    on click RelayOnButton go to RelayOn
+    add RelayOnButton to Layout
+    create RelayStateLabel size 5 text `???`
+    add RelayStateLabel to Layout
     add stretch to Layout
     
     create Layout type QHBoxLayout
@@ -174,6 +201,16 @@
     create PathInput size 60
     add PathInput to Layout
     add stretch to Layout
+
+    ! The 'Save' button
+    create Layout type QVBoxLayout
+    add Layout to DeviceHPanel
+    create SaveWidgetDataButton text `Save`
+    on click SaveWidgetDataButton go to SaveWidgetData
+    add SaveWidgetDataButton to Layout
+
+    create StatusLabel text `<font color="#00ff00">OK</font>`
+    add StatusLabel to RightPanel
     
     add stretch to RightPanel
 
@@ -219,3 +256,20 @@ Exit:
 SelectSystem:
     log `Select the system`
     stop
+
+SaveHostInfo:
+    log `Save the host information`
+    stop
+
+SaveWidgetData:
+    log `Save the widget data`
+    stop
+
+RelayOff:
+    log `Turn the relay OFF`
+    stop
+
+RelayOn:
+    log `Turn the relay ON`
+    stop
+

@@ -100,6 +100,13 @@ class Graphics(Handler):
                 else: layout.addWidget(widget)
         return self.nextPC()
 
+    # Declare a checkbox variable
+    def k_checkbox(self, command):
+        return self.compileVariable(command, False)
+
+    def r_checkbox(self, command):
+        return self.nextPC()
+
     # Close a window
     def k_close(self, command):
         if self.nextIsSymbol():
@@ -154,15 +161,36 @@ class Graphics(Handler):
         return True
 
     def k_createLabel(self, command):
-        if self.peek() == 'text':
-            self.nextToken()
-            text = self.nextValue()
-        else: text = ''
+        text = ''
+        while True:
+            token = self.peek()
+            if token == 'text':
+                self.nextToken()
+                text = self.nextValue()
+            elif token == 'size':
+                self.nextToken()
+                command['size'] = self.nextValue()
+            else: break
         command['text'] = text
         self.add(command)
         return True
 
     def k_createPushbutton(self, command):
+        text = ''
+        while True:
+            token = self.peek()
+            if token == 'text':
+                self.nextToken()
+                text = self.nextValue()
+            elif token == 'size':
+                self.nextToken()
+                command['size'] = self.nextValue()
+            else: break
+        command['text'] = text
+        self.add(command)
+        return True
+
+    def k_createCheckBox(self, command):
         if self.peek() == 'text':
             self.nextToken()
             text = self.nextValue()
@@ -194,6 +222,7 @@ class Graphics(Handler):
             elif keyword == 'groupbox': return self.k_createGroupBox(command)
             elif keyword == 'label': return self.k_createLabel(command)
             elif keyword == 'pushbutton': return self.k_createPushbutton(command)
+            elif keyword == 'checkbox': return self.k_createCheckBox(command)
             elif keyword == 'lineinput': return self.k_createLineEdit(command)
             elif keyword == 'listbox': return self.k_createListWidget(command)
         return False
@@ -227,12 +256,27 @@ class Graphics(Handler):
     
     def r_createLabel(self, command, record):
         label = QLabel(self.getRuntimeValue(command['text']))
+        if 'size' in command:
+            fm = label.fontMetrics()
+            c = label.contentsMargins()
+            w = fm.horizontalAdvance('x') * self.getRuntimeValue(command['size']) +c.left()+c.right()
+            label.setMaximumWidth(w)
         record['widget'] = label
         return self.nextPC()
     
     def r_createPushbutton(self, command, record):
         pushbutton = QPushButton(self.getRuntimeValue(command['text']))
+        if 'size' in command:
+            fm = pushbutton.fontMetrics()
+            c = pushbutton.contentsMargins()
+            w = fm.horizontalAdvance('x') * self.getRuntimeValue(command['size']) +c.left()+c.right()
+            pushbutton.setMaximumWidth(w)
         record['widget'] = pushbutton
+        return self.nextPC()
+    
+    def r_createCheckBox(self, command, record):
+        checkbox = QCheckBox(self.getRuntimeValue(command['text']))
+        record['widget'] = checkbox
         return self.nextPC()
     
     def r_createLineEdit(self, command, record):
@@ -257,6 +301,7 @@ class Graphics(Handler):
         elif keyword == 'groupbox': return self.r_createGroupBox(command, record)
         elif keyword == 'label': return self.r_createLabel(command, record)
         elif keyword == 'pushbutton': return self.r_createPushbutton(command, record)
+        elif keyword == 'checkbox': return self.r_createCheckBox(command, record)
         elif keyword == 'lineinput': return self.r_createLineEdit(command, record)
         elif keyword == 'listbox': return self.r_createListWidget(command, record)
         return None
