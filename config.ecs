@@ -104,14 +104,12 @@
     create Layout type QHBoxLayout
     add Layout to Group
     create SystemsCombo
-    add `System 1` to SystemsCombo
-    add `System 2` to SystemsCombo
-    add `System 3` to SystemsCombo
     add stretch SystemsCombo to Layout
     create AddSystemButton text `Add`
     on click AddSystemButton go to AddSystem
     add AddSystemButton to Layout
     create RemoveSystemButton text `Remove`
+    disable RemoveSystemButton
     on click RemoveSystemButton go to RemoveSystem
     add RemoveSystemButton to Layout
     
@@ -233,7 +231,13 @@
     show MainPanel in Window
 
     start graphics
-    log `Graphics running`
+
+PopulateForm:
+    log `Populate the form`
+    add `System 1` to SystemsCombo
+    add `System 2` to SystemsCombo
+    add `System 3` to SystemsCombo
+    if the count of SystemsCombo is not 0 enable RemoveSystemButton
     stop
 
 ResetConfigFile:
@@ -276,14 +280,15 @@ AddSystem:
     stop
 
 RemoveSystem:
-    log `Remove this system?`
     put SystemsCombo into Name
+    log `Remove ` cat Name cat `?`
     create MessageBox on Window
         style question
         title `Remove system`
         message `Are you sure you want to remove ` cat Name cat `?`
     show MessageBox giving Value
-    log Value
+    if Value is `Yes` remove current item from SystemsCombo
+    if the count of SystemsCombo is 0 disable RemoveSystemButton
     stop
 
 SaveHostInfo:

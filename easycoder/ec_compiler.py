@@ -114,10 +114,10 @@ class Compiler:
 	def compileLabel(self, command):
 		return self.compileSymbol(command, self.getToken(), False)
 
-	def compileVariable(self, command, valueHolder = False):
-		return self.compileSymbol(command, self.nextToken(), valueHolder)
+	def compileVariable(self, command, hasValue = False):
+		return self.compileSymbol(command, self.nextToken(), hasValue)
 
-	def compileSymbol(self, command, name, valueHolder):
+	def compileSymbol(self, command, name, hasValue):
 		try:
 			v = self.symbols[name]
 		except:
@@ -128,7 +128,7 @@ class Compiler:
 		self.symbols[name] = self.getPC()
 		command['program'] = self.program
 		command['type'] = 'symbol'
-		command['valueHolder'] = valueHolder
+		command['hasValue'] = hasValue
 		command['name'] = name
 		command['elements'] = 1
 		command['index'] = 0

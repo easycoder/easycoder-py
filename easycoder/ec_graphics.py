@@ -165,11 +165,11 @@ class Graphics(Handler):
     def k_get(self, command):
         if self.nextIsSymbol():
             symbolRecord = self.getSymbolRecord()
-            if symbolRecord['valueHolder']:
+            if symbolRecord['hasValue']:
                 command['target'] = self.getToken()
             else:
                 FatalError(self.compiler, f'Variable "{symbolRecord["name"]}" does not hold a value')
-            if symbolRecord['valueHolder']:
+            if symbolRecord['hasValue']:
                 if self.nextIs('from'):
                     if self.nextIs('popup'):
                         command['ptype'] = self.nextToken()

@@ -149,7 +149,7 @@ class Program:
 		elif valType == 'symbol':
 			name = value['name']
 			symbolRecord = self.getSymbolRecord(name)
-			if symbolRecord['valueHolder']:
+			if symbolRecord['hasValue']:
 				handler = self.domainIndex[symbolRecord['domain']].valueHandler('symbol')
 				result = handler(symbolRecord)
 			else:

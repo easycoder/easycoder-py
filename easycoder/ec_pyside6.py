@@ -424,6 +424,30 @@ class Graphics(Handler):
     def r_dialog(self, command):
         return self.nextPC()
 
+    # Disable a widget
+    def k_disable(self, command):
+        if self.nextIsSymbol():
+            command['name'] = self.getSymbolRecord()['name']
+            self.add(command)
+            return True
+        return False
+    
+    def r_disable(self, command):
+        self.getVariable(command['name'])['widget'].setEnabled(False)
+        return self.nextPC()
+
+    # Enable a widget
+    def k_enable(self, command):
+        if self.nextIsSymbol():
+            command['name'] = self.getSymbolRecord()['name']
+            self.add(command)
+            return True
+        return False
+    
+    def r_enable(self, command):
+        self.getVariable(command['name'])['widget'].setEnabled(True)
+        return self.nextPC()
+
     # Create a group box
     def k_groupbox(self, command):
         return self.compileVariable(command, False)
@@ -525,18 +549,32 @@ class Graphics(Handler):
     def r_pushbutton(self, command):
         return self.nextPC()
 
-    # Clean exit
-    def on_last_window_closed(self):
-        print("Last window closed! Performing cleanup...")
-        self.program.kill()
+    # remove current item from {combobox}
+    def k_remove(self, command):
+        command['variant'] = None
+        if self.nextIs('current'):
+            if self.nextIs('item'):
+                if self.nextIs('from'):
+                    if self.nextIsSymbol():
+                        record = self.getSymbolRecord()
+                        if record['keyword'] == 'combobox':
+                            command['variant'] = 'current'
+                            command['name'] = record['name']
+                            self.addCommand(command)
+                            return True
+        return False
+        
+    def r_remove(self, command):
+        variant = command['variant']
+        record = self.getVariable(command['name'])
+        if record['keyword'] == 'combobox' and variant == 'current':
+            widget = record['widget']
+            widget.removeItem(widget.currentIndex())
+        return self.nextPC()
 
     # This is called every 10ms to keep the main application running
     def flush(self):
         self.program.flushCB()
-
-    # Resume execution at the line following 'start graphics'
-    def resume(self):
-        self.program.flush(self.nextPC())
 
     # Set something
     def k_set(self, command):
@@ -637,11 +675,16 @@ class Graphics(Handler):
         return False
         
     def r_start(self, command):
+        def on_last_window_closed():
+            print("Performing cleanup...")
+            self.program.kill()
+        def resume():
+            self.program.flush(self.nextPC())
         timer = QTimer()
         timer.timeout.connect(self.flush)
         timer.start(10)
-        QTimer.singleShot(500, self.resume)
-        self.app.lastWindowClosed.connect(self.on_last_window_closed)
+        QTimer.singleShot(500, resume)
+        self.app.lastWindowClosed.connect(on_last_window_closed)
         self.app.exec()
 
     # Declare a window variable
@@ -665,8 +708,17 @@ class Graphics(Handler):
         if self.tokenIs('the'):
             self.nextToken()
         token = self.getToken()
-        if token == 'xxxxx':
-            return value
+
+        if token == 'count':
+            if self.nextIs('of'):
+                if self.nextIsSymbol():
+                    value['type'] = 'symbol'
+                    record = self.getSymbolRecord()
+                    keyword = record['keyword']
+                    if keyword == 'combobox':
+                        value['type'] = 'count'
+                        value['name'] = record['name']
+                        return value
 
         return None
 
@@ -682,22 +734,7 @@ class Graphics(Handler):
     def v_symbol(self, symbolRecord):
         symbolRecord = self.getVariable(symbolRecord['name'])
         keyword = symbolRecord['keyword']
-        if keyword == 'messagebox':
-            data = symbolRecord['data']
-            window = self.getVariable(data['window'])['window']
-            style = data['style']
-            title = data['title']
-            message = data['message']
-            if style == 'question':
-                button = QMessageBox.question(window, title, message)
-            elif style == 'warning':
-                button = QMessageBox.warning(window, title, message)
-            content = True if button == QMessageBox.Ok else False
-            v = {}
-            v['type'] = 'bool'
-            v['content'] = content
-            return v
-        elif keyword == 'combobox':
+        if keyword == 'combobox':
             combobox = symbolRecord['widget']
             v = {}
             v['type'] = 'text'
@@ -705,8 +742,14 @@ class Graphics(Handler):
             return v
         return None
 
-    def v_xxxxx(self, v):
+    def v_count(self, v):
+        record = self.getVariable(v['name'])
+        keyword = record['keyword']
+        widget = record['widget']
+        if keyword == 'combobox': content = widget.count()
         value = {}
+        value['type'] = 'int'
+        value['content'] = content
         return value
 
     #############################################################################
