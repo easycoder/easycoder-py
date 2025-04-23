@@ -24,7 +24,8 @@
     pushbutton UpdateSlaveButton
     pushbutton DeleteFileButton
     pushbutton ExitButton
-    pushbutton SelectSystemButton
+    pushbutton AddSystemButton
+    pushbutton RemoveSystemButton
     pushbutton SaveHostButton
     pushbutton RelayOffButton
     pushbutton RelayOnButton
@@ -38,8 +39,13 @@
     lineinput DHT22PinInput
     lineinput PathInput
     listbox SlaveList
+    combobox SystemsCombo
     checkbox LEDInvertCheckbox
     checkbox RelayInvertCheckbox
+    dialog Dialog
+    messagebox MessageBox
+    variable Name
+    variable Value
 
 !    debug step
 
@@ -47,6 +53,8 @@
     init graphics
     create Window title `RBR-Now configurator` size 700 500
     create MainPanel type QHBoxLayout
+
+    ! Do the left-hand panel
 
     create LeftPanel type QVBoxLayout
     add LeftPanel to MainPanel
@@ -84,20 +92,28 @@
     add ExitButton to LeftPanel
     on click ExitButton go to Exit
 
+    ! Now do the right-hand panel
+
     create RightPanel type QVBoxLayout
     add stretch RightPanel to MainPanel
 
     ! Create the system name group
-    create Group title `System name`
+    create Group title `Systems`
     set the height of Group to 50
     add Group to RightPanel
     create Layout type QHBoxLayout
     add Layout to Group
-    create Label text `(none)`
-    add stretch Label to Layout
-    create SelectSystemButton text `Select system`
-    on click SelectSystemButton go to SelectSystem
-    add SelectSystemButton to Layout
+    create SystemsCombo
+    add `System 1` to SystemsCombo
+    add `System 2` to SystemsCombo
+    add `System 3` to SystemsCombo
+    add stretch SystemsCombo to Layout
+    create AddSystemButton text `Add`
+    on click AddSystemButton go to AddSystem
+    add AddSystemButton to Layout
+    create RemoveSystemButton text `Remove`
+    on click RemoveSystemButton go to RemoveSystem
+    add RemoveSystemButton to Layout
     
     ! Create the host access group
     create Group title `Host`
@@ -209,7 +225,7 @@
     on click SaveWidgetDataButton go to SaveWidgetData
     add SaveWidgetDataButton to Layout
 
-    create StatusLabel text `<font color="#00ff00">OK</font>`
+    create StatusLabel text `<font color="#008000">OK</font>`
     add StatusLabel to RightPanel
     
     add stretch to RightPanel
@@ -249,12 +265,25 @@ DeleteSlave:
     stop
 
 Exit:
-    log `Exit the configuator`
+    log `Exit the configurator`
     close Window
     exit
 
-SelectSystem:
-    log `Select the system`
+AddSystem:
+    log `Add a system`
+    create Dialog title `Select system`
+    show Dialog
+    stop
+
+RemoveSystem:
+    log `Remove this system?`
+    put SystemsCombo into Name
+    create MessageBox on Window
+        style question
+        title `Remove system`
+        message `Are you sure you want to remove ` cat Name cat `?`
+    show MessageBox giving Value
+    log Value
     stop
 
 SaveHostInfo:

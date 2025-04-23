@@ -28,7 +28,9 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QWidget,
     QSpacerItem,
-    QSizePolicy
+    QSizePolicy,
+    QDialog,
+    QMessageBox
 )
 
 class Graphics(Handler):
@@ -42,7 +44,7 @@ class Graphics(Handler):
         Handler.__init__(self, compiler)
 
     def getName(self):
-        return 'pyside6'
+        return 'graphics'
 
     def closeEvent(self):
         print('window closed')
@@ -50,54 +52,84 @@ class Graphics(Handler):
     #############################################################################
     # Keyword handlers
 
-    # Add a widget to a layout
-    # add [stretch] {widget} to {layout}
-    # add stretch to {layout}
+    # (1) add {value} to {widget}
+    # (2) add {widget} to {layout}
+    # (3) add stretch {widget} to {layout}
+    # (4) add stretch to {layout}
     def k_add(self, command):
-        command['stretch'] = False
-        if self.nextIs('stretch'):
-            if self.peek() == 'to':
-                command['widget'] = 'stretch'
-            elif self.nextIsSymbol():
-                record = self.getSymbolRecord()
-                command['widget'] = record['name']
-                command['stretch'] = True
-            else: return False
-        elif self.isSymbol():
-            record = self.getSymbolRecord()
-            command['widget'] = record['name']
-        else: return False
-        if self.nextIs('to'):
+        def addToLayout():
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
                 command['layout'] = record['name']
                 self.add(command)
                 return True
+            return False
+
+        command['stretch'] = False
+        if self.nextIs('stretch'):
+            # It's either (3) or (4)
+            self.nextToken()
+            if self.tokenIs('to'):
+                # (4)
+                command['widget'] = 'stretch'
+                return addToLayout()
+            # (3)
+            if self.isSymbol():
+                record = self.getSymbolRecord()
+                command['widget'] = record['name']
+                command['stretch'] = True
+                if self.nextIs('to'):
+                    return addToLayout()
+            return False
+
+        # Here it's either (1) or (2)
+        elif self.isSymbol():
+            if self.peek() == 'to':
+                # (2)
+                record = self.getSymbolRecord()
+                command['widget'] = record['name']
+                self.nextToken()
+                return addToLayout()
+        else:
+            # (1)
+            command['value'] = self.getValue()
+            if self.nextIs('to'):
+                if self.nextIsSymbol():
+                    record = self.getSymbolRecord()
+                    command['widget'] = record['name']
+                    self.add(command)
+                    return True
         return False
     
     def r_add(self, command):
-        layoutRecord = self.getVariable(command['layout'])
-        widget = command['widget']
-        if widget == 'stretch':
-            layoutRecord['widget'].addStretch()
+        if 'value' in command:
+            value = self.getRuntimeValue(command['value'])
+            widget = self.getVariable(command['widget'])
+            if widget['keyword'] == 'combobox':
+                widget['widget'].addItem(value)
         else:
-            widgetRecord = self.getVariable(widget)
             layoutRecord = self.getVariable(command['layout'])
-            widget = widgetRecord['widget']
-            layout = layoutRecord['widget']
-            stretch = command['stretch']
-            if widgetRecord['keyword'] == 'layout':
-                if layoutRecord['keyword'] == 'groupbox':
-                    if widgetRecord['keyword'] == 'layout':
-                        layout.setLayout(widget)
-                    else:
-                        RuntimeError(self.program, 'Can only add a layout to a groupbox')
-                else:
-                    if stretch: layout.addLayout(widget, stretch=1)
-                    else: layout.addLayout(widget)
+            widget = command['widget']
+            if widget == 'stretch':
+                layoutRecord['widget'].addStretch()
             else:
-                if stretch: layout.addWidget(widget, stretch=1)
-                else: layout.addWidget(widget)
+                widgetRecord = self.getVariable(widget)
+                layoutRecord = self.getVariable(command['layout'])
+                widget = widgetRecord['widget']
+                layout = layoutRecord['widget']
+                stretch = command['stretch']
+                if widgetRecord['keyword'] == 'layout':
+                    if layoutRecord['keyword'] == 'groupbox':
+                        if widgetRecord['keyword'] == 'layout':
+                            layout.setLayout(widget)
+                        else:
+                            RuntimeError(self.program, 'Can only add a layout to a groupbox')
+                    else:
+                        if stretch: layout.addLayout(widget, stretch=1)
+                        else: layout.addLayout(widget)
+                else:
+                    if stretch: layout.addWidget(widget, stretch=1)
+                    else: layout.addWidget(widget)
         return self.nextPC()
 
     # Declare a checkbox variable
@@ -121,25 +153,36 @@ class Graphics(Handler):
         self.getVariable(command['name'])['window'].close()
         return self.nextPC()
 
+    # Declare a combobox variable
+    def k_combobox(self, command):
+        return self.compileVariable(command, False)
+
+    def r_combobox(self, command):
+        return self.nextPC()
+
     # Create a window
     def k_createWindow(self, command):
         command['title'] = 'Default'
-        command['x'] = self.compileConstant(100)
-        command['y'] = self.compileConstant(100)
-        command['w'] = self.compileConstant(640)
-        command['h'] = self.compileConstant(480)
+        x = None
+        y = None
+        w = 640
+        h = 480
         while True:
             token = self.peek()
             if token in ['title', 'at', 'size']:
                 self.nextToken()
                 if token == 'title': command['title'] = self.nextValue()
                 elif token == 'at':
-                    command['x'] = self.nextValue()
-                    command['y'] = self.nextValue()
+                    x = self.nextValue()
+                    y = self.nextValue()
                 elif token == 'size':
                     command['w'] = self.nextValue()
                     command['h'] = self.nextValue()
             else: break
+        command['w'] = self.compileConstant(w)
+        command['h'] = self.compileConstant(h)
+        command['x'] = x
+        command['y'] = y
         self.add(command)
         return True
 
@@ -212,6 +255,44 @@ class Graphics(Handler):
         self.add(command)
         return True
 
+    def k_createComboBox(self, command):
+        self.add(command)
+        return True
+
+    def k_createDialog(self, command):
+        if self.peek() == 'title':
+            self.nextToken()
+            title = self.nextValue()
+        else: title = ''
+        command['title'] = title
+        self.add(command)
+        return True
+
+    def k_createMessageBox(self, command):
+        if self.nextIs('on'):
+            if self.nextIsSymbol():
+                command['window'] = self.getSymbolRecord()['name']
+                style = 'question'
+                title = ''
+                message = ''
+                while True:
+                    if self.peek() == 'style':
+                        self.nextToken()
+                        style = self.nextToken()
+                    elif self.peek() == 'title':
+                        self.nextToken()
+                        title = self.nextValue()
+                    elif self.peek() == 'message':
+                        self.nextToken()
+                        message = self.nextValue()
+                    else: break
+                command['style'] = style
+                command['title'] = title
+                command['message'] = message
+                self.add(command)
+                return True
+        return False
+
     def k_create(self, command):
         if self.nextIsSymbol():
             record = self.getSymbolRecord()
@@ -225,15 +306,22 @@ class Graphics(Handler):
             elif keyword == 'checkbox': return self.k_createCheckBox(command)
             elif keyword == 'lineinput': return self.k_createLineEdit(command)
             elif keyword == 'listbox': return self.k_createListWidget(command)
+            elif keyword == 'combobox': return self.k_createComboBox(command)
+            elif keyword == 'dialog': return self.k_createDialog(command)
+            elif keyword == 'messagebox': return self.k_createMessageBox(command)
         return False
     
     def r_createWindow(self, command, record):
         window = self.MainWindow()
         window.setWindowTitle(self.getRuntimeValue(command['title']))
-        x = self.getRuntimeValue(command['x'])
-        y = self.getRuntimeValue(command['y'])
         w = self.getRuntimeValue(command['w'])
         h = self.getRuntimeValue(command['h'])
+        x = command['x']
+        y = command['y']
+        if x == None: x = (self.screenWidth - w) / 2
+        else: x = self.getRuntimeValue(x)
+        if y == None: y = (self.screenHeight - h) / 2
+        else: y = self.getRuntimeValue(x)
         window.setGeometry(x, y, w, h)
         record['window'] = window
         return self.nextPC()
@@ -292,6 +380,26 @@ class Graphics(Handler):
     def r_createListWidget(self, command, record):
         record['widget'] = QListWidget()
         return self.nextPC()
+    
+    def r_createComboBox(self, command, record):
+        record['widget'] = QComboBox()
+        return self.nextPC()
+    
+    def r_createDialog(self, command, record):
+        dialog = QDialog()
+        dialog.setWindowTitle(self.getRuntimeValue(command['title']))
+        record['dialog'] = dialog
+        return self.nextPC()
+    
+    # Creates a message box but doesn'r run it
+    def r_createMessageBox(self, command, record):
+        data = {}
+        data['window'] = command['window']
+        data['style'] = command['style']
+        data['title'] = self.getRuntimeValue(command['title'])
+        data['message'] = self.getRuntimeValue(command['message'])
+        record['data'] = data
+        return self.nextPC()
 
     def r_create(self, command):
         record = self.getVariable(command['name'])
@@ -304,7 +412,17 @@ class Graphics(Handler):
         elif keyword == 'checkbox': return self.r_createCheckBox(command, record)
         elif keyword == 'lineinput': return self.r_createLineEdit(command, record)
         elif keyword == 'listbox': return self.r_createListWidget(command, record)
+        elif keyword == 'combobox': return self.r_createComboBox(command, record)
+        elif keyword == 'dialog': return self.r_createDialog(command, record)
+        elif keyword == 'messagebox': return self.r_createMessageBox(command, record)
         return None
+
+    # Declare a dialog variable
+    def k_dialog(self, command):
+        return self.compileVariable(command, False)
+
+    def r_dialog(self, command):
+        return self.nextPC()
 
     # Create a group box
     def k_groupbox(self, command):
@@ -322,6 +440,10 @@ class Graphics(Handler):
     
     def r_init(self, command):
         self.app = QApplication(sys.argv)
+        screen = QApplication.screens()[0].size().toTuple()
+        self.screenWidth = screen[0]
+        self.screenHeight = screen[1]
+        print(f'Screen: {self.screenWidth}x{self.screenHeight}')
         return self.nextPC()
 
     # Declare a label variable
@@ -350,6 +472,13 @@ class Graphics(Handler):
         return self.compileVariable(command, False)
 
     def r_listbox(self, command):
+        return self.nextPC()
+
+    # Declare a messagebox variable
+    def k_messagebox(self, command):
+        return self.compileVariable(command, False)
+
+    def r_messagebox(self, command):
         return self.nextPC()
 
     # Handle events
@@ -434,12 +563,14 @@ class Graphics(Handler):
             groupbox.setFixedHeight(self.getRuntimeValue(command['value']))
         return self.nextPC()
 
-    # Show a window with a specified layout
+    # Show something
     # show {name} in {window}}
+    # show {dialog}/{messagebox}
     def k_show(self, command):
         if self.nextIsSymbol():
             record = self.getSymbolRecord()
-            if record['keyword'] == 'layout':
+            keyword = record['keyword']
+            if keyword == 'layout':
                 command['layout'] = record['name']
                 if self.nextIs('in'):
                     if self.nextIsSymbol():
@@ -448,16 +579,54 @@ class Graphics(Handler):
                             command['window'] = record['name']
                             self.add(command)
                             return True
+            elif keyword == 'dialog':
+                command['dialog'] = record['name']
+                self.add(command)
+                return True
+            elif keyword == 'messagebox':
+                command['messagebox'] = record['name']
+                if self.nextIs('giving'):
+                    if self.nextIsSymbol():
+                        command['result'] = self.getSymbolRecord()['name']
+                        self.add(command)
+                        return True
         return False
         
     def r_show(self, command):
-        layoutRecord = self.getVariable(command['layout'])
-        windowRecord = self.getVariable(command['window'])
-        window = windowRecord['window']
-        container = QWidget()
-        container.setLayout(layoutRecord['widget'])
-        window.setCentralWidget(container)
-        window.show()
+        if 'dialog' in command:
+            dialog = self.getVariable(command['dialog'])['dialog']
+            b1 = QPushButton("ok",dialog)
+            b1.move(50,50)
+            dialog.setWindowModality(Qt.ApplicationModal)
+            dialog.exec_()
+        elif 'messagebox' in command:
+            data = self.getVariable(command['messagebox'])['data']
+            symbolRecord = self.getVariable(command['result'])
+            window = self.getVariable(data['window'])['window']
+            style = data['style']
+            title = data['title']
+            message = data['message']
+            if style == 'question':
+                button = QMessageBox.question(window, title, message)
+                if button == QMessageBox.Yes: result = 'Yes'
+                else: result = 'No'
+            elif style == 'warning':
+                button = QMessageBox.warning(window, title, message)
+                if button == QMessageBox.Ok: result = 'OK'
+                else: result = ''
+            else: result = 'Cancel'
+            v = {}
+            v['type'] = 'text'
+            v['content'] = result
+            self.putSymbolValue(symbolRecord, v)
+        else:
+            layoutRecord = self.getVariable(command['layout'])
+            windowRecord = self.getVariable(command['window'])
+            window = windowRecord['window']
+            container = QWidget()
+            container.setLayout(layoutRecord['widget'])
+            window.setCentralWidget(container)
+            window.show()
         return self.nextPC()
 
     # Start the graphics
@@ -486,7 +655,13 @@ class Graphics(Handler):
     # Compile a value in this domain
     def compileValue(self):
         value = {}
-        value['domain'] = 'rbr'
+        value['domain'] = self.getName()
+        token = self.getToken()
+        if self.isSymbol():
+            value['name'] = token
+            value['type'] = 'symbol'
+            return value
+
         if self.tokenIs('the'):
             self.nextToken()
         token = self.getToken()
@@ -502,6 +677,33 @@ class Graphics(Handler):
 
     #############################################################################
     # Value handlers
+
+    # This is used by the expression evaluator to get the value of a symbol
+    def v_symbol(self, symbolRecord):
+        symbolRecord = self.getVariable(symbolRecord['name'])
+        keyword = symbolRecord['keyword']
+        if keyword == 'messagebox':
+            data = symbolRecord['data']
+            window = self.getVariable(data['window'])['window']
+            style = data['style']
+            title = data['title']
+            message = data['message']
+            if style == 'question':
+                button = QMessageBox.question(window, title, message)
+            elif style == 'warning':
+                button = QMessageBox.warning(window, title, message)
+            content = True if button == QMessageBox.Ok else False
+            v = {}
+            v['type'] = 'bool'
+            v['content'] = content
+            return v
+        elif keyword == 'combobox':
+            combobox = symbolRecord['widget']
+            v = {}
+            v['type'] = 'text'
+            v['content'] = combobox.currentText()
+            return v
+        return None
 
     def v_xxxxx(self, v):
         value = {}
