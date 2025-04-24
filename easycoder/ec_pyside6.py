@@ -133,10 +133,6 @@ class Graphics(Handler):
                     else: layout.addWidget(widget)
         return self.nextPC()
 
-    # Declare a checkbox variable
-    def k_checkbox(self, command):
-        return self.compileVariable(command, False)
-
     # Center one window on another
     # center {window2} on {window1}
     def k_center(self, command):
@@ -158,9 +154,13 @@ class Graphics(Handler):
         window2 = self.getVariable(command['window2'])['window']
         geo1 = window1.geometry()
         geo2 = window2.geometry()
-        geo1.moveCenter(geo2.center())
-        window1.setGeometry(geo1)
+        geo2.moveCenter(geo1.center())
+        window2.setGeometry(geo2)
         return self.nextPC()
+
+    # Declare a checkbox variable
+    def k_checkbox(self, command):
+        return self.compileVariable(command, False)
 
     def r_checkbox(self, command):
         return self.nextPC()
@@ -196,18 +196,26 @@ class Graphics(Handler):
         h = self.compileConstant(480)
         while True:
             token = self.peek()
-            if token in ['title', 'at', 'size']:
+            if token in ['title', 'at', 'size', 'layout']:
                 self.nextToken()
                 if token == 'title': command['title'] = self.nextValue()
                 elif token == 'at':
                     x = self.nextValue()
                     y = self.nextValue()
                 elif token == 'size':
-                    command['w'] = self.nextValue()
-                    command['h'] = self.nextValue()
+                    w = self.nextValue()
+                    h = self.nextValue()
+                elif token == 'layout':
+                    if self.nextIsSymbol():
+                        record = self.getSymbolRecord()
+                        if record['keyword'] == 'layout':
+                            command['layout'] = record['name']
+                else: return False
             else: break
         command['x'] = x
         command['y'] = y
+        command['w'] = w
+        command['h'] = h
         self.add(command)
         return True
 
@@ -360,6 +368,9 @@ class Graphics(Handler):
         if y == None: y = (self.screenHeight - h) / 2
         else: y = self.getRuntimeValue(x)
         window.setGeometry(x, y, w, h)
+        container = QWidget()
+        container.setLayout(self.getVariable(command['layout'])['widget'])
+        window.setCentralWidget(container)
         record['window'] = window
         return self.nextPC()
     
@@ -384,7 +395,7 @@ class Graphics(Handler):
         if 'size' in command:
             fm = label.fontMetrics()
             c = label.contentsMargins()
-            w = fm.horizontalAdvance('x') * self.getRuntimeValue(command['size']) +c.left()+c.right()
+            w = fm.horizontalAdvance('m') * self.getRuntimeValue(command['size']) +c.left()+c.right()
             label.setMaximumWidth(w)
         record['widget'] = label
         return self.nextPC()
@@ -394,7 +405,7 @@ class Graphics(Handler):
         if 'size' in command:
             fm = pushbutton.fontMetrics()
             c = pushbutton.contentsMargins()
-            w = fm.horizontalAdvance('x') * self.getRuntimeValue(command['size']) +c.left()+c.right()
+            w = fm.horizontalAdvance('m') * self.getRuntimeValue(command['size']) +c.left()+c.right()
             pushbutton.setMaximumWidth(w)
         record['widget'] = pushbutton
         return self.nextPC()
@@ -644,30 +655,21 @@ class Graphics(Handler):
             groupbox.setFixedHeight(self.getRuntimeValue(command['value']))
         return self.nextPC()
 
-    # Show something
-    # show {name} in {window}
-    # show {dialog} giving {result}}
+    # show {window}
+    # show {dialog}
     # show {messagebox} giving {result}}
     def k_show(self, command):
         if self.nextIsSymbol():
             record = self.getSymbolRecord()
             keyword = record['keyword']
-            if keyword == 'layout':
-                command['layout'] = record['name']
-                if self.nextIs('in'):
-                    if self.nextIsSymbol():
-                        record = self.getSymbolRecord()
-                        if record['keyword'] == 'window':
-                            command['window'] = record['name']
-                            self.add(command)
-                            return True
+            if keyword == 'window':
+                command['window'] = record['name']
+                self.add(command)
+                return True
             elif keyword == 'dialog':
                 command['dialog'] = record['name']
-                if self.nextIs('giving'):
-                    if self.nextIsSymbol():
-                        command['result'] = self.getSymbolRecord()['name']
-                        self.add(command)
-                        return True
+                self.add(command)
+                return True
             elif keyword == 'messagebox':
                 command['messagebox'] = record['name']
                 if self.nextIs('giving'):
@@ -698,17 +700,12 @@ class Graphics(Handler):
             v['type'] = 'text'
             v['content'] = result
             self.putSymbolValue(symbolRecord, v)
+        elif 'window' in command:
+            window = self.getVariable(command['window'])['window']
+            window.show()
         elif 'dialog' in command:
             dialog = self.getVariable(command['dialog'])['dialog']
-            result = dialog.exec()
-            print('Result:',result)
-        else:
-            layout = self.getVariable(command['layout'])['widget']
-            window = self.getVariable(command['window'])['window']
-            container = QWidget()
-            container.setLayout(layout)
-            window.setCentralWidget(container)
-            window.show()
+            dialog.exec()
         return self.nextPC()
 
     # Start the graphics

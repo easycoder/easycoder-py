@@ -5,13 +5,15 @@
     use graphics
 
     window Window
-    window Popup
+    window Dialog
     layout MainPanel
     layout LeftPanel
     layout RightPanel
     layout DeviceHPanel
     layout OuterLayout
     layout Layout
+    layout VLayout
+    layout HLayout
     groupbox Group
     label Label
     label MasterDeviceLabel
@@ -32,6 +34,9 @@
     pushbutton RelayOnButton
     pushbutton SaveWidgetDataButton
     pushbutton SelectHostButton
+    pushbutton OKButton
+    pushbutton CancelButton
+    lineinput LineInput
     lineinput SSIDInput
     lineinput PasswordInput
     lineinput DeviceNameInput
@@ -44,14 +49,12 @@
     combobox SystemsCombo
     checkbox LEDInvertCheckbox
     checkbox RelayInvertCheckbox
-    dialog Dialog
     messagebox MessageBox
 
 !    debug step
 
     log `Starting`
     init graphics
-    create Window title `RBR-Now configurator` size 700 500
     create MainPanel type QHBoxLayout
 
     ! Do the left-hand panel
@@ -228,23 +231,29 @@
     
     add stretch to RightPanel
 
-    show MainPanel in Window
+    create Window title `RBR-Now configurator` size 700 500 layout MainPanel
+    show Window
 
     start graphics
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+    variable Config
     variable Name
     variable Value
-    variable HostSSID
+    variable ReturnValue
+    variable Title
     variable Result
 
-PopulateForm:
-    log `Populate the form`
+LoadConfigFile:
+    log `Load the config file`
+    load Config from `~/.rbr.conf`
+    if Config is empty put json `{}` into Config
     stop
 
 ResetConfigFile:
     log `Reset the configuration file`
+    put json `{}` into Config
     stop
 
 ScanNetwork:
@@ -278,7 +287,19 @@ Exit:
 
 ScanSystems:
     log `Scan systems`
-    if SSIDInput is empty gosub to GetHostSSID
+    if Config does not have property `host-ssid`
+    begin
+        put `Enter host SSID` into Title
+        gosub to GetRequestedText
+        if Result is `OK` set property `host-ssid` of Config to ReturnValue
+        if Config does not have property `host-password`
+        begin
+            put `Enter host password` into Title
+            gosub to GetRequestedText
+            if Result is `OK` set property `host-password` of Config to ReturnValue
+        end
+    end
+    log Config
 !    create Dialog title `Select a system`
 !    show Layout in Dialog
     stop
@@ -311,20 +332,47 @@ RelayOn:
     log `Turn the relay ON`
     stop
 
-GetHostSSID:
+!   Get requested text
+GetRequestedText:
+    create VLayout type QVBoxLayout
+    create HLayout type QHBoxLayout
+    add HLayout to VLayout
+    create LineInput size 40
+    add stretch LineInput to HLayout
+    create HLayout type QHBoxLayout
+    add HLayout to VLayout
+    create OKButton text `OK` size 6
+    on click OKButton
+    begin
+        put LineInput into ReturnValue
+        put `OK` into Result
+        close Dialog
+        return
+    end
+    add OKButton to HLayout
+    create CancelButton text `Cancel` size 6
+    on click CancelButton
+    begin
+        put `Cancel` into Result
+        close Dialog
+        return
+    end
+    add CancelButton to HLayout
+    create Dialog title Title layout VLayout size 300 80
+    center Dialog on Window
+    show Dialog
+    stop
+
+SelectSystemFromList:
     create Layout type QVBoxLayout
     create SelectHostButton text `Select`
     on click SelectHostButton
     begin
         log `Select Host SSID`
+        close Dialog
     end
-    on click SelectHostButton close Popup
     add stretch to Layout
     add SelectHostButton to Layout
-    create Popup title `Host SSID` size 320 240
-    center Popup on Window
-    show Layout in Popup
-
-!    create Dialog on Window title `Host SSID` layout Layout
-!    show Dialog giving Result
+    create Dialog title `Host SSID` layout Layout
+    show Dialog
     return
