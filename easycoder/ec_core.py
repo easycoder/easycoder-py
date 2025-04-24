@@ -717,7 +717,7 @@ class Core(Handler):
         try:
             with open(filename) as f: content = f.read()
         except:
-            RuntimeError(self.program, f'File \'{filename}\' not found')
+            content = ''
         try:
             if filename.endswith('.json'): content = json.loads(content)
         except:

@@ -5,6 +5,7 @@
     use graphics
 
     window Window
+    window Popup
     layout MainPanel
     layout LeftPanel
     layout RightPanel
@@ -24,12 +25,13 @@
     pushbutton UpdateSlaveButton
     pushbutton DeleteFileButton
     pushbutton ExitButton
-    pushbutton AddSystemButton
+    pushbutton ScanSystemsButton
     pushbutton RemoveSystemButton
     pushbutton SaveHostButton
     pushbutton RelayOffButton
     pushbutton RelayOnButton
     pushbutton SaveWidgetDataButton
+    pushbutton SelectHostButton
     lineinput SSIDInput
     lineinput PasswordInput
     lineinput DeviceNameInput
@@ -44,8 +46,6 @@
     checkbox RelayInvertCheckbox
     dialog Dialog
     messagebox MessageBox
-    variable Name
-    variable Value
 
 !    debug step
 
@@ -105,9 +105,9 @@
     add Layout to Group
     create SystemsCombo
     add stretch SystemsCombo to Layout
-    create AddSystemButton text `Add`
-    on click AddSystemButton go to AddSystem
-    add AddSystemButton to Layout
+    create ScanSystemsButton text `Scan`
+    on click ScanSystemsButton go to ScanSystems
+    add ScanSystemsButton to Layout
     create RemoveSystemButton text `Remove`
     disable RemoveSystemButton
     on click RemoveSystemButton go to RemoveSystem
@@ -232,12 +232,15 @@
 
     start graphics
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    variable Name
+    variable Value
+    variable HostSSID
+    variable Result
+
 PopulateForm:
     log `Populate the form`
-    add `System 1` to SystemsCombo
-    add `System 2` to SystemsCombo
-    add `System 3` to SystemsCombo
-    if the count of SystemsCombo is not 0 enable RemoveSystemButton
     stop
 
 ResetConfigFile:
@@ -273,10 +276,11 @@ Exit:
     close Window
     exit
 
-AddSystem:
-    log `Add a system`
-    create Dialog title `Select system`
-    show Dialog
+ScanSystems:
+    log `Scan systems`
+    if SSIDInput is empty gosub to GetHostSSID
+!    create Dialog title `Select a system`
+!    show Layout in Dialog
     stop
 
 RemoveSystem:
@@ -307,3 +311,20 @@ RelayOn:
     log `Turn the relay ON`
     stop
 
+GetHostSSID:
+    create Layout type QVBoxLayout
+    create SelectHostButton text `Select`
+    on click SelectHostButton
+    begin
+        log `Select Host SSID`
+    end
+    on click SelectHostButton close Popup
+    add stretch to Layout
+    add SelectHostButton to Layout
+    create Popup title `Host SSID` size 320 240
+    center Popup on Window
+    show Layout in Popup
+
+!    create Dialog on Window title `Host SSID` layout Layout
+!    show Dialog giving Result
+    return

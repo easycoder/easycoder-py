@@ -30,7 +30,8 @@ from PySide6.QtWidgets import (
     QSpacerItem,
     QSizePolicy,
     QDialog,
-    QMessageBox
+    QMessageBox,
+    QDialogButtonBox
 )
 
 class Graphics(Handler):
@@ -136,10 +137,36 @@ class Graphics(Handler):
     def k_checkbox(self, command):
         return self.compileVariable(command, False)
 
+    # Center one window on another
+    # center {window2} on {window1}
+    def k_center(self, command):
+        if self.nextIsSymbol():
+            record = self.getSymbolRecord()
+            if record['keyword'] == 'window':
+                command['window2'] = record['name']
+                if self.nextIs('on'):
+                    if self.nextIsSymbol():
+                        record = self.getSymbolRecord()
+                        if record['keyword'] == 'window':
+                            command['window1'] = record['name']
+                            self.add(command)
+                            return True
+        return False
+    
+    def r_center(self, command):
+        window1 = self.getVariable(command['window1'])['window']
+        window2 = self.getVariable(command['window2'])['window']
+        geo1 = window1.geometry()
+        geo2 = window2.geometry()
+        geo1.moveCenter(geo2.center())
+        window1.setGeometry(geo1)
+        return self.nextPC()
+
     def r_checkbox(self, command):
         return self.nextPC()
 
     # Close a window
+    # close {window}
     def k_close(self, command):
         if self.nextIsSymbol():
             record = self.getSymbolRecord()
@@ -165,8 +192,8 @@ class Graphics(Handler):
         command['title'] = 'Default'
         x = None
         y = None
-        w = 640
-        h = 480
+        w = self.compileConstant(640)
+        h = self.compileConstant(480)
         while True:
             token = self.peek()
             if token in ['title', 'at', 'size']:
@@ -179,8 +206,6 @@ class Graphics(Handler):
                     command['w'] = self.nextValue()
                     command['h'] = self.nextValue()
             else: break
-        command['w'] = self.compileConstant(w)
-        command['h'] = self.compileConstant(h)
         command['x'] = x
         command['y'] = y
         self.add(command)
@@ -260,38 +285,50 @@ class Graphics(Handler):
         return True
 
     def k_createDialog(self, command):
-        if self.peek() == 'title':
+        if self.peek() == 'on':
             self.nextToken()
-            title = self.nextValue()
-        else: title = ''
+            if self.nextIsSymbol():
+                command['window'] = self.getSymbolRecord()['name']
+        else: command['window'] = None
+        title = ''
+        while True:
+            if self.peek() == 'title':
+                self.nextToken()
+                title = self.nextValue()
+            elif self.peek() == 'layout':
+                self.nextToken()
+                if self.nextIsSymbol():
+                    command['layout'] = self.getSymbolRecord()['name']
+            else: break
         command['title'] = title
         self.add(command)
         return True
 
     def k_createMessageBox(self, command):
-        if self.nextIs('on'):
+        if self.peek() == 'on':
+            self.nextToken()
             if self.nextIsSymbol():
                 command['window'] = self.getSymbolRecord()['name']
-                style = 'question'
-                title = ''
-                message = ''
-                while True:
-                    if self.peek() == 'style':
-                        self.nextToken()
-                        style = self.nextToken()
-                    elif self.peek() == 'title':
-                        self.nextToken()
-                        title = self.nextValue()
-                    elif self.peek() == 'message':
-                        self.nextToken()
-                        message = self.nextValue()
-                    else: break
-                command['style'] = style
-                command['title'] = title
-                command['message'] = message
-                self.add(command)
-                return True
-        return False
+        else: command['window'] = None
+        style = 'question'
+        title = ''
+        message = ''
+        while True:
+            if self.peek() == 'style':
+                self.nextToken()
+                style = self.nextToken()
+            elif self.peek() == 'title':
+                self.nextToken()
+                title = self.nextValue()
+            elif self.peek() == 'message':
+                self.nextToken()
+                message = self.nextValue()
+            else: break
+        command['style'] = style
+        command['title'] = title
+        command['message'] = message
+        self.add(command)
+        return True
 
     def k_create(self, command):
         if self.nextIsSymbol():
@@ -386,8 +423,14 @@ class Graphics(Handler):
         return self.nextPC()
     
     def r_createDialog(self, command, record):
+        layout = self.getVariable(command['layout'])['widget']
         dialog = QDialog()
         dialog.setWindowTitle(self.getRuntimeValue(command['title']))
+        dialog.buttonBox = QDialogButtonBox((QDialogButtonBox.Ok | QDialogButtonBox.Cancel))
+        dialog.buttonBox.accepted.connect(dialog.accept)
+        dialog.buttonBox.rejected.connect(dialog.reject)
+        layout.addWidget(dialog.buttonBox)
+        dialog.setLayout(layout)
         record['dialog'] = dialog
         return self.nextPC()
     
@@ -602,8 +645,9 @@ class Graphics(Handler):
         return self.nextPC()
 
     # Show something
-    # show {name} in {window}}
-    # show {dialog}/{messagebox}
+    # show {name} in {window}
+    # show {dialog} giving {result}}
+    # show {messagebox} giving {result}}
     def k_show(self, command):
         if self.nextIsSymbol():
             record = self.getSymbolRecord()
@@ -619,8 +663,11 @@ class Graphics(Handler):
                             return True
             elif keyword == 'dialog':
                 command['dialog'] = record['name']
-                self.add(command)
-                return True
+                if self.nextIs('giving'):
+                    if self.nextIsSymbol():
+                        command['result'] = self.getSymbolRecord()['name']
+                        self.add(command)
+                        return True
             elif keyword == 'messagebox':
                 command['messagebox'] = record['name']
                 if self.nextIs('giving'):
@@ -631,13 +678,7 @@ class Graphics(Handler):
         return False
         
     def r_show(self, command):
-        if 'dialog' in command:
-            dialog = self.getVariable(command['dialog'])['dialog']
-            b1 = QPushButton("ok",dialog)
-            b1.move(50,50)
-            dialog.setWindowModality(Qt.ApplicationModal)
-            dialog.exec_()
-        elif 'messagebox' in command:
+        if 'messagebox' in command:
             data = self.getVariable(command['messagebox'])['data']
             symbolRecord = self.getVariable(command['result'])
             window = self.getVariable(data['window'])['window']
@@ -657,12 +698,15 @@ class Graphics(Handler):
             v['type'] = 'text'
             v['content'] = result
             self.putSymbolValue(symbolRecord, v)
+        elif 'dialog' in command:
+            dialog = self.getVariable(command['dialog'])['dialog']
+            result = dialog.exec()
+            print('Result:',result)
         else:
-            layoutRecord = self.getVariable(command['layout'])
-            windowRecord = self.getVariable(command['window'])
-            window = windowRecord['window']
+            layout = self.getVariable(command['layout'])['widget']
+            window = self.getVariable(command['window'])['window']
             container = QWidget()
-            container.setLayout(layoutRecord['widget'])
+            container.setLayout(layout)
             window.setCentralWidget(container)
             window.show()
         return self.nextPC()
@@ -734,7 +778,13 @@ class Graphics(Handler):
     def v_symbol(self, symbolRecord):
         symbolRecord = self.getVariable(symbolRecord['name'])
         keyword = symbolRecord['keyword']
-        if keyword == 'combobox':
+        if keyword == 'lineinput':
+            lineinput = symbolRecord['widget']
+            v = {}
+            v['type'] = 'text'
+            v['content'] = lineinput.displayText()
+            return v
+        elif keyword == 'combobox':
             combobox = symbolRecord['widget']
             v = {}
             v['type'] = 'text'
