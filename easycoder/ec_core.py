@@ -14,6 +14,9 @@ class Core(Handler):
 
     def getName(self):
         return 'core'
+    
+    def noSymbolWarning(self):
+        self.warning(f'Symbol "{self.getToken()}" not found')
 
     #############################################################################
     # Keyword handlers
@@ -1379,46 +1382,6 @@ class Core(Handler):
             self.putSymbolValue(targetVariable, val)
             return self.nextPC()
 
-    # Split a string into a variable with several elements
-    # split {variable} on {value}
-    def k_split(self, command):
-        if self.nextIsSymbol():
-            symbolRecord = self.getSymbolRecord()
-            if symbolRecord['hasValue']:
-                command['target'] = symbolRecord['name']
-                value = {}
-                value['type'] = 'text'
-                value['numeric'] = 'false'
-                value['content'] = '\n'
-                command['on'] = value
-                if self.peek() == 'on':
-                    self.nextToken()
-                    if self.peek() == 'tab':
-                        value['content'] = '\t'
-                        self.nextToken()
-                    else:
-                        command['on'] = self.nextValue()
-                self.add(command)
-                return True
-        return False
-
-    def r_split(self, command):
-        target = self.getVariable(command['target'])
-        value = self.getSymbolValue(target)
-        content = value['content'].split(self.getRuntimeValue(command['on']))
-        elements = len(content)
-        target['elements'] = elements
-        target['value'] = [None] * elements
-
-        for index, item in enumerate(content):
-            element = {}
-            element['type'] = 'text'
-            element['numeric'] = 'false'
-            element['content'] = item
-            target['value'][index] = element
-
-        return self.nextPC()
-
     # Shuffle a list
     def k_shuffle(self, command):
         if self.nextIsSymbol():
@@ -1445,6 +1408,47 @@ class Core(Handler):
             self.putSymbolValue(symbolRecord, value)
             return self.nextPC()
         RuntimeError(self.program, f'{symbolRecord["name"]} is not a list')
+
+    # Split a string into a variable with several elements
+    # split {variable} on {value}
+    def k_split(self, command):
+        if self.nextIsSymbol():
+            symbolRecord = self.getSymbolRecord()
+            if symbolRecord['hasValue']:
+                command['target'] = symbolRecord['name']
+                value = {}
+                value['type'] = 'text'
+                value['numeric'] = 'false'
+                value['content'] = '\n'
+                command['on'] = value
+                if self.peek() == 'on':
+                    self.nextToken()
+                    if self.peek() == 'tab':
+                        value['content'] = '\t'
+                        self.nextToken()
+                    else:
+                        command['on'] = self.nextValue()
+                self.add(command)
+                return True
+        else: self.noSymbolWarning()
+        return False
+
+    def r_split(self, command):
+        target = self.getVariable(command['target'])
+        value = self.getSymbolValue(target)
+        content = value['content'].split(self.getRuntimeValue(command['on']))
+        elements = len(content)
+        target['elements'] = elements
+        target['value'] = [None] * elements
+
+        for index, item in enumerate(content):
+            element = {}
+            element['type'] = 'text'
+            element['numeric'] = 'false'
+            element['content'] = item
+            target['value'][index] = element
+
+        return self.nextPC()
 
     # Declare a stack variable
     def k_stack(self, command):

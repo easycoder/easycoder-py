@@ -87,6 +87,9 @@ class Compiler:
 	def nextIsSymbol(self):
 		self.next()
 		return self.isSymbol()
+	
+	def skip(self, token):
+		if self.peek() == token: self.nextToken()
 
 	def rewindTo(self, index):
 		self.index = index
@@ -114,10 +117,10 @@ class Compiler:
 	def compileLabel(self, command):
 		return self.compileSymbol(command, self.getToken(), False)
 
-	def compileVariable(self, command, hasValue = False):
-		return self.compileSymbol(command, self.nextToken(), hasValue)
+	def compileVariable(self, command, hasValue = False, extra=None):
+		return self.compileSymbol(command, self.nextToken(), hasValue, extra)
 
-	def compileSymbol(self, command, name, hasValue):
+	def compileSymbol(self, command, name, hasValue, extra=None):
 		try:
 			v = self.symbols[name]
 		except:
@@ -137,6 +140,7 @@ class Compiler:
 		command['debug'] = False
 		command['import'] = None
 		command['locked'] = False
+		command['extra'] = extra
 		self.addCommand(command)
 		return True
 
@@ -164,7 +168,7 @@ class Compiler:
 					self.rewindTo(mark)
 			else:
 				self.rewindTo(mark)
-		FatalError(self, f'No handler found for "{token}"')
+		FatalError(self, f'Unable to compile "{token}" (in this context)')
 
 	# Compile a single command
 	def compileOne(self):

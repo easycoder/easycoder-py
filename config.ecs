@@ -29,7 +29,6 @@
     pushbutton ExitButton
     pushbutton ScanSystemsButton
     pushbutton RemoveSystemButton
-    pushbutton SaveHostButton
     pushbutton RelayOffButton
     pushbutton RelayOnButton
     pushbutton SaveWidgetDataButton
@@ -37,14 +36,13 @@
     pushbutton OKButton
     pushbutton CancelButton
     lineinput LineInput
-    lineinput SSIDInput
-    lineinput PasswordInput
     lineinput DeviceNameInput
     lineinput ChannelInput
     lineinput LEDPinInput
     lineinput RelayPinInput
     lineinput DHT22PinInput
     lineinput PathInput
+    listbox ListBox
     listbox SlaveList
     combobox SystemsCombo
     checkbox LEDInvertCheckbox
@@ -62,38 +60,38 @@
     create LeftPanel type QVBoxLayout
     add LeftPanel to MainPanel
     create ResetConfigButton text `Reset config`
-    on click ResetConfigButton go to ResetConfigFile
+    on click ResetConfigButton go to ResetConfigFileClick
     add ResetConfigButton to LeftPanel
 
     create ScanNetworkButton text `Scan network`
-    on click ScanNetworkButton go to ScanNetwork
+    on click ScanNetworkButton go to ScanNetworkClick
     add ScanNetworkButton to LeftPanel
 
     create SelectMasterButton text `Select master`
-    on click SelectMasterButton go to SelectMaster
+    on click SelectMasterButton go to SelectMasterClick
     add SelectMasterButton to LeftPanel
 
     create SelectSlaveButton text `Select slave`
-    on click SelectSlaveButton go to SelectSlave
+    on click SelectSlaveButton go to SelectSlaveClick
     add SelectSlaveButton to LeftPanel
 
     create UpdateSlaveButton text `Update slave`
-    on click UpdateSlaveButton go to UpdateSlave
+    on click UpdateSlaveButton go to UpdateSlaveClick
     add UpdateSlaveButton to LeftPanel
 
     create DeleteFileButton text `Delete file`
     add DeleteFileButton to LeftPanel
-    on click DeleteFileButton go to DeleteFile
+    on click DeleteFileButton go to DeleteFileClick
 
     create DeleteSlaveButton text `Delete slave`
     add DeleteSlaveButton to LeftPanel
-    on click DeleteSlaveButton go to DeleteSlave
+    on click DeleteSlaveButton go to DeleteSlaveClick
 
     add stretch to LeftPanel
 
     create ExitButton text `Exit`
     add ExitButton to LeftPanel
-    on click ExitButton go to Exit
+    on click ExitButton go to ExitClick
 
     ! Now do the right-hand panel
 
@@ -109,30 +107,13 @@
     create SystemsCombo
     add stretch SystemsCombo to Layout
     create ScanSystemsButton text `Scan`
-    on click ScanSystemsButton go to ScanSystems
+    disable ScanSystemsButton
+    on click ScanSystemsButton go to ScanSystemsClick
     add ScanSystemsButton to Layout
     create RemoveSystemButton text `Remove`
     disable RemoveSystemButton
-    on click RemoveSystemButton go to RemoveSystem
+    on click RemoveSystemButton go to RemoveSystemClick
     add RemoveSystemButton to Layout
-    
-    ! Create the host access group
-    create Group title `Host`
-    set the height of Group to 50
-    add Group to RightPanel
-    create Layout type QHBoxLayout
-    add Layout to Group
-    create Label text `SSID:`
-    add Label to Layout
-    create SSIDInput size 40
-    add SSIDInput to Layout
-    create Label text `Password:`
-    add Label to Layout
-    create PasswordInput size 40
-    add PasswordInput to Layout
-    create SaveHostButton text `Save`
-    on click SaveHostButton go to SaveHostInfo
-    add SaveHostButton to Layout
     
     ! Create the Master Device group
     create Group title `Master device`
@@ -194,10 +175,10 @@
     create RelayInvertCheckbox text `Inverted`
     add RelayInvertCheckbox to Layout
     create RelayOffButton size 5 text `-`
-    on click RelayOffButton go to RelayOff
+    on click RelayOffButton go to RelayOffClick
     add RelayOffButton to Layout
     create RelayOnButton size 5 text `+`
-    on click RelayOnButton go to RelayOn
+    on click RelayOnButton go to RelayOnClick
     add RelayOnButton to Layout
     create RelayStateLabel size 5 text `???`
     add RelayStateLabel to Layout
@@ -226,10 +207,11 @@
     on click SaveWidgetDataButton go to SaveWidgetData
     add SaveWidgetDataButton to Layout
 
-    create StatusLabel text `<font color="#008000">OK</font>`
-    add StatusLabel to RightPanel
-    
     add stretch to RightPanel
+
+    create StatusLabel
+    gosub to OK 
+    add StatusLabel to RightPanel
 
     create Window title `RBR-Now configurator` size 700 500 layout MainPanel
     show Window
@@ -239,72 +221,119 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     variable Config
+    variable ConfigFile
     variable Name
     variable Value
     variable ReturnValue
     variable Title
     variable Result
+    variable List
+    variable Item
+    variable SSID
+    variable Password
+    variable MAC
+    variable IPAddr
+    variable MyIPAddr
+    variable Prompt
+    variable SystemCallResult
+    variable StatusMessage
+    variable Systems
+    variable RBRFlag
+    variable Keys
+    variable N
+    variable P
 
-LoadConfigFile:
-    log `Load the config file`
-    load Config from `~/.rbr.conf`
-    if Config is empty put json `{}` into Config
+!    debug step
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   The main program starts here
+Start:
+    put trim system `echo $HOME` cat `/.rbr.conf` into ConfigFile
+    load Config from ConfigFile
+    if Config is empty put json `{}` into Config else put json Config into Config
+!    log `Config: ` cat Config
+    if Config does not have property `host-ssid`
+    begin
+        clear RBRFlag
+        gosub to GetAccessPoints
+        put `Select the home router for this system` into Prompt
+        gosub to SelectSSIDFromList
+        if Config does not have property `host-password` gosub to GetHostPassword
+        set property `host-password` of Config to ReturnValue
+    end
+    put `Checking current SSID...` into StatusMessage
+    gosub to Working
+    put trim system `LANG=C nmcli -t -f active,ssid dev wifi | grep ^yes | cut -d: -f2-` into SSID
+    if SSID is not property `host-ssid` of Config gosub to ConnectToHost
+    put `Connected to ` cat SSID into StatusMessage
+    gosub to Idle
+
+    if Config has property `systems`
+    begin
+        put property `systems` of Config into Systems
+    end
+    else
+    begin
+        put json `{}` into Systems
+        set property `systems` of Config to Systems
+    end
+
+    gosub to RefreshSystemsCombo
+
+    enable ScanSystemsButton
     stop
 
-ResetConfigFile:
-    log `Reset the configuration file`
-    put json `{}` into Config
-    stop
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Event handlers
+ResetConfigFileClick:
+    delete file ConfigFile
+    disable ScanSystemsButton
+    go to Start
 
-ScanNetwork:
-    log `Scan the network`
-    stop
-
-SelectMaster:
+SelectMasterClick:
     log `Select the master device`
     stop
 
-SelectSlave:
+SelectSlaveClick:
     log `Select a slave device`
     stop
 
-UpdateSlave:
+UpdateSlaveClick:
     log `Update the files om the selected device`
     stop
 
-DeleteFile:
+DeleteFileClick:
     log `Delete a file on the selected device`
     stop
 
-DeleteSlave:
+DeleteSlaveClick:
     log `Delete the selected slave device`
     stop
 
-Exit:
+ExitClick:
     log `Exit the configurator`
+    save stringify Config to ConfigFile
     close Window
     exit
 
-ScanSystems:
+ScanSystemsClick:
     log `Scan systems`
-    if Config does not have property `host-ssid`
-    begin
-        put `Enter host SSID` into Title
-        gosub to GetRequestedText
-        if Result is `OK` set property `host-ssid` of Config to ReturnValue
-        if Config does not have property `host-password`
-        begin
-            put `Enter host password` into Title
-            gosub to GetRequestedText
-            if Result is `OK` set property `host-password` of Config to ReturnValue
-        end
-    end
-    log Config
-!    create Dialog title `Select a system`
-!    show Layout in Dialog
-    stop
+    gosub to ScanSystems
 
-RemoveSystem:
+RefreshSystemsCombo:
+    clear SystemsCombo
+    put the keys of Systems into Keys
+    put 0 into N
+    while N is less than the count of Keys
+    begin
+        put element N of Keys into Name
+        add Name to SystemsCombo
+        enable RemoveSystemButton
+        increment N
+    end
+    return
+
+RemoveSystemClick:
     put SystemsCombo into Name
     log `Remove ` cat Name cat `?`
     create MessageBox on Window
@@ -312,29 +341,44 @@ RemoveSystem:
         title `Remove system`
         message `Are you sure you want to remove ` cat Name cat `?`
     show MessageBox giving Value
-    if Value is `Yes` remove current item from SystemsCombo
+    if Value is `Yes`
+    begin
+        remove current item from SystemsCombo
+        delete property Name of Systems
+        set property `systems` of Config to Systems
+    end
     if the count of SystemsCombo is 0 disable RemoveSystemButton
     stop
 
-SaveHostInfo:
+SaveHostInfoClick:
     log `Save the host information`
     stop
 
-SaveWidgetData:
+SaveWidgetDataClick:
     log `Save the widget data`
     stop
 
-RelayOff:
+RelayOffClick:
     log `Turn the relay OFF`
     stop
 
-RelayOn:
+RelayOnClick:
     log `Turn the relay ON`
     stop
 
-!   Get requested text
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Subroutines
+
+GetHostPassword:
+    log `Get the host password`
+    put `Type the host password:` into Prompt
+    put `Host password` into Title
+    go to GetRequestedText
+
 GetRequestedText:
     create VLayout type QVBoxLayout
+    create Label text Prompt align centre
+    add label to VLayout
     create HLayout type QHBoxLayout
     add HLayout to VLayout
     create LineInput size 40
@@ -363,16 +407,144 @@ GetRequestedText:
     show Dialog
     stop
 
-SelectSystemFromList:
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Select an SSID from the list
+SelectSSIDFromList:
     create Layout type QVBoxLayout
+    create Label text Prompt align center
+    add Label to Layout
+    create ListBox
+    put 0 into N
+    while N is less than the count of List
+    begin
+        add element N of List to ListBox
+        increment N
+    end
+    add ListBox to Layout
+    on select in ListBox put the current item in ListBox into Item
     create SelectHostButton text `Select`
     on click SelectHostButton
     begin
-        log `Select Host SSID`
+        set property `host-ssid` of Config to Item
+        put Item cat ` Selected ` into StatusMessage
+        gosub to Idle
         close Dialog
+        return
     end
     add stretch to Layout
     add SelectHostButton to Layout
-    create Dialog title `Host SSID` layout Layout
+    create Dialog title `Host SSID` layout Layout size 250 200
+    center Dialog on Window
     show Dialog
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Scan the network for access points
+GetAccessPoints:
+    log `Scanning the local network...`
+    put `Scanning the local network...` into StatusMessage
+    gosub to Working
+    put system `nmcli device wifi list` into Result
+!    log Result
+    gosub to OK
+    split Result
+    put json `[]` into List
+    put 1 into N
+    while N is less than the elements of Result
+    begin
+        index Result to N
+        put Result into SSID
+        if left 1 of SSID is `*` begin end
+        else
+        begin
+            put trim SSID into SSID
+            put the position of ` ` in SSID into P
+            put from P of SSID into SSID
+            put trim SSID into SSID
+            put the position of ` ` in SSID into P
+            put left P of SSID into SSID
+            if SSID is empty go to SN2
+            if left 1 of SSID is `-` go to SN2
+            if RBRFlag
+            begin
+                if left 7 of SSID is `RBR-Now`
+                begin
+                    append SSID to List
+                end
+            end
+            else append SSID to List
+        end
+    SN2:
+        increment N
+    end
+    log `SSIDs: ` cat List
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Connect to the host router
+ConnectToHost:
+    put property `host-ssid` of Config into SSID
+    put property `host-password` of Config into Password
+    put `Connecting to ` cat SSID cat ` with password ` cat Password into StatusMessage
+    log StatusMessage
+    gosub to Working
+    put system `nmcli dev wifi connect ` cat SSID cat ` password ` cat Password into SystemCallResult
+    split SystemCallResult on ` `
+    index SystemCallResult to 2
+    if SystemCallResult is `successfully` go to OK
+    put `Failed to connect to ` cat SSID into StatusMessage
+    gosub to Idle
+    log StatusMessage
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Scan the network for RBR system controllers
+ScanSystems:
+    put trim system `hostname -I` into MyIPAddr
+!    log MyIPAddr
+    put the position of the last `.` in MyIPAddr into P
+    increment P
+    put left P of MyIPAddr into Value
+    put json `[]` into List
+    put 230 into N
+    while N is less than 255
+    begin
+        put Value cat N into IPAddr
+        put `Scanning ` cat IPAddr into StatusMessage
+        gosub to Working
+        get Result from url `http://` cat IPAddr cat `:17348/cgi-bin/mac.py` timeout 1 or go to SS2
+        put trim Result into Result
+        put the position of ` ` in Result into P
+        put left P of Result into MAC
+        increment P
+        put from P of Result into Result
+        put the position of ` ` in Result into P
+        put left P of Result into Password
+        increment P
+        put from P of Result into Name
+        put json `{}` into Item
+        set property `ipaddr` of Item to IPAddr
+        set property `mac` of Item to MAC
+        set property `password` of Item to Password
+        set property Name of Systems to Item
+        append IPAddr to List
+    SS2:
+        wait 10 ticks
+        increment N
+    end
+    set property `systems` of Config to Systems
+    go to OK
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   The Status box at the bottom of the screen
+OK:
+    put `OK` into StatusMessage
+
+Idle:
+    set the text of StatusLabel to `<font color="#008000">` cat StatusMessage cat `</font>`
+    return
+
+Working:
+    set the text of StatusLabel to `<font color="#ff8000">` cat StatusMessage cat `</font>`
+    wait 50 ticks
     return

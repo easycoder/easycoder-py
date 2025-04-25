@@ -85,28 +85,30 @@ class Graphics(Handler):
 
         # Here it's either (1) or (2)
         elif self.isSymbol():
-            if self.peek() == 'to':
-                # (2)
-                record = self.getSymbolRecord()
-                command['widget'] = record['name']
-                self.nextToken()
-                return addToLayout()
-        else:
-            # (1)
-            command['value'] = self.getValue()
-            if self.nextIs('to'):
-                if self.nextIsSymbol():
+            record = self.getSymbolRecord()
+            if record['extra'] == 'gui':
+                if self.peek() == 'to':
+                    # (2)
                     record = self.getSymbolRecord()
                     command['widget'] = record['name']
-                    self.add(command)
-                    return True
+                    self.nextToken()
+                    return addToLayout()
+                return False
+        # (1)
+        command['value'] = self.getValue()
+        self.skip('to')
+        if self.nextIsSymbol():
+            record = self.getSymbolRecord()
+            command['widget'] = record['name']
+            self.add(command)
+            return True
         return False
     
     def r_add(self, command):
         if 'value' in command:
             value = self.getRuntimeValue(command['value'])
             widget = self.getVariable(command['widget'])
-            if widget['keyword'] == 'combobox':
+            if widget['keyword'] in ['listbox', 'combobox']:
                 widget['widget'].addItem(value)
         else:
             layoutRecord = self.getVariable(command['layout'])
@@ -140,13 +142,13 @@ class Graphics(Handler):
             record = self.getSymbolRecord()
             if record['keyword'] == 'window':
                 command['window2'] = record['name']
-                if self.nextIs('on'):
-                    if self.nextIsSymbol():
-                        record = self.getSymbolRecord()
-                        if record['keyword'] == 'window':
-                            command['window1'] = record['name']
-                            self.add(command)
-                            return True
+                self.skip('on')
+                if self.nextIsSymbol():
+                    record = self.getSymbolRecord()
+                    if record['keyword'] == 'window':
+                        command['window1'] = record['name']
+                        self.add(command)
+                        return True
         return False
     
     def r_center(self, command):
@@ -160,12 +162,23 @@ class Graphics(Handler):
 
     # Declare a checkbox variable
     def k_checkbox(self, command):
-        return self.compileVariable(command, False)
+        return self.compileVariable(command, False, 'gui')
 
     def r_checkbox(self, command):
         return self.nextPC()
 
-    # Close a window
+    # clear {widget}
+    def k_clear(self, command):
+        if self.nextIsSymbol():
+            command['name'] = self.getSymbolRecord()['name']
+            self.add(command)
+            return True
+        return False
+    
+    def r_clear(self, command):
+        self.getVariable(command['name'])['widget'].clear()
+        return self.nextPC()
+
     # close {window}
     def k_close(self, command):
         if self.nextIsSymbol():
@@ -182,7 +195,7 @@ class Graphics(Handler):
 
     # Declare a combobox variable
     def k_combobox(self, command):
-        return self.compileVariable(command, False)
+        return self.compileVariable(command, False, 'gui')
 
     def r_combobox(self, command):
         return self.nextPC()
@@ -221,11 +234,10 @@ class Graphics(Handler):
 
     # Create a widget
     def k_createLayout(self, command):
-        if self.nextIs('type'):
-            command['type'] = self.nextToken()
-            self.add(command)
-            return True
-        return False
+        self.skip('type')
+        command['type'] = self.nextToken()
+        self.add(command)
+        return True
 
     def k_createGroupBox(self, command):
         if self.peek() == 'title':
@@ -237,7 +249,7 @@ class Graphics(Handler):
         return True
 
     def k_createLabel(self, command):
-        text = ''
+        text = self.compileConstant('')
         while True:
             token = self.peek()
             if token == 'text':
@@ -246,6 +258,11 @@ class Graphics(Handler):
             elif token == 'size':
                 self.nextToken()
                 command['size'] = self.nextValue()
+            elif token == 'align':
+                self.nextToken()
+                token = self.nextToken()
+                if token in ['left', 'right', 'center', 'centre', 'justify']:
+                    command['align'] = token
             else: break
         command['text'] = text
         self.add(command)
@@ -397,6 +414,12 @@ class Graphics(Handler):
             c = label.contentsMargins()
             w = fm.horizontalAdvance('m') * self.getRuntimeValue(command['size']) +c.left()+c.right()
             label.setMaximumWidth(w)
+        if 'align' in command:
+            alignment = command['align']
+            if alignment == 'left': label.setAlignment(Qt.AlignLeft)
+            elif alignment == 'right': label.setAlignment(Qt.AlignRight)
+            elif alignment in ['center', 'centre']: label.setAlignment(Qt.AlignHCenter)
+            elif alignment == 'justify': label.setAlignment(Qt.AlignJustify)
         record['widget'] = label
         return self.nextPC()
     
@@ -504,7 +527,7 @@ class Graphics(Handler):
 
     # Create a group box
     def k_groupbox(self, command):
-        return self.compileVariable(command, False)
+        return self.compileVariable(command, False, 'gui')
 
     def r_groupbox(self, command):
         return self.nextPC()
@@ -526,28 +549,28 @@ class Graphics(Handler):
 
     # Declare a label variable
     def k_label(self, command):
-        return self.compileVariable(command, False)
+        return self.compileVariable(command, False, 'gui')
 
     def r_label(self, command):
         return self.nextPC()
 
     # Declare a layout variable
     def k_layout(self, command):
-        return self.compileVariable(command, False)
+        return self.compileVariable(command, False, 'gui')
 
     def r_layout(self, command):
         return self.nextPC()
 
     # Declare a line input variable
     def k_lineinput(self, command):
-        return self.compileVariable(command, False)
+        return self.compileVariable(command, False, 'gui')
 
     def r_lineinput(self, command):
         return self.nextPC()
 
     # Declare a listbox input variable
     def k_listbox(self, command):
-        return self.compileVariable(command, False)
+        return self.compileVariable(command, False, 'gui')
 
     def r_listbox(self, command):
         return self.nextPC()
@@ -561,61 +584,78 @@ class Graphics(Handler):
 
     # Handle events
     def k_on(self, command):
-        if self.nextIs('click'):
+        def setupOn():
+            command['name'] = record['name']
+            command['goto'] = self.getPC() + 2
+            self.add(command)
+            self.nextToken()
+            # Step over the click handler
+            pcNext = self.getPC()
+            cmd = {}
+            cmd['domain'] = 'core'
+            cmd['lino'] = command['lino']
+            cmd['keyword'] = 'gotoPC'
+            cmd['goto'] = 0
+            cmd['debug'] = False
+            self.addCommand(cmd)
+            # This is the click handler
+            self.compileOne()
+            cmd = {}
+            cmd['domain'] = 'core'
+            cmd['lino'] = command['lino']
+            cmd['keyword'] = 'stop'
+            cmd['debug'] = False
+            self.addCommand(cmd)
+            # Fixup the link
+            self.getCommandAt(pcNext)['goto'] = self.getPC()
+
+        token = self.nextToken()
+        if token == 'click':
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
                 if record['keyword'] == 'pushbutton':
-                    command['name'] = record['name']
-                    command['goto'] = self.getPC() + 2
-                    self.add(command)
-                    self.nextToken()
-                    # Step over the click handler
-                    pcNext = self.getPC()
-                    cmd = {}
-                    cmd['domain'] = 'core'
-                    cmd['lino'] = command['lino']
-                    cmd['keyword'] = 'gotoPC'
-                    cmd['goto'] = 0
-                    cmd['debug'] = False
-                    self.addCommand(cmd)
-                    # This is the click handler
-                    self.compileOne()
-                    cmd = {}
-                    cmd['domain'] = 'core'
-                    cmd['lino'] = command['lino']
-                    cmd['keyword'] = 'stop'
-                    cmd['debug'] = False
-                    self.addCommand(cmd)
-                    # Fixup the link
-                    self.getCommandAt(pcNext)['goto'] = self.getPC()
+                    setupOn()
+                    return True
+        elif token == 'select':
+            self.skip('in')
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                if record['keyword'] == 'listbox':
+                    setupOn()
                     return True
         return False
     
     def r_on(self, command):
-        pushbutton = self.getVariable(command['name'])['widget']
-        pushbutton.clicked.connect(lambda: self.run(command['goto']))
+        record = self.getVariable(command['name'])
+        widget = record['widget']
+        keyword = record['keyword']
+        if keyword == 'pushbutton':
+            widget.clicked.connect(lambda: self.run(command['goto']))
+        if keyword == 'listbox':
+            widget.itemClicked.connect(lambda: self.run(command['goto']))
         return self.nextPC()
 
     # Declare a pushbutton variable
     def k_pushbutton(self, command):
-        return self.compileVariable(command, False)
+        return self.compileVariable(command, False, 'gui')
 
     def r_pushbutton(self, command):
         return self.nextPC()
 
-    # remove current item from {combobox}
+    # remove [the] [current] [item] [from] {combobox}
     def k_remove(self, command):
         command['variant'] = None
-        if self.nextIs('current'):
-            if self.nextIs('item'):
-                if self.nextIs('from'):
-                    if self.nextIsSymbol():
-                        record = self.getSymbolRecord()
-                        if record['keyword'] == 'combobox':
-                            command['variant'] = 'current'
-                            command['name'] = record['name']
-                            self.addCommand(command)
-                            return True
+        self.skip('the')
+        self.skip('current')
+        self.skip('item')
+        self.skip('from')
+        if self.nextIsSymbol():
+            record = self.getSymbolRecord()
+            if record['keyword'] == 'combobox':
+                command['variant'] = 'current'
+                command['name'] = record['name']
+                self.addCommand(command)
+                return True
         return False
         
     def r_remove(self, command):
@@ -626,33 +666,43 @@ class Graphics(Handler):
             widget.removeItem(widget.currentIndex())
         return self.nextPC()
 
-    # This is called every 10ms to keep the main application running
-    def flush(self):
-        self.program.flushCB()
-
-    # Set something
+    # set [the] height [of] {groupbox} [to] {height}
+    # set [the] text [of] {label}/{button} [to] {text}
     def k_set(self, command):
+        self.skip('the')
         token = self.nextToken()
-        if token == 'the': token = self.nextToken()
+        command['what'] = token
         if token == 'height':
-            command['property'] = token
-            if self.nextToken() == 'of':
-                if self.nextIsSymbol():
-                    record = self.getSymbolRecord()
-                    keyword = record['keyword']
-                    if keyword == 'groupbox':
-                        command['name'] = record['name']
-                        if self.nextIs('to'):
-                            command['value'] = self.nextValue()
-                            self.add(command)
-                            return True
+            self.skip('of')
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                keyword = record['keyword']
+                if keyword == 'groupbox':
+                    command['name'] = record['name']
+                    self.skip('to')
+                    command['value'] = self.nextValue()
+                    self.add(command)
+                    return True
+        elif token == 'text':
+            self.skip('of')
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                if record['keyword'] in ['label', 'pushbutton']:
+                    command['name'] = record['name']
+                    self.skip('to')
+                    command['value'] = self.nextValue()
+                    self.add(command)
+                    return True
         return False
     
     def r_set(self, command):
-        property = command['property']
-        if property == 'height':
+        what = command['what']
+        if what == 'height':
             groupbox = self.getVariable(command['name'])['widget']
             groupbox.setFixedHeight(self.getRuntimeValue(command['value']))
+        elif what == 'text':
+            widget = self.getVariable(command['name'])['widget']
+            widget.setText(self.getRuntimeValue(command['value']))
         return self.nextPC()
 
     # show {window}
@@ -672,11 +722,11 @@ class Graphics(Handler):
                 return True
             elif keyword == 'messagebox':
                 command['messagebox'] = record['name']
-                if self.nextIs('giving'):
-                    if self.nextIsSymbol():
-                        command['result'] = self.getSymbolRecord()['name']
-                        self.add(command)
-                        return True
+                self.skip('giving')
+                if self.nextIsSymbol():
+                    command['result'] = self.getSymbolRecord()['name']
+                    self.add(command)
+                    return True
         return False
         
     def r_show(self, command):
@@ -721,8 +771,10 @@ class Graphics(Handler):
             self.program.kill()
         def resume():
             self.program.flush(self.nextPC())
+        def flush():
+            self.program.flushCB()
         timer = QTimer()
-        timer.timeout.connect(self.flush)
+        timer.timeout.connect(flush)
         timer.start(10)
         QTimer.singleShot(500, resume)
         self.app.lastWindowClosed.connect(on_last_window_closed)
@@ -751,15 +803,27 @@ class Graphics(Handler):
         token = self.getToken()
 
         if token == 'count':
-            if self.nextIs('of'):
-                if self.nextIsSymbol():
-                    value['type'] = 'symbol'
-                    record = self.getSymbolRecord()
-                    keyword = record['keyword']
-                    if keyword == 'combobox':
-                        value['type'] = 'count'
-                        value['name'] = record['name']
-                        return value
+            self.skip('of')
+            if self.nextIsSymbol():
+                value['type'] = 'symbol'
+                record = self.getSymbolRecord()
+                keyword = record['keyword']
+                if keyword == 'combobox':
+                    value['type'] = 'count'
+                    value['name'] = record['name']
+                    return value
+        
+        if token == 'current':
+            self.skip('item')
+            self.skip('in')
+            if self.nextIsSymbol():
+                value['type'] = 'symbol'
+                record = self.getSymbolRecord()
+                keyword = record['keyword']
+                if keyword == 'listbox':
+                    value['type'] = 'current'
+                    value['name'] = record['name']
+                    return value
 
         return None
 
@@ -796,6 +860,16 @@ class Graphics(Handler):
         if keyword == 'combobox': content = widget.count()
         value = {}
         value['type'] = 'int'
+        value['content'] = content
+        return value
+
+    def v_current(self, v):
+        record = self.getVariable(v['name'])
+        keyword = record['keyword']
+        widget = record['widget']
+        if keyword == 'listbox': content = widget.currentItem().text()
+        value = {}
+        value['type'] = 'text'
         value['content'] = content
         return value
 

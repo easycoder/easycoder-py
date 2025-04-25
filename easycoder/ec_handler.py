@@ -7,6 +7,7 @@ class Handler:
 		self.program = compiler.program
 		self.getToken = compiler.getToken
 		self.nextToken = compiler.nextToken
+		self.skip = compiler.skip
 		self.peek = compiler.peek
 		self.getValue = compiler.getValue
 		self.nextValue = compiler.nextValue
