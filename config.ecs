@@ -105,6 +105,7 @@
     create Layout type QHBoxLayout
     add Layout to Group
     create SystemsCombo
+    on select SystemsCombo go to SystemsComboSelect
     add stretch SystemsCombo to Layout
     create ScanSystemsButton text `Scan`
     disable ScanSystemsButton
@@ -133,7 +134,7 @@
     create SlaveList
     add SlaveList to Layout
 
-    ! Create the Selected Devices group
+    ! Create the Selected Device group
     create Group title `Selected device`
     set the height of Group to 150
     add Group to RightPanel
@@ -209,7 +210,7 @@
 
     add stretch to RightPanel
 
-    create StatusLabel
+    create StatusLabel align right
     gosub to OK 
     add StatusLabel to RightPanel
 
@@ -235,23 +236,36 @@
     variable IPAddr
     variable MyIPAddr
     variable Prompt
+    variable SystemConfig
     variable SystemCallResult
     variable StatusMessage
     variable Systems
+    variable System
+    variable Devices
+    variable Device
+    variable MasterDevice
+    variable MasterSSID
+    variable MasterIPAddr
+    variable SlaveDevices
     variable RBRFlag
     variable Keys
+    variable D
     variable N
     variable P
+    variable S
 
 !    debug step
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   The main program starts here
 Start:
+
+!   Load the main config file or create one if there is none
     put trim system `echo $HOME` cat `/.rbr.conf` into ConfigFile
     load Config from ConfigFile
     if Config is empty put json `{}` into Config else put json Config into Config
-!    log `Config: ` cat Config
+
+!   Look for the host SSID and password. If they're not found, scan for them
     if Config does not have property `host-ssid`
     begin
         clear RBRFlag
@@ -261,6 +275,8 @@ Start:
         if Config does not have property `host-password` gosub to GetHostPassword
         set property `host-password` of Config to ReturnValue
     end
+
+!   Check we're on the right AP. If not, connect to it
     put `Checking current SSID...` into StatusMessage
     gosub to Working
     put trim system `LANG=C nmcli -t -f active,ssid dev wifi | grep ^yes | cut -d: -f2-` into SSID
@@ -268,17 +284,35 @@ Start:
     put `Connected to ` cat SSID into StatusMessage
     gosub to Idle
 
-    if Config has property `systems`
-    begin
-        put property `systems` of Config into Systems
-    end
+!   Get the list of systems, or create an empty list. Then populate the combo box
+    if Config has property `systems` put property `systems` of Config into Systems
     else
     begin
         put json `{}` into Systems
         set property `systems` of Config to Systems
     end
-
     gosub to RefreshSystemsCombo
+
+!   Read config data for each of the systems
+    gosub to GetConfigData
+
+!   Select the current system
+    if Config has property `current` put property `current` of Config into Name
+    else
+    begin
+        if the count of SystemsCombo is 0 put empty into Name
+        else
+        begin
+            put the keys of Systems into Keys
+            put element 0 of Keys into Name
+        end
+        set property `current` of Config to Name
+    end
+    if Name is not empty
+    begin
+        select Name in SystemsCombo
+        gosub to SetupSystem
+    end
 
     enable ScanSystemsButton
     stop
@@ -319,19 +353,13 @@ ExitClick:
 ScanSystemsClick:
     log `Scan systems`
     gosub to ScanSystems
+    gosub to RefreshSystemsCombo
+    gosub to GetConfigData
+    stop
 
-RefreshSystemsCombo:
-    clear SystemsCombo
-    put the keys of Systems into Keys
-    put 0 into N
-    while N is less than the count of Keys
-    begin
-        put element N of Keys into Name
-        add Name to SystemsCombo
-        enable RemoveSystemButton
-        increment N
-    end
-    return
+SystemsComboSelect:
+    set property `current` of Config to SystemsCombo
+    stop
 
 RemoveSystemClick:
     put SystemsCombo into Name
@@ -421,7 +449,7 @@ SelectSSIDFromList:
         increment N
     end
     add ListBox to Layout
-    on select in ListBox put the current item in ListBox into Item
+    on select ListBox put the current item in ListBox into Item
     create SelectHostButton text `Select`
     on click SelectHostButton
     begin
@@ -477,7 +505,7 @@ GetAccessPoints:
     SN2:
         increment N
     end
-    log `SSIDs: ` cat List
+!    log `SSIDs: ` cat List
     return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -506,7 +534,7 @@ ScanSystems:
     increment P
     put left P of MyIPAddr into Value
     put json `[]` into List
-    put 230 into N
+    put 1 into N
     while N is less than 255
     begin
         put Value cat N into IPAddr
@@ -536,6 +564,73 @@ ScanSystems:
     go to OK
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Get the config data for each of the systems
+GetConfigData:
+    put the keys of Systems into Keys
+    put 0 into S
+    while S is less than the count of Keys
+    begin
+        put element S of Keys into Name
+        put property Name of Systems into SystemConfig
+        put property `mac` of SystemConfig into MAC
+        put property `password` of SystemConfig into Password
+        get Value from url `https://rbrheating.com/ui/resources/php/rest.php/config/`
+            cat MAC cat `/` cat Password
+        or log `Can't read the config file for ` cat Name
+!        log Value cat newline
+        put json Value into Value
+        set property `devices` of SystemConfig to property `devices` of Value
+        set property Name of Systems to SystemConfig
+        increment S
+    end
+    set property `systems` of Config to Systems
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Refresh the systems combobox
+RefreshSystemsCombo:
+    clear SystemsCombo
+    put the keys of Systems into Keys
+    put 0 into S
+    while S is less than the count of Keys
+    begin
+        put element S of Keys into Name
+        add Name to SystemsCombo
+        enable RemoveSystemButton
+        increment S
+    end
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Set up the system, given its name
+SetupSystem:
+    put property Name of Systems into System
+    put property `devices` of System into Devices
+    put the keys of Devices into Keys
+    put empty into MasterDevice
+    put json `[]` into SlaveDevices
+    put 0 into D
+    while D is less than the count of Keys
+    begin
+        put element D of Keys into Name
+        put property Name of Devices into Device
+        if property `master` of Device
+        begin
+            put Device into MasterDevice
+            put property `ssid` of MasterDevice into MasterSSID
+            put property `ipaddr` of MasterDevice into MasterIPAddr
+            set the text of MasterDeviceLabel to MasterSSID cat ` ` cat Name cat ` ` cat MasterIPAddr
+        end
+        else
+        begin
+            append Name to SlaveDevices
+            add Name to SlaveList
+        end
+        increment D
+    end
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   The Status box at the bottom of the screen
 OK:
     put `OK` into StatusMessage
@@ -545,6 +640,6 @@ Idle:
     return
 
 Working:
-    set the text of StatusLabel to `<font color="#ff8000">` cat StatusMessage cat `</font>`
+    set the text of StatusLabel to `<font color="#aa4000">` cat StatusMessage cat `</font>`
     wait 50 ticks
     return

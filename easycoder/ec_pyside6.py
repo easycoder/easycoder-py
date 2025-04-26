@@ -582,7 +582,8 @@ class Graphics(Handler):
     def r_messagebox(self, command):
         return self.nextPC()
 
-    # Handle events
+    # on click {pushbutton}
+    # on select {combobox}/{listbox}
     def k_on(self, command):
         def setupOn():
             command['name'] = record['name']
@@ -617,10 +618,9 @@ class Graphics(Handler):
                     setupOn()
                     return True
         elif token == 'select':
-            self.skip('in')
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                if record['keyword'] == 'listbox':
+                if record['keyword'] in ['combobox', 'listbox']:
                     setupOn()
                     return True
         return False
@@ -631,7 +631,9 @@ class Graphics(Handler):
         keyword = record['keyword']
         if keyword == 'pushbutton':
             widget.clicked.connect(lambda: self.run(command['goto']))
-        if keyword == 'listbox':
+        elif keyword == 'combobox':
+            widget.currentIndexChanged.connect(lambda: self.run(command['goto']))
+        elif keyword == 'listbox':
             widget.itemClicked.connect(lambda: self.run(command['goto']))
         return self.nextPC()
 
@@ -664,6 +666,26 @@ class Graphics(Handler):
         if record['keyword'] == 'combobox' and variant == 'current':
             widget = record['widget']
             widget.removeItem(widget.currentIndex())
+        return self.nextPC()
+
+    # select {item} [in] {combobox}
+    def k_select(self, command):
+        command['item'] = self.nextValue()
+        self.skip('in')
+        if self.nextIsSymbol():
+            record = self.getSymbolRecord()
+            if record['keyword'] == 'combobox':
+                command['name'] = record['name']
+                self.add(command)
+                return True
+        return False
+    
+    def r_select(self, command):
+        item = self.getRuntimeValue(command['item'])
+        widget = self.getVariable(command['name'])['widget']
+        index = widget.findText(item, Qt.MatchFixedString)
+        if index >= 0:
+            widget.setCurrentIndex(index)
         return self.nextPC()
 
     # set [the] height [of] {groupbox} [to] {height}
@@ -767,7 +789,7 @@ class Graphics(Handler):
         
     def r_start(self, command):
         def on_last_window_closed():
-            print("Performing cleanup...")
+            print("Kill the appication...")
             self.program.kill()
         def resume():
             self.program.flush(self.nextPC())
