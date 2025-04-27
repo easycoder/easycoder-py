@@ -168,7 +168,7 @@ class Compiler:
 					self.rewindTo(mark)
 			else:
 				self.rewindTo(mark)
-		FatalError(self, f'Unable to compile "{token}" (in this context)')
+		FatalError(self, f'Unable to compile this "{token}" command. Perhaps a syntax error?')
 
 	# Compile a single command
 	def compileOne(self):

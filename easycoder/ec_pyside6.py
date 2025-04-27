@@ -424,7 +424,9 @@ class Graphics(Handler):
         return self.nextPC()
     
     def r_createPushbutton(self, command, record):
-        pushbutton = QPushButton(self.getRuntimeValue(command['text']))
+        text = self.getRuntimeValue(command['text'])
+        pushbutton = QPushButton(text)
+        pushbutton.setAccessibleName(text)
         if 'size' in command:
             fm = pushbutton.fontMetrics()
             c = pushbutton.contentsMargins()
@@ -689,7 +691,7 @@ class Graphics(Handler):
         return self.nextPC()
 
     # set [the] height [of] {groupbox} [to] {height}
-    # set [the] text [of] {label}/{button} [to] {text}
+    # set [the] text [of] {label}/{button}/{lineinput} [to] {text}
     def k_set(self, command):
         self.skip('the')
         token = self.nextToken()
@@ -709,7 +711,7 @@ class Graphics(Handler):
             self.skip('of')
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                if record['keyword'] in ['label', 'pushbutton']:
+                if record['keyword'] in ['label', 'pushbutton', 'lineinput']:
                     command['name'] = record['name']
                     self.skip('to')
                     command['value'] = self.nextValue()
@@ -723,8 +725,12 @@ class Graphics(Handler):
             groupbox = self.getVariable(command['name'])['widget']
             groupbox.setFixedHeight(self.getRuntimeValue(command['value']))
         elif what == 'text':
+            record = self.getVariable(command['name'])
             widget = self.getVariable(command['name'])['widget']
-            widget.setText(self.getRuntimeValue(command['value']))
+            text = self.getRuntimeValue(command['value'])
+            widget.setText(text)
+            if record['keyword'] == 'pushbutton':
+                widget.setAccessibleName(text)
         return self.nextPC()
 
     # show {window}
@@ -861,7 +867,13 @@ class Graphics(Handler):
     def v_symbol(self, symbolRecord):
         symbolRecord = self.getVariable(symbolRecord['name'])
         keyword = symbolRecord['keyword']
-        if keyword == 'lineinput':
+        if keyword == 'pushbutton':
+            pushbutton = symbolRecord['widget']
+            v = {}
+            v['type'] = 'text'
+            v['content'] = pushbutton.accessibleName()
+            return v
+        elif keyword == 'lineinput':
             lineinput = symbolRecord['widget']
             v = {}
             v['type'] = 'text'
@@ -872,6 +884,13 @@ class Graphics(Handler):
             v = {}
             v['type'] = 'text'
             v['content'] = combobox.currentText()
+            return v
+        elif keyword == 'listbox':
+            listbox = symbolRecord['widget']
+            content = listbox.currentItem().text()
+            v = {}
+            v['type'] = 'text'
+            v['content'] = content
             return v
         return None
 
