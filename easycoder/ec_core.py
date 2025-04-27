@@ -1603,7 +1603,7 @@ class Core(Handler):
 
     def k_use(self, command):
         if self.nextIs('graphics'):
-            from .ec_pyside6 import Graphics
+            from .ec_pyside import Graphics
             self.program.classes.append(Graphics)
             self.program.processClasses()
             return True
