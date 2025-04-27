@@ -31,7 +31,6 @@
     pushbutton RelayOffButton
     pushbutton RelayOnButton
     pushbutton SaveWidgetDataButton
-    pushbutton SelectHostButton
     pushbutton OKButton
     pushbutton CancelButton
     lineinput LineInput
@@ -67,7 +66,7 @@
     add ClearSystemButton to LeftPanel
 
     create ScanDevicesButton text `Scan for devices`
-    on click ScanDevicesButton go to ScanNetworkClick
+    on click ScanDevicesButton go to ScanForDevicesClick
     add ScanDevicesButton to LeftPanel
 
     create UpdateDeviceButton text `Update device`
@@ -275,8 +274,11 @@ Start:
     begin
         clear RBRFlag
         gosub to GetAccessPoints
+        put `Select SSID` into Title
         put `Select the home router for this system` into Prompt
         gosub to SelectSSIDFromList
+        if Item is empty go to Start
+        set property `host-ssid` of Config to Item
         if Config does not have property `host-password` gosub to GetHostPassword
         set property `host-password` of Config to ReturnValue
     end
@@ -372,8 +374,37 @@ ClearSystemClick:
     end
     stop
 
-ScanNetworkClick:
-    log `Scan the network for new devices`
+ScanForDevicesClick:
+    put system `nmcli device wifi list` into SystemCallResult
+    log SystemCallResult
+    split SystemCallResult
+    put json `[]` into List
+    put 1 into N
+    while N is less than the elements of SystemCallResult
+    begin
+        index SystemCallResult to N
+        put SystemCallResult into SSID
+        if left 1 of SSID is `*` begin end
+        else
+        begin
+            put trim SSID into SSID
+            put the position of ` ` in SSID into P
+            put from P of SSID into SSID
+            put trim SSID into SSID
+            put the position of ` ` in SSID into P
+            put left P of SSID into SSID
+            if left 7 of SSID is `RBR-Now`
+            begin
+                append SSID to List
+            end
+        end
+        increment N
+    end
+!    log `SSIDs: ` cat List
+    put `Select Device` into Title
+    put `Select the new device` into Prompt
+    gosub to SelectSSIDFromList
+    log `Selected ` cat Item
     stop
 
 MasterDeviceClick:
@@ -514,20 +545,27 @@ SelectSSIDFromList:
         add element N of List to ListBox
         increment N
     end
-    add ListBox to Layout
-    on select ListBox put the current item in ListBox into Item
-    create SelectHostButton text `Select`
-    on click SelectHostButton
+    on select ListBox
     begin
-        set property `host-ssid` of Config to Item
+        put the current item in ListBox into Item
         put Item cat ` Selected ` into StatusMessage
         gosub to Idle
         close Dialog
         return
     end
+    add ListBox to Layout
     add stretch to Layout
-    add SelectHostButton to Layout
-    create Dialog title `Host SSID` layout Layout size 250 200
+    create HLayout type QHBoxLayout
+    create CancelButton text `Cancel`
+    on click CancelButton
+    begin
+        put empty into Item
+        close Dialog
+        return
+    end
+    add CancelButton to HLayout
+    add HLayout to Layout
+    create Dialog title Title layout Layout size 250 200
     center Dialog on Window
     show Dialog
     stop
@@ -584,8 +622,11 @@ ConnectToHost:
     gosub to Working
     put system `nmcli dev wifi connect ` cat SSID cat ` password ` cat Password into SystemCallResult
     split SystemCallResult on ` `
-    index SystemCallResult to 2
-    if SystemCallResult is `successfully` go to OK
+    if the elements of SystemCallResult is greater than 2
+    begin
+        index SystemCallResult to 2
+        if SystemCallResult is `successfully` go to OK
+    end
     put `Failed to connect to ` cat SSID into StatusMessage
     gosub to Idle
     log StatusMessage
