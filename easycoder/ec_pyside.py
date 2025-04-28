@@ -692,6 +692,8 @@ class Graphics(Handler):
 
     # set [the] height [of] {groupbox} [to] {height}
     # set [the] text [of] {label}/{button}/{lineinput} [to] {text}
+    # set [the] color [of] {label}/{button}/{lineinput} [to] {color}
+    # set {listbox} to {list}
     def k_set(self, command):
         self.skip('the')
         token = self.nextToken()
@@ -717,6 +719,37 @@ class Graphics(Handler):
                     command['value'] = self.nextValue()
                     self.add(command)
                     return True
+        elif token == 'color':
+            self.skip('of')
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                if record['keyword'] == 'label':
+                    command['name'] = record['name']
+                    self.skip('to')
+                    command['value'] = self.nextValue()
+                    self.add(command)
+                    return True
+        elif token == 'background':
+            self.skip('color')
+            self.skip('of')
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                if record['keyword'] in ['label', 'pushbutton', 'lineinput']:
+                    command['name'] = record['name']
+                    self.skip('to')
+                    command['value'] = self.nextValue()
+                    self.add(command)
+                    return True
+        elif self.isSymbol():
+            record = self.getSymbolRecord()
+            if record['keyword'] == 'listbox':
+                command['what'] = 'listbox'
+                command['name'] = record['name']
+                self.skip('to')
+                if self.nextIsSymbol():
+                    command['value'] = self.getSymbolRecord()['name']
+                    self.add(command)
+                    return True
         return False
     
     def r_set(self, command):
@@ -731,6 +764,18 @@ class Graphics(Handler):
             widget.setText(text)
             if record['keyword'] == 'pushbutton':
                 widget.setAccessibleName(text)
+        elif what == 'color':
+            widget = self.getVariable(command['name'])['widget']
+            color = self.getRuntimeValue(command['value'])
+            widget.setStyleSheet(f"color: {color};")
+        elif what == 'background-color':
+            widget = self.getVariable(command['name'])['widget']
+            bg_color = self.getRuntimeValue(command['value'])
+            widget.setStyleSheet(f"background-color: {bg_color};")
+        elif what == 'listbox':
+            widget = self.getVariable(command['name'])['widget']
+            value = self.getRuntimeValue(command['value'])
+            widget.addItems(value)
         return self.nextPC()
 
     # show {window}
@@ -814,7 +859,7 @@ class Graphics(Handler):
 
     def r_window(self, command):
         return self.nextPC()
-
+    
     #############################################################################
     # Compile a value in this domain
     def compileValue(self):
@@ -922,3 +967,17 @@ class Graphics(Handler):
 
     #############################################################################
     # Condition handlers
+
+
+
+def addIconToLayout(layout, icon_path):
+    """
+    Adds an icon to the specified layout.
+
+    :param layout: The layout to which the icon will be added.
+    :param icon_path: The file path of the icon image.
+    """
+    icon_label = QLabel()
+    pixmap = QPixmap(icon_path)
+    icon_label.setPixmap(pixmap)
+    layout.addWidget(icon_label)

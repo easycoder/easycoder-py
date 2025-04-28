@@ -57,6 +57,9 @@
 
     create LeftPanel type QVBoxLayout
     add LeftPanel to MainPanel
+
+    add stretch to LeftPanel
+
     create ResetConfigButton text `Reset everything`
     on click ResetConfigButton go to ResetConfigFileClick
     add ResetConfigButton to LeftPanel
@@ -64,6 +67,8 @@
     create ClearSystemButton text `Clear the selected system`
     on click ClearSystemButton go to ClearSystemClick
     add ClearSystemButton to LeftPanel
+
+    add stretch to LeftPanel
 
     create ScanDevicesButton text `Scan for devices`
     on click ScanDevicesButton go to ScanForDevicesClick
@@ -226,26 +231,52 @@
     variable Result
     variable List
     variable Item
+    variable HostSSID
+    variable HostPassword
     variable SSID
-    variable Password
     variable MAC
+    variable Password
     variable IPAddr
     variable MyIPAddr
     variable Prompt
     variable SystemConfig
     variable SystemCallResult
+    variable SystemMAC
+    variable SystemPassword
     variable StatusMessage
+    variable Message
+    variable Message2
+    variable Response
     variable Systems
     variable System
     variable Devices
     variable Device
     variable MasterDevice
     variable MasterSSID
+    variable MasterMAC
     variable MasterIPAddr
     variable MasterDeviceName
     variable SlaveDevices
-    variable RBRFlag
+    variable CurrentSSID
+    variable IsMaster
+    variable FileName
+    variable FileSize
+    variable SendFail
+    variable ErrorFlag
+    variable Sequence
+    variable Start
+    variable Finish
+    variable Total
+    variable Segment
+    variable Length
+    variable Path
+    variable Content
+    variable APInfo
+    variable Info
     variable Keys
+    variable URL
+    variable Pins
+    variable Pin
     variable D
     variable N
     variable P
@@ -264,31 +295,22 @@ Start:
     disable UpdateDeviceButton
     disable DeleteFileButton
 
+    set the encoding to `hex`
+
 !   Load the main config file or create one if there is none
     put trim system `echo $HOME` cat `/.rbr.conf` into ConfigFile
     load Config from ConfigFile
     if Config is empty put json `{}` into Config else put json Config into Config
 
 !   Look for the host SSID and password. If they're not found, scan for them
-    if Config does not have property `host-ssid`
-    begin
-        clear RBRFlag
-        gosub to GetAccessPoints
-        put `Select SSID` into Title
-        put `Select the home router for this system` into Prompt
-        gosub to SelectSSIDFromList
-        if Item is empty go to Start
-        set property `host-ssid` of Config to Item
-        if Config does not have property `host-password` gosub to GetHostPassword
-        set property `host-password` of Config to ReturnValue
-    end
+    if Config does not have property `host-ssid` gosub to GetHost
 
 !   Check we're on the right AP. If not, connect to it
     put `Checking current SSID...` into StatusMessage
     gosub to Working
-    put trim system `LANG=C nmcli -t -f active,ssid dev wifi | grep ^yes | cut -d: -f2-` into SSID
-    if SSID is not property `host-ssid` of Config gosub to ConnectToHost
-    put `Connected to ` cat SSID into StatusMessage
+    put trim system `LANG=C nmcli -t -f active,ssid dev wifi | grep ^yes | cut -d: -f2-` into HostSSID
+    if HostSSID is not property `host-ssid` of Config gosub to ConnectToHost
+    put `Connected to ` cat HostSSID into StatusMessage
     gosub to Idle
 
 !   Get the list of systems, or create an empty list. Then populate the combo box
@@ -299,6 +321,9 @@ Start:
         set property `systems` of Config to Systems
     end
     gosub to RefreshSystemsCombo
+
+    put property `host-ssid` of Config into HostSSID
+    put property `host-password` of Config into HostPassword
 
 !   Read config data for each of the systems
     gosub to GetConfigData
@@ -375,8 +400,10 @@ ClearSystemClick:
     stop
 
 ScanForDevicesClick:
+    disable ScanDevicesButton
+    put `Scanning for new devices...` into StatusMessage
+    gosub to Working
     put system `nmcli device wifi list` into SystemCallResult
-    log SystemCallResult
     split SystemCallResult
     put json `[]` into List
     put 1 into N
@@ -402,9 +429,22 @@ ScanForDevicesClick:
     end
 !    log `SSIDs: ` cat List
     put `Select Device` into Title
-    put `Select the new device` into Prompt
+    put `Select a new device` into Prompt
+    gosub to Working
     gosub to SelectSSIDFromList
-    log `Selected ` cat Item
+    enable ScanDevicesButton
+    if SSID is empty
+    begin
+        gosub to OK
+        stop
+    end
+    else 
+    begin
+        gosub to ConnectToDevice
+        if ErrorFlag stop
+        gosub to ConnectToHost
+        gosub to PostConfigData
+    end
     stop
 
 MasterDeviceClick:
@@ -441,9 +481,11 @@ DeleteSlaveClick:
 
 ScanSystemsClick:
     log `Scan systems`
+    disable ScanSystemsButton
     gosub to ScanSystems
     gosub to RefreshSystemsCombo
     gosub to GetConfigData
+    enable ScanSystemsButton
     stop
 
 SystemsComboSelect:
@@ -547,8 +589,9 @@ SelectSSIDFromList:
     end
     on select ListBox
     begin
-        put the current item in ListBox into Item
-        put Item cat ` Selected ` into StatusMessage
+        put the current item in ListBox into SSID
+        log `Selected ` cat SSID
+        put SSID cat ` Selected ` into StatusMessage
         gosub to Idle
         close Dialog
         return
@@ -597,14 +640,7 @@ GetAccessPoints:
             put left P of SSID into SSID
             if SSID is empty go to SN2
             if left 1 of SSID is `-` go to SN2
-            if RBRFlag
-            begin
-                if left 7 of SSID is `RBR-Now`
-                begin
-                    append SSID to List
-                end
-            end
-            else append SSID to List
+            append SSID to List
         end
     SN2:
         increment N
@@ -615,22 +651,37 @@ GetAccessPoints:
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Connect to the host router
 ConnectToHost:
-    put property `host-ssid` of Config into SSID
-    put property `host-password` of Config into Password
-    put `Connecting to ` cat SSID cat ` with password ` cat Password into StatusMessage
+    put property `host-ssid` of Config into HostSSID
+    put property `host-password` of Config into HostPassword
+    put `Connect to host ` cat HostSSID cat ` with password ` cat HostPassword into StatusMessage
     log StatusMessage
     gosub to Working
-    put system `nmcli dev wifi connect ` cat SSID cat ` password ` cat Password into SystemCallResult
+    put system `nmcli dev wifi connect ` cat HostSSID cat ` password ` cat HostPassword into SystemCallResult
     split SystemCallResult on ` `
     if the elements of SystemCallResult is greater than 2
     begin
         index SystemCallResult to 2
-        if SystemCallResult is `successfully` go to OK
+        if SystemCallResult is `successfully`
+        begin
+            put HostSSID into CurrentSSID
+            put `Connected to ` cat HostSSID into StatusMessage
+            log StatusMessage
+            go to Idle
+        end
     end
-    put `Failed to connect to ` cat SSID into StatusMessage
-    gosub to Idle
-    log StatusMessage
-    return
+    put `Failed to connect to ` cat HostSSID into StatusMessage
+    ! Fall into GetHost
+
+GetHost:
+    gosub to GetAccessPoints
+    put `Select HostSSID` into Title
+    put `Select the home router for this system` into Prompt
+    gosub to SelectSSIDFromList
+    if HostSSID is empty go to Start
+    set property `host-ssid` of Config to HostSSID
+    if Config does not have property `host-password` gosub to GetHostPassword
+    set property `host-password` of Config to ReturnValue
+    go to ConnectToHost
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Scan the network for RBR system controllers
@@ -716,6 +767,8 @@ RefreshSystemsCombo:
 SetupSystem:
     if Name is empty return
     put property Name of Systems into System
+    put property `mac` of System into SystemMAC
+    put property `password` of System into SystemPassword
     put property `devices` of System into Devices
     put the keys of Devices into Keys
     put empty into MasterDevice
@@ -745,15 +798,372 @@ SetupSystem:
     return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Here when a connection failure occurs
+FailedToConnect:
+    put `Failed to connect to ` cat SSID into StatusMessage
+    gosub to Error
+    log SystemCallResult
+    set the elements of Value to 1
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Connect to the access point given by SSID
+ConnectToDevice:
+    if SSID is HostSSID
+    begin
+        log `Oops!`
+        return
+    end
+    put `Connect to device ` cat SSID cat ` with password 00000000` into StatusMessage
+    gosub to Working
+    put system `nmcli dev wifi connect ` cat SSID cat ` password 00000000` into SystemCallResult
+    gosub to Working
+    put SystemCallResult into Value
+    split Value on ` `
+    if the elements of Value is not greater than 2 go to FailedToConnect
+    index Value to 2
+    if Value is not `successfully` go to FailedToConnect
+    put `Connected to ` cat SSID into StatusMessage
+    put SSID into CurrentSSID
+    gosub to Idle
+
+    put system `hostname -I` into IPAddr
+    put the position of the last `.` in IPAddr into D
+    increment D
+    put left D of IPAddr into IPAddr
+    put IPAddr cat `1` into IPAddr
+    put `http://` cat IPAddr into URL
+    put `Request AP details for ` cat SSID into StatusMessage
+    log StatusMessage
+    gosub to Working
+    log `Get AP info from ` cat URL
+    get APInfo from url URL
+    or begin
+        put `Failed to interrogate ` cat SSID into StatusMessage
+        log StatusMessage
+        gosub to Idle
+        return
+    end
+    put trim APInfo into APInfo
+    log APInfo
+    put APInfo into Info
+    split Info on ` `
+    index Info to 2
+    put Info into Name
+    index Info to 0
+    put Info into MAC
+    ! If this one is known, ignore it
+    if Devices has property Name
+    begin
+        put `Device '` cat Name cat `' is already configured` into StatusMessage
+        gosub to Idle
+        return
+    end
+    ! Check if this is the first device to be configured. If so, make it the master.
+    if MasterSSID is empty
+    begin
+        set IsMaster
+        put SSID into MasterSSID
+        put Name into MasterDeviceName
+        gosub to CreateDevice
+        log Device
+        put Device into MasterDevice
+        ! Send the config data to the device
+        put `config.json` into FileName
+        put stringify MasterDevice into Content
+        put MAC into MasterMAC
+        put IPAddr into MasterIPAddr
+        gosub to SendFileToDevice
+        if SendFail return
+        gosub to RequestReset
+        if SendFail return
+        put `Give the device a few seconds to reboot` into StatusMessage
+        gosub to Working
+        wait 10
+        put MasterSSID cat ` ` cat MasterName into StatusMessage
+        gosub to Working
+        disable MasterDeviceButton
+        put `http://` cat MasterIPAddr cat `/?mac=` cat MasterMAC cat `&msg=ipaddr` into URL
+        log URL
+        put `Interrogate the master device` into StatusMessage
+        gosub to Working
+        get Response from url URL
+        or begin
+            log `Failed to get Master ip address ` cat MasterSSID
+            put `Failed to get Master ip address` into StatusMessage
+            gosub to Error
+            return
+        end
+        log `Response from IPADDR: ` cat Response
+        if left 2 of Response is `OK`
+        begin
+            put from 3 of Response into MasterIPAddr
+            put `Master ip address is ` cat MasterIPAddr into StatusMessage
+            gosub to Idle
+            set the text of MasterDeviceButton to MasterSSID cat ` ` cat MasterName cat ` ` cat MasterIPAddr
+            set property `ipaddr` of MasterDevice to MasterIPAddr
+            set property MasterName of Devices to MasterDevice
+            set property `devices` of Config to Devices
+        end
+        else
+        begin
+            put `Failed to get Master ip address` into StatusMessage
+            gosub to Idle
+        end
+    end
+    else
+    begin
+        log `Deal with slave ` cat Name
+        append SSID cat ` ` cat Name to SlaveDevices
+        set SlaveList to SlaveDevices
+        clear IsMaster
+        gosub to CreateDevice
+        put `config.json` into FileName
+        put stringify Device into Content
+        put from 8 of SSID into MAC
+        gosub to SendFileToDevice
+        gosub to RequestReset
+    end
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Create a device entry in the config file
+CreateDevice:
+    put json `{}` into Device
+    if IsMaster
+    begin
+        log `Create master device ` cat Name
+        log HostSSID
+        set property `hostssid` of Device to HostSSID
+        set property `hostpass` of Device to HostPassword
+        set property `ipaddr` of Device to empty
+    end
+    else log `Create slave device ` cat Name
+    log Device
+    set property `master` of Device to IsMaster
+    set property `name` of Device to Name
+    set property `ssid` of Device to SSID
+    set property `channel` of Device to 1
+    put json `{}` into Pins
+    put json `{}` into Pin
+    set property `pin` of Pin to empty
+    set property `invert` of Pin to false
+    set property `led` of Pins to Pin
+    put json `{}` into Pin
+    set property `pin` of Pin to empty
+    set property `invert` of Pin to false
+    set property `relay` of Pins to Pin
+    put json `{}` into Pin
+    set property `pin` of Pin to empty
+    set property `dht22` of Pins to Pin
+    set property `pins` of Device to Pins
+    set property Name of Devices to Device
+    set property `devices` of Config to Devices
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Send a file to a device
+SendFileToDevice:
+    log Content
+    put the length of Content into FileSize
+    put `Updating ` cat FileName cat ` (size=` cat FileSize cat `)` into StatusMessage
+    gosub to Working
+    wait 3
+    clear SendFail
+    put 0 into Sequence
+    put 0 into Start
+    put 0 into Total
+    while Start is less than FileSize
+    begin
+        if Finish is greater than FileSize put FileSize into Finish
+        add 100 to Start giving Finish
+        put from Start to Finish of Content into Segment
+        put the length of Segment into Length
+        add Length to Total
+        put encode Segment into Segment
+        put `Send part ` cat Sequence into StatusMessage
+        gosub to Working
+        put `http://` cat MasterIPAddr cat `/?mac=` cat MAC cat `&msg=part:`
+            cat Sequence cat `,text:` cat Segment into URL
+!        log URL
+        get Response from url URL
+        or begin
+            log `Upload part ` cat Sequence cat ` of ` cat FileName cat ` failed`
+            set SendFail
+            return
+        end
+        log `Part ` cat Sequence cat `: ` cat Response
+        split Response on ` `
+        index Response to 0
+        if Response is not Length
+        begin
+            put `Failed to send part ` cat Sequence into StatusMessage
+            gosub to Idle
+            set SendFail
+            return
+        end
+        put Finish into Start
+        increment Sequence
+    end
+!    log `Send the save message for ` cat FileName
+    put `http://` cat MasterIPAddr cat `/?mac=` cat MAC cat `&msg=save:` cat FileName into URL
+    log URL
+    get Response from url URL
+    or begin
+        log `Save failed`
+        set SendFail
+        return
+    end
+    split Response on ` `
+    index Response to 0
+    if Response is not Total
+    begin
+        put `Mismatched length: ` cat Total cat ` - ` cat Response into StatusMessage
+        gosub to Working
+        log StatusMessage
+        set SendFail
+        return
+    end
+    put `File ` cat FileName cat ` saved` into StatusMessage
+    gosub to Working
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Delete a file on a device
+DeleteFile:
+!    get FileName from popup text `File name:` `Confirm delete`
+!    put from 8 of property `ssid` of Device into MAC
+!    put `http://` cat MasterIPAddr cat `/?mac=` cat MAC cat `&msg=delete:` cat FileName into URL
+!    get Response from url URL
+!    or begin
+!        log `Save failed`
+!        set SendFail
+!        return
+!    end
+!    log Response
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Send a reset message to a device
+RequestReset:
+    gosub to GetDeviceData
+    log `Reset device ` cat Name
+    put Name cat ` is being reset` into StatusMessage
+    gosub to Working
+    wait 1
+    put `http://` cat MasterIPAddr cat `/?mac=` cat MAC cat `&msg=reset` into URL
+    log URL
+    get Response from url URL
+    or begin
+        log `Reset failed`
+        put `Failed to reset ` cat Name into StatusMessage
+        gosub to Idle
+        return
+    end
+    if left 2 of Response is not `OK`
+    begin
+        log `Reset failed`
+        put `Bad response from ` cat Name into StatusMessage
+        gosub to Idle
+        return
+    end
+    put `Device has been reset` into StatusMessage
+    go to Idle
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Send a message to a RBR-Now device
+MessageDevice:
+    gosub to GetDeviceData
+    log `Send '` cat Message cat `' to ` cat Name
+    put Message into Message2
+    if Path is not empty
+    begin
+        put the position of `,` in Path into P
+        if P is greater than 0
+        begin
+            put left P of Path into MAC
+            add 1 to P
+            put from P of Path into Path
+            put `!` cat Path cat `,` cat Message into Message2
+        end
+        else
+        begin
+            put `!` cat MAC cat `,` cat Message into Message2
+            put Path into MAC
+        end
+    end
+    put `http://` cat MasterIPAddr cat `/?mac=` cat MAC cat `&msg=` cat Message2 into URL
+!    log URL
+    get Response from url URL
+    or begin
+        log `Message to ` cat Name cat ` failed`
+        put `Could not message ` cat Name into StatusMessage
+        gosub to Idle
+        ! Try direct communication
+        if Path is not empty go to RetryWithoutPath
+        put empty into Response
+        return
+    end
+!    log URL cat ` -> ` cat Response
+    if left 2 of Response is `OK` return
+    put `Bad response from ` cat Name into StatusMessage
+    gosub to Idle
+!    log StatusMessage
+    if Path is not empty go to RetryWithoutPath
+    put empty into Response
+    return
+
+RetryWithoutPath:
+    log `Retry without path`
+    set property `path` of Device to empty
+    go to MessageDevice
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Get data from a device
+GetDeviceData:
+    put property `name` of Device into Name
+    put property `ssid` of Device into SSID
+    put from 8 of SSID into MAC
+    if Device has property `path` put property `path` of Device into Path
+    else
+    begin
+        put empty into Path
+        set property `path` of Device to Path
+    end
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Post the config data
+PostConfigData:
+    log `Post the Config data`
+    if CurrentSSID is not HostSSID gosub to ConnectToHost
+    save stringify Config to ConfigFile
+    put `https://rbrheating.com/ui/resources/php/rest.php/config/` cat SystemMAC cat `/` cat SystemPassword into URL
+    log `Posting Config to ` cat URL
+    post stringify Config to URL
+    or
+    begin
+        log `I couldn't post the config file`
+    end
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   The Status box at the bottom of the screen
 OK:
     put `OK` into StatusMessage
 
 Idle:
     set the text of StatusLabel to `<font color="#008000">` cat StatusMessage cat `</font>`
+    clear ErrorFlag
     return
 
 Working:
-    set the text of StatusLabel to `<font color="#aa4000">` cat StatusMessage cat `</font>`
+    set the text of StatusLabel to `<font color="#0000e0">` cat StatusMessage cat `</font>`
+    clear ErrorFlag
     wait 50 ticks
+    return
+
+Error:
+    set the text of StatusLabel to `<font color="#ff0000">` cat StatusMessage cat `</font>`
+    set ErrorFlag
     return

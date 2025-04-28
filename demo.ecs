@@ -1,0 +1,34 @@
+use graphics
+
+window Window
+layout MainPanel
+label Label
+pushbutton Button
+
+! Initialize the graphics environment
+init graphics
+
+! Create a main window
+create MainPanel type QVBoxLayout
+
+! Create a label
+create Label text `Click the button!`
+add Label to MainPanel
+
+! Create a button
+create Button text `Click Me`
+on click Button go to ButtonClick
+add Button to MainPanel
+
+! Create and show the window
+create Window title `Example` size 400 300 layout MainPanel
+show Window
+
+start graphics
+stop
+
+! Event handler for button click
+ButtonClick:
+    set the text of Label to `Button clicked!`
+    stop
+
