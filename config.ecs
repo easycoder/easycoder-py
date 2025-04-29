@@ -327,6 +327,7 @@ Start:
 
 !   Read config data for each of the systems
     gosub to GetConfigData
+    if ErrorFlag stop
 
 !   Select the current system
     if Config has property `current` put property `current` of Config into Name
@@ -348,7 +349,7 @@ Start:
     end
 
     enable ScanSystemsButton
-    enable ScanDevicesButton
+    if the count of SystemsCombo is not 0 enable ScanDevicesButton
     stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -369,6 +370,9 @@ ResetConfigFileClick:
     end
     stop
 
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Clear all the data for the selected system
 ClearSystemClick:
     create MessageBox on Window
         style question
@@ -378,6 +382,7 @@ ClearSystemClick:
     show MessageBox giving Value
     if Value is `Yes`
     begin
+        if CurrentSSID is not HostSSID gosub to ConnectToHost
         put SystemsCombo into Name
         put property Name of Systems into SystemConfig
         put property `mac` of SystemConfig into MAC
@@ -386,6 +391,9 @@ ClearSystemClick:
         set property `devices` of SystemConfig to Devices
         set property Name of Systems to SystemConfig
         set property `systems` of Config to Systems
+        set the text of MasterDeviceButton to `(none)`
+        put empty into MasterSSID
+        clear SlaveList
         post stringify SystemConfig to
             `https://rbrheating.com/ui/resources/php/rest.php/config/`
                 cat MAC cat `/` cat Password
@@ -394,14 +402,16 @@ ClearSystemClick:
             stop
         end
         disable RemoveSystemButton
-        set the text of MasterDeviceButton to `(none)`
-        clear SlaveList
+        gosub to OK
     end
     stop
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Scan the local network for new devices
 ScanForDevicesClick:
     disable ScanDevicesButton
     put `Scanning for new devices...` into StatusMessage
+    log StatusMessage
     gosub to Working
     put system `nmcli device wifi list` into SystemCallResult
     split SystemCallResult
@@ -422,12 +432,36 @@ ScanForDevicesClick:
             put left P of SSID into SSID
             if left 7 of SSID is `RBR-Now`
             begin
+                log `Found ` cat SSID
+                ! Check if this one already exists
+                put the keys of Devices into Keys
+                put 0 into D
+                while D is less than the count of Keys
+                begin
+                    put element D of Keys into Name
+                    put property Name of Devices into Device
+                    if SSID is property `ssid` of Device
+                    begin
+                        log SSID cat ` exists already`
+                        go to SFDC2
+                    end
+                    increment D
+                end
                 append SSID to List
             end
         end
+    SFDC2:
         increment N
     end
 !    log `SSIDs: ` cat List
+    if the count of List is 0
+    begin
+        put `No new devices were found` into StatusMessage
+        log StatusMessage
+        gosub to Idle
+        enable ScanDevicesButton
+        stop
+    end
     put `Select Device` into Title
     put `Select a new device` into Prompt
     gosub to Working
@@ -440,25 +474,27 @@ ScanForDevicesClick:
     end
     else 
     begin
-        gosub to ConnectToDevice
+        gosub to SetupDevice
         if ErrorFlag stop
         gosub to ConnectToHost
         gosub to PostConfigData
     end
     stop
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Show information about the master device
 MasterDeviceClick:
     log MasterDeviceButton
     if MasterDeviceButton is not empty
     begin
         log `Select the master device`
-        set the text of DeviceNameInput to MasterDeviceName
-        enable UpdateDeviceButton
-        enable DeleteFileButton
-        disable DeleteSlaveButton
+        put MasterDevice into Device
+        gosub to PopulateDeviceInfo
     end
     stop
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Show information about a slave device
 SelectSlaveClick:
     log `Select ` cat SlaveList
     set the text of DeviceNameInput to SlaveList
@@ -616,8 +652,8 @@ SelectSSIDFromList:
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Scan the network for access points
 GetAccessPoints:
-    log `Scanning the local network...`
     put `Scanning the local network...` into StatusMessage
+    log StatusMessage
     gosub to Working
     put system `nmcli device wifi list` into Result
 !    log Result
@@ -735,7 +771,11 @@ GetConfigData:
         put property `password` of SystemConfig into Password
         get Value from url `https://rbrheating.com/ui/resources/php/rest.php/config/`
             cat MAC cat `/` cat Password
-        or log `Can't read the config file for ` cat Name
+        or
+        begin
+            put `Can't read the config file for ` cat Name cat `(` cat MAC cat `/` cat Password cat `)` into StatusMessage
+            go to Error
+        end
 !        log Value cat newline
         put json Value into Value
         if Value has property `devices`
@@ -783,10 +823,10 @@ SetupSystem:
         if property `master` of Device
         begin
             put Device into MasterDevice
+            put property `name` of MasterDevice into MasterDeviceName
             put property `ssid` of MasterDevice into MasterSSID
             put property `ipaddr` of MasterDevice into MasterIPAddr
-            put Name into MasterDeviceName
-            set the text of MasterDeviceButton to MasterSSID cat ` ` cat MasterIPAddr cat ` ` cat Name
+            set the text of MasterDeviceButton to MasterSSID cat ` ` cat MasterIPAddr cat ` ` cat MasterDeviceName
         end
         else
         begin
@@ -795,78 +835,65 @@ SetupSystem:
         end
         increment D
     end
+    enable ScanDevicesButton
     return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Here when a connection failure occurs
 FailedToConnect:
-    put `Failed to connect to ` cat SSID into StatusMessage
-    gosub to Error
-    log SystemCallResult
+    log `Result: ` cat SystemCallResult
     set the elements of Value to 1
-    return
+    put `Failed to connect to ` cat SSID into StatusMessage
+    go to Error
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Connect to the access point given by SSID
-ConnectToDevice:
+! Set up the device identified by SSID
+SetupDevice:
     if SSID is HostSSID
     begin
-        log `Oops!`
-        return
+        put `Oops - this is the host!` into StatusMessage
+        go to Error
     end
-    put `Connect to device ` cat SSID cat ` with password 00000000` into StatusMessage
-    gosub to Working
-    put system `nmcli dev wifi connect ` cat SSID cat ` password 00000000` into SystemCallResult
-    gosub to Working
-    put SystemCallResult into Value
-    split Value on ` `
-    if the elements of Value is not greater than 2 go to FailedToConnect
-    index Value to 2
-    if Value is not `successfully` go to FailedToConnect
-    put `Connected to ` cat SSID into StatusMessage
-    put SSID into CurrentSSID
-    gosub to Idle
 
+    ! Connect to the device's AP and get basic data
+    gosub to ConnectToDevice
+    if ErrorFlag return
     put system `hostname -I` into IPAddr
     put the position of the last `.` in IPAddr into D
     increment D
     put left D of IPAddr into IPAddr
     put IPAddr cat `1` into IPAddr
     put `http://` cat IPAddr into URL
-    put `Request AP details for ` cat SSID into StatusMessage
+    put `Request AP details for ` cat SSID cat ` at ` cat URL into StatusMessage
     log StatusMessage
     gosub to Working
-    log `Get AP info from ` cat URL
     get APInfo from url URL
     or begin
         put `Failed to interrogate ` cat SSID into StatusMessage
-        log StatusMessage
-        gosub to Idle
-        return
+        go to Error
     end
     put trim APInfo into APInfo
-    log APInfo
+    log `Device info: ` cat APInfo
     put APInfo into Info
     split Info on ` `
+    if the elements of Info is less than 4
+    begin
+        put `Bad response from device: ` cat APInfo into StatusMessage
+        go to Error
+    end
     index Info to 2
     put Info into Name
     index Info to 0
     put Info into MAC
-    ! If this one is known, ignore it
-    if Devices has property Name
-    begin
-        put `Device '` cat Name cat `' is already configured` into StatusMessage
-        gosub to Idle
-        return
-    end
+
     ! Check if this is the first device to be configured. If so, make it the master.
     if MasterSSID is empty
     begin
         set IsMaster
+        log `Deal with slave ` cat Name
         put SSID into MasterSSID
         put Name into MasterDeviceName
         gosub to CreateDevice
-        log Device
         put Device into MasterDevice
         ! Send the config data to the device
         put `config.json` into FileName
@@ -880,36 +907,39 @@ ConnectToDevice:
         put `Give the device a few seconds to reboot` into StatusMessage
         gosub to Working
         wait 10
+        gosub to ConnectToDevice
         put MasterSSID cat ` ` cat MasterName into StatusMessage
         gosub to Working
         disable MasterDeviceButton
         put `http://` cat MasterIPAddr cat `/?mac=` cat MasterMAC cat `&msg=ipaddr` into URL
-        log URL
         put `Interrogate the master device` into StatusMessage
         gosub to Working
         get Response from url URL
         or begin
-            log `Failed to get Master ip address ` cat MasterSSID
-            put `Failed to get Master ip address` into StatusMessage
-            gosub to Error
-            return
+            put `Failed to get Master ip address of ` cat MasterSSID into StatusMessage
+            go to Error
         end
-        log `Response from IPADDR: ` cat Response
         if left 2 of Response is `OK`
         begin
             put from 3 of Response into MasterIPAddr
             put `Master ip address is ` cat MasterIPAddr into StatusMessage
             gosub to Idle
-            set the text of MasterDeviceButton to MasterSSID cat ` ` cat MasterName cat ` ` cat MasterIPAddr
+            set the text of MasterDeviceButton to MasterSSID cat ` ` cat MasterName cat ` ` cat MasterIPAddr cat ` ` cat Name
             set property `ipaddr` of MasterDevice to MasterIPAddr
             set property MasterName of Devices to MasterDevice
             set property `devices` of Config to Devices
         end
         else
         begin
+            delete property Name of Devices
+            set property `devices` of Config to Devices
             put `Failed to get Master ip address` into StatusMessage
-            gosub to Idle
+            go to Error
         end
+        disable DeleteSlaveButton
+        enable MasterDeviceButton
+        put MasterDevice into Device
+        gosub to PopulateDeviceInfo
     end
     else
     begin
@@ -930,16 +960,15 @@ ConnectToDevice:
 !   Create a device entry in the config file
 CreateDevice:
     put json `{}` into Device
+    put `(none)` into Name
     if IsMaster
     begin
         log `Create master device ` cat Name
-        log HostSSID
         set property `hostssid` of Device to HostSSID
         set property `hostpass` of Device to HostPassword
         set property `ipaddr` of Device to empty
     end
     else log `Create slave device ` cat Name
-    log Device
     set property `master` of Device to IsMaster
     set property `name` of Device to Name
     set property `ssid` of Device to SSID
@@ -962,13 +991,40 @@ CreateDevice:
     return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Connect to a device
+ConnectToDevice:
+    put `Connect to device ` cat SSID cat ` with password 00000000` into StatusMessage
+    log StatusMessage
+    gosub to Working
+    put system `nmcli dev wifi connect ` cat SSID cat ` password 00000000` into SystemCallResult
+    gosub to Working
+    put SystemCallResult into Value
+    split Value on ` `
+    if the elements of Value is not greater than 2 go to FailedToConnect
+    index Value to 2
+    if Value is not `successfully` go to FailedToConnect
+    put SSID into CurrentSSID
+    put `Connected to ` cat SSID into StatusMessage
+    gosub to Idle
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Populate the device information fields
+PopulateDeviceInfo:
+    log `Populate device ` cat property `name` of Device
+    set the text of DeviceNameInput to property `name` of Device
+    enable UpdateDeviceButton
+    enable DeleteFileButton
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Send a file to a device
 SendFileToDevice:
-    log Content
     put the length of Content into FileSize
-    put `Updating ` cat FileName cat ` (size=` cat FileSize cat `)` into StatusMessage
+    put `Update device file ` cat FileName cat ` (size=` cat FileSize cat ` chars)` into StatusMessage
+    log StatusMessage
     gosub to Working
-    wait 3
+    wait 2
     clear SendFail
     put 0 into Sequence
     put 0 into Start
@@ -983,15 +1039,8 @@ SendFileToDevice:
         put encode Segment into Segment
         put `Send part ` cat Sequence into StatusMessage
         gosub to Working
-        put `http://` cat MasterIPAddr cat `/?mac=` cat MAC cat `&msg=part:`
-            cat Sequence cat `,text:` cat Segment into URL
-!        log URL
-        get Response from url URL
-        or begin
-            log `Upload part ` cat Sequence cat ` of ` cat FileName cat ` failed`
-            set SendFail
-            return
-        end
+        put `part:`  cat Sequence cat `,text:` cat Segment into Message
+        gosub to SendMessageToDevice
         log `Part ` cat Sequence cat `: ` cat Response
         split Response on ` `
         index Response to 0
@@ -1005,15 +1054,9 @@ SendFileToDevice:
         put Finish into Start
         increment Sequence
     end
-!    log `Send the save message for ` cat FileName
-    put `http://` cat MasterIPAddr cat `/?mac=` cat MAC cat `&msg=save:` cat FileName into URL
-    log URL
-    get Response from url URL
-    or begin
-        log `Save failed`
-        set SendFail
-        return
-    end
+    log `Trigger the save of ` cat FileName
+    put `save:` cat FileName into Message
+    gosub to SendMessageToDevice
     split Response on ` `
     index Response to 0
     if Response is not Total
@@ -1048,33 +1091,44 @@ DeleteFile:
 RequestReset:
     gosub to GetDeviceData
     log `Reset device ` cat Name
-    put Name cat ` is being reset` into StatusMessage
+    put `Reset ` cat Name into StatusMessage
     gosub to Working
     wait 1
-    put `http://` cat MasterIPAddr cat `/?mac=` cat MAC cat `&msg=reset` into URL
-    log URL
-    get Response from url URL
-    or begin
-        log `Reset failed`
-        put `Failed to reset ` cat Name into StatusMessage
-        gosub to Idle
-        return
-    end
+    put `reset` into Message
+    gosub to SendRBRMessage
     if left 2 of Response is not `OK`
     begin
-        log `Reset failed`
-        put `Bad response from ` cat Name into StatusMessage
-        gosub to Idle
-        return
+        put `Failed to reset ` cat Name into StatusMessage
+        go to Error
     end
     put `Device has been reset` into StatusMessage
     go to Idle
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Send an RBR-Now message to a device
+SendRBRMessage:
+    gosub to SendMessageToDevice
+!    log URL cat ` -> ` cat Response
+    if left 2 of Response is `OK` return
+    put `Bad response from ` cat Name into StatusMessage
+    log StatusMessage
+    gosub to Idle
+    if Path is not empty
+    begin
+        log `Retry without path`
+        set property `path` of Device to empty
+        go to SendMessageToDevice
+    end
+    put empty into Response
+    set ErrorFlag
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Send a message to a RBR-Now device
-MessageDevice:
+SendMessageToDevice:
     gosub to GetDeviceData
-    log `Send '` cat Message cat `' to ` cat Name
+    put left 30 of Message into Message2
+!    log `Send '` cat Message2 cat `' to ` cat Name
     put Message into Message2
     if Path is not empty
     begin
@@ -1093,30 +1147,17 @@ MessageDevice:
         end
     end
     put `http://` cat MasterIPAddr cat `/?mac=` cat MAC cat `&msg=` cat Message2 into URL
-!    log URL
     get Response from url URL
     or begin
-        log `Message to ` cat Name cat ` failed`
         put `Could not message ` cat Name into StatusMessage
+        log StatusMessage
         gosub to Idle
         ! Try direct communication
         if Path is not empty go to RetryWithoutPath
         put empty into Response
         return
     end
-!    log URL cat ` -> ` cat Response
-    if left 2 of Response is `OK` return
-    put `Bad response from ` cat Name into StatusMessage
-    gosub to Idle
-!    log StatusMessage
-    if Path is not empty go to RetryWithoutPath
-    put empty into Response
     return
-
-RetryWithoutPath:
-    log `Retry without path`
-    set property `path` of Device to empty
-    go to MessageDevice
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Get data from a device
@@ -1135,7 +1176,6 @@ GetDeviceData:
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Post the config data
 PostConfigData:
-    log `Post the Config data`
     if CurrentSSID is not HostSSID gosub to ConnectToHost
     save stringify Config to ConfigFile
     put `https://rbrheating.com/ui/resources/php/rest.php/config/` cat SystemMAC cat `/` cat SystemPassword into URL
@@ -1143,7 +1183,8 @@ PostConfigData:
     post stringify Config to URL
     or
     begin
-        log `I couldn't post the config file`
+        put `I couldn't post the config file` into StatusMessage
+        go to Error
     end
     return
 
@@ -1164,6 +1205,7 @@ Working:
     return
 
 Error:
+    log StatusMessage
     set the text of StatusLabel to `<font color="#ff0000">` cat StatusMessage cat `</font>`
     set ErrorFlag
     return
