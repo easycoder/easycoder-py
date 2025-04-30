@@ -646,16 +646,21 @@ class Graphics(Handler):
     def r_pushbutton(self, command):
         return self.nextPC()
 
-    # remove [the] [current] [item] [from] {combobox}
+    # remove [the] [current/selected] [item] [from/in] {combobox}/{listbox}
     def k_remove(self, command):
         command['variant'] = None
         self.skip('the')
-        self.skip('current')
+        self.skip(['current', 'selected'])
         self.skip('item')
-        self.skip('from')
+        self.skip(['from', 'in'])
         if self.nextIsSymbol():
             record = self.getSymbolRecord()
             if record['keyword'] == 'combobox':
+                command['variant'] = 'current'
+                command['name'] = record['name']
+                self.addCommand(command)
+                return True
+            elif record['keyword'] == 'listbox':
                 command['variant'] = 'current'
                 command['name'] = record['name']
                 self.addCommand(command)
@@ -665,9 +670,16 @@ class Graphics(Handler):
     def r_remove(self, command):
         variant = command['variant']
         record = self.getVariable(command['name'])
-        if record['keyword'] == 'combobox' and variant == 'current':
-            widget = record['widget']
-            widget.removeItem(widget.currentIndex())
+        if variant == 'current':
+            if record['keyword'] == 'combobox':
+                widget = record['widget']
+                widget.removeItem(widget.currentIndex())
+            if record['keyword'] == 'listbox':
+                widget = record['widget']
+                selectedItem = widget.currentItem()
+                if selectedItem:
+                    row = widget.row(selectedItem)
+                    widget.takeItem(row)
         return self.nextPC()
 
     # select {item} [in] {combobox}
@@ -690,7 +702,7 @@ class Graphics(Handler):
             widget.setCurrentIndex(index)
         return self.nextPC()
 
-    # set [the] height [of] {groupbox} [to] {height}
+    # set [the] width/height [of] {widget} [to] {value}
     # set [the] text [of] {label}/{button}/{lineinput} [to] {text}
     # set [the] color [of] {label}/{button}/{lineinput} [to] {color}
     # set {listbox} to {list}
@@ -698,12 +710,11 @@ class Graphics(Handler):
         self.skip('the')
         token = self.nextToken()
         command['what'] = token
-        if token == 'height':
+        if token in ['width', 'height']:
             self.skip('of')
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                keyword = record['keyword']
-                if keyword == 'groupbox':
+                if record['extra'] == 'gui':
                     command['name'] = record['name']
                     self.skip('to')
                     command['value'] = self.nextValue()
@@ -746,17 +757,19 @@ class Graphics(Handler):
                 command['what'] = 'listbox'
                 command['name'] = record['name']
                 self.skip('to')
-                if self.nextIsSymbol():
-                    command['value'] = self.getSymbolRecord()['name']
-                    self.add(command)
-                    return True
+                command['value'] = self.nextValue()
+                self.add(command)
+                return True
         return False
     
     def r_set(self, command):
         what = command['what']
         if what == 'height':
-            groupbox = self.getVariable(command['name'])['widget']
-            groupbox.setFixedHeight(self.getRuntimeValue(command['value']))
+            widget = self.getVariable(command['name'])['widget']
+            widget.setFixedHeight(self.getRuntimeValue(command['value']))
+        elif what == 'width':
+            widget = self.getVariable(command['name'])['widget']
+            widget.setFixedWidth(self.getRuntimeValue(command['value']))
         elif what == 'text':
             record = self.getVariable(command['name'])
             widget = self.getVariable(command['name'])['widget']

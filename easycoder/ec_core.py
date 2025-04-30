@@ -1298,7 +1298,10 @@ class Core(Handler):
                 if self.nextIsSymbol():
                     command['target'] = self.getSymbolRecord()['name']
                     if self.nextIs('to'):
-                        command['value'] = self.nextValue()
+                        value = self.nextValue()
+                        if value == None:
+                            FatalError(self.compiler, 'Unable to get a value')
+                        command['value'] = value
                         self.add(command)
                         return True
 
@@ -1766,7 +1769,7 @@ class Core(Handler):
         if token in ['now', 'today', 'newline', 'tab', 'empty']:
             return value
 
-        if token in ['stringify', 'json', 'lowercase', 'uppercase', 'hash', 'random', 'float', 'integer', 'encode', 'decode']:
+        if token in ['stringify', 'prettify', 'json', 'lowercase', 'uppercase', 'hash', 'random', 'float', 'integer', 'encode', 'decode']:
             value['content'] = self.nextValue()
             return value
 
@@ -2274,6 +2277,13 @@ class Core(Handler):
         value = {}
         value['type'] = 'int'
         value['content'] = haystack.rfind(needle) if last else haystack.find(needle)
+        return value
+
+    def v_prettify(self, v):
+        item = self.getRuntimeValue(v['content'])
+        value = {}
+        value['type'] = 'text'
+        value['content'] = json.dumps(item, indent=4)
         return value
 
     def v_property(self, v):

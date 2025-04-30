@@ -18,10 +18,11 @@
     label Label
     label RelayStateLabel
     label StatusLabel
+    label SSIDLabel
     pushbutton ResetConfigButton
     pushbutton ScanDevicesButton
     pushbutton ClearSystemButton
-    pushbutton DeleteSlaveButton
+    pushbutton RemoveSlaveButton
     pushbutton UpdateDeviceButton
     pushbutton DeleteFileButton
     pushbutton ExitButton
@@ -30,12 +31,11 @@
     pushbutton MasterDeviceButton
     pushbutton RelayOffButton
     pushbutton RelayOnButton
-    pushbutton SaveWidgetDataButton
+    pushbutton UpdateWidgetDataButton
     pushbutton OKButton
     pushbutton CancelButton
     lineinput LineInput
     lineinput DeviceNameInput
-    lineinput ChannelInput
     lineinput LEDPinInput
     lineinput RelayPinInput
     lineinput DHT22PinInput
@@ -82,9 +82,9 @@
     add DeleteFileButton to LeftPanel
     on click DeleteFileButton go to DeleteFileClick
 
-    create DeleteSlaveButton text `Delete slave`
-    add DeleteSlaveButton to LeftPanel
-    on click DeleteSlaveButton go to DeleteSlaveClick
+    create RemoveSlaveButton text `Remove slave`
+    add RemoveSlaveButton to LeftPanel
+    on click RemoveSlaveButton go to RemoveSlaveClick
 
     add stretch to LeftPanel
 
@@ -152,10 +152,10 @@
     add Label to Layout
     create DeviceNameInput size 40
     add DeviceNameInput to Layout
-    create Label text `Channel:`
+    create Label text `SSID:`
     add Label to Layout
-    create ChannelInput size 5
-    add ChannelInput to Layout
+    create SSIDLabel
+    add SSIDLabel to Layout
     add stretch to Layout
     
     create Layout type QHBoxLayout
@@ -199,15 +199,14 @@
     create Label text `Path:`
     add Label to Layout
     create PathInput size 60
+    set the width of PathInput to 250
     add PathInput to Layout
     add stretch to Layout
 
-    ! The 'Save' button
-    create Layout type QVBoxLayout
-    add Layout to DeviceHPanel
-    create SaveWidgetDataButton text `Save`
-    on click SaveWidgetDataButton go to SaveWidgetData
-    add SaveWidgetDataButton to Layout
+    ! The 'Update' button
+    create UpdateWidgetDataButton text `Update`
+    on click UpdateWidgetDataButton go to UpdateWidgetDataClick
+    add UpdateWidgetDataButton to DeviceHPanel
 
     add stretch to RightPanel
 
@@ -222,6 +221,7 @@
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+    stack Stack
     variable Config
     variable ConfigFile
     variable Name
@@ -248,7 +248,6 @@
     variable Message2
     variable Response
     variable Systems
-    variable System
     variable Devices
     variable Device
     variable MasterDevice
@@ -278,6 +277,7 @@
     variable Pins
     variable Pin
     variable D
+    variable K
     variable N
     variable P
     variable S
@@ -291,7 +291,7 @@ Start:
 !   Disable various buttons
     disable ClearSystemButton
     disable ScanDevicesButton
-    disable DeleteSlaveButton
+    disable RemoveSlaveButton
     disable UpdateDeviceButton
     disable DeleteFileButton
 
@@ -345,7 +345,6 @@ Start:
     begin
         select Name in SystemsCombo
         enable ClearSystemButton
-        gosub to SetupSystem
     end
 
     enable ScanSystemsButton
@@ -390,7 +389,6 @@ ClearSystemClick:
         put json `{}` into Devices
         set property `devices` of SystemConfig to Devices
         set property Name of Systems to SystemConfig
-        set property `systems` of Config to Systems
         set the text of MasterDeviceButton to `(none)`
         put empty into MasterSSID
         clear SlaveList
@@ -484,7 +482,6 @@ ScanForDevicesClick:
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Show information about the master device
 MasterDeviceClick:
-    log MasterDeviceButton
     if MasterDeviceButton is not empty
     begin
         log `Select the master device`
@@ -497,9 +494,10 @@ MasterDeviceClick:
 !   Show information about a slave device
 SelectSlaveClick:
     log `Select ` cat SlaveList
-    set the text of DeviceNameInput to SlaveList
+    put property SlaveList of Devices into Device
+    gosub to PopulateDeviceInfo
     enable UpdateDeviceButton
-    enable DeleteSlaveButton
+    enable RemoveSlaveButton
     enable DeleteFileButton
     stop
 
@@ -511,8 +509,32 @@ DeleteFileClick:
     log `Delete a file on the selected device`
     stop
 
-DeleteSlaveClick:
-    log `Delete the selected slave device`
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Remove a slave from the list
+RemoveSlaveClick:
+    log `Remove the selected slave device`
+    put SlaveList into Name
+    log Name
+    remove the selected item from SlaveList
+    put the keys of Devices into Keys
+    put 0 into D
+    while D is less than the count of Keys
+    begin
+        put element D of Keys into Name
+        put property Name of Devices into Device
+        if property `master` of Device is false
+        begin
+            if property `name` of Device is Name
+            begin
+                delete property Name of Devices
+!                set property `devices` of SystemConfig to Devices
+                put property `name` of SystemConfig into Name
+                set property Name of Systems to SystemConfig
+                stop
+            end
+        end
+        increment D
+    end
     stop
 
 ScanSystemsClick:
@@ -540,7 +562,7 @@ RemoveSystemClick:
     show MessageBox giving Value
     if Value is `Yes`
     begin
-        remove current item from SystemsCombo
+        remove the current item from SystemsCombo
         delete property Name of Systems
         set property `systems` of Config to Systems
     end
@@ -551,8 +573,13 @@ SaveHostInfoClick:
     log `Save the host information`
     stop
 
-SaveWidgetDataClick:
-    log `Save the widget data`
+UpdateWidgetDataClick:
+    log Device
+    set property `name` of Device to DeviceNameInput
+    log Device
+    put property `ssid` of Device into SSID
+    put from 8 of SSID into MAC
+    gosub to SendConfigFile
     stop
 
 RelayOffClick:
@@ -565,7 +592,8 @@ RelayOnClick:
 
 ExitClick:
     log `Exit the configurator`
-    save stringify Config to ConfigFile
+!    delete property `(none)` of Config
+    save prettify Config to ConfigFile
     close Window
     exit
 
@@ -766,21 +794,32 @@ GetConfigData:
     while S is less than the count of Keys
     begin
         put element S of Keys into Name
+        ! SystemConfig holds the data for a single system; Systems holds all of the SystemConfigs by system name
+        ! Get the data for this system
         put property Name of Systems into SystemConfig
-        put property `mac` of SystemConfig into MAC
-        put property `password` of SystemConfig into Password
+        put property `mac` of SystemConfig into SystemMAC
+        put property `password` of SystemConfig into SystemPassword
         get Value from url `https://rbrheating.com/ui/resources/php/rest.php/config/`
-            cat MAC cat `/` cat Password
+            cat SystemMAC cat `/` cat SystemPassword
         or
         begin
             put `Can't read the config file for ` cat Name cat `(` cat MAC cat `/` cat Password cat `)` into StatusMessage
             go to Error
         end
-!        log Value cat newline
         put json Value into Value
-        if Value has property `devices`
-            set property `devices` of SystemConfig to property `devices` of Value
-        else set property `devices` of SystemConfig to json `{}`
+        push Name onto Stack
+        push Keys onto Stack
+        put the keys of Value into Keys
+        put 0 into K
+        while K is less than the count of Keys
+        begin
+            put element K of Keys into Name
+            put property Name of Value into Item
+            set property Name of SystemConfig to Item
+            increment K
+        end
+        pop Keys from Stack
+        pop Name from Stack
         set property Name of Systems to SystemConfig
         increment S
     end
@@ -806,10 +845,10 @@ RefreshSystemsCombo:
 !   Set up the system, given its name
 SetupSystem:
     if Name is empty return
-    put property Name of Systems into System
-    put property `mac` of System into SystemMAC
-    put property `password` of System into SystemPassword
-    put property `devices` of System into Devices
+    put property Name of Systems into SystemConfig
+    put property `mac` of SystemConfig into SystemMAC
+    put property `password` of SystemConfig into SystemPassword
+    put property `devices` of SystemConfig into Devices
     put the keys of Devices into Keys
     put empty into MasterDevice
     set the text of MasterDeviceButton to `(none)`
@@ -890,17 +929,14 @@ SetupDevice:
     if MasterSSID is empty
     begin
         set IsMaster
-        log `Deal with slave ` cat Name
+        log `Deal with master ` cat Name
         put SSID into MasterSSID
         put Name into MasterDeviceName
         gosub to CreateDevice
         put Device into MasterDevice
-        ! Send the config data to the device
-        put `config.json` into FileName
-        put stringify MasterDevice into Content
         put MAC into MasterMAC
         put IPAddr into MasterIPAddr
-        gosub to SendFileToDevice
+        gosub to SendConfigFile
         if SendFail return
         gosub to RequestReset
         if SendFail return
@@ -911,6 +947,8 @@ SetupDevice:
         put MasterSSID cat ` ` cat MasterName into StatusMessage
         gosub to Working
         disable MasterDeviceButton
+
+        ! Get the master IP address
         put `http://` cat MasterIPAddr cat `/?mac=` cat MasterMAC cat `&msg=ipaddr` into URL
         put `Interrogate the master device` into StatusMessage
         gosub to Working
@@ -926,33 +964,27 @@ SetupDevice:
             gosub to Idle
             set the text of MasterDeviceButton to MasterSSID cat ` ` cat MasterName cat ` ` cat MasterIPAddr cat ` ` cat Name
             set property `ipaddr` of MasterDevice to MasterIPAddr
-            set property MasterName of Devices to MasterDevice
-            set property `devices` of Config to Devices
         end
         else
         begin
-            delete property Name of Devices
-            set property `devices` of Config to Devices
             put `Failed to get Master ip address` into StatusMessage
             go to Error
         end
-        disable DeleteSlaveButton
+        disable RemoveSlaveButton
         enable MasterDeviceButton
         put MasterDevice into Device
         gosub to PopulateDeviceInfo
     end
     else
     begin
+        clear IsMaster
         log `Deal with slave ` cat Name
+        put the position of ` ` in Name into N
+        increment N
+        put from N of Name into Name
         append SSID cat ` ` cat Name to SlaveDevices
         set SlaveList to SlaveDevices
-        clear IsMaster
         gosub to CreateDevice
-        put `config.json` into FileName
-        put stringify Device into Content
-        put from 8 of SSID into MAC
-        gosub to SendFileToDevice
-        gosub to RequestReset
     end
     return
 
@@ -987,7 +1019,9 @@ CreateDevice:
     set property `dht22` of Pins to Pin
     set property `pins` of Device to Pins
     set property Name of Devices to Device
-    set property `devices` of Config to Devices
+    set property `devices` of SystemConfig to Devices
+    set property Name of Systems to SystemConfig
+    set property `systems` of Config to Systems
     return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1011,11 +1045,21 @@ ConnectToDevice:
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Populate the device information fields
 PopulateDeviceInfo:
-    log `Populate device ` cat property `name` of Device
-    set the text of DeviceNameInput to property `name` of Device
-    enable UpdateDeviceButton
-    enable DeleteFileButton
+    if Device has property `name`
+    begin
+        log `Populate device ` cat property `name` of Device
+        set the text of DeviceNameInput to property `name` of Device
+        set the text of SSIDLabel to property `ssid` of Device
+        enable UpdateDeviceButton
+        enable DeleteFileButton
+    end
     return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Send the config file to a device
+SendConfigFile:
+    put `config.json` into FileName
+    put stringify Device into Content
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Send a file to a device
@@ -1128,7 +1172,7 @@ SendRBRMessage:
 SendMessageToDevice:
     gosub to GetDeviceData
     put left 30 of Message into Message2
-!    log `Send '` cat Message2 cat `' to ` cat Name
+    log `Send '` cat Message2 cat `' to ` cat Name
     put Message into Message2
     if Path is not empty
     begin
@@ -1147,6 +1191,7 @@ SendMessageToDevice:
         end
     end
     put `http://` cat MasterIPAddr cat `/?mac=` cat MAC cat `&msg=` cat Message2 into URL
+    log URL
     get Response from url URL
     or begin
         put `Could not message ` cat Name into StatusMessage

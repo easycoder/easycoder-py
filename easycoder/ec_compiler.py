@@ -89,7 +89,13 @@ class Compiler:
 		return self.isSymbol()
 	
 	def skip(self, token):
-		if self.peek() == token: self.nextToken()
+		next = self.peek()
+		if type(token) == list:
+			for item in token:
+				if next == item:
+					self.nextToken()
+					return
+		elif next == token: self.nextToken()
 
 	def rewindTo(self, index):
 		self.index = index
