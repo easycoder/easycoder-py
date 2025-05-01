@@ -121,7 +121,7 @@
     add Group to RightPanel
     create Layout type QHBoxLayout
     add Layout to Group
-    create MasterDeviceButton text `(none)`
+    create MasterDeviceButton text ``
     add MasterDeviceButton to Layout
     on click MasterDeviceButton go to MasterDeviceClick
     
@@ -221,7 +221,6 @@
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    stack Stack
     variable Config
     variable ConfigFile
     variable Name
@@ -241,6 +240,7 @@
     variable Prompt
     variable SystemConfig
     variable SystemCallResult
+    variable SystemName
     variable SystemMAC
     variable SystemPassword
     variable StatusMessage
@@ -258,6 +258,7 @@
     variable SlaveDevices
     variable CurrentSSID
     variable IsMaster
+    variable Changed
     variable FileName
     variable FileSize
     variable SendFail
@@ -277,7 +278,6 @@
     variable Pins
     variable Pin
     variable D
-    variable K
     variable N
     variable P
     variable S
@@ -325,8 +325,7 @@ Start:
     put property `host-ssid` of Config into HostSSID
     put property `host-password` of Config into HostPassword
 
-!   Read config data for each of the systems
-    gosub to GetConfigData
+!    gosub to GetAllConfigData
     if ErrorFlag stop
 
 !   Select the current system
@@ -352,7 +351,7 @@ Start:
     stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Event handlers
+!   Reset the entire system
 ResetConfigFileClick:
     create MessageBox on Window
         style question
@@ -369,6 +368,159 @@ ResetConfigFileClick:
     end
     stop
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Scan the local network for system controllers
+ScanSystemsClick:
+    log `Scan for system controllers`
+    disable ScanSystemsButton
+    gosub to ScanSystems
+stop
+    gosub to RefreshSystemsCombo
+    enable ScanSystemsButton
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Scan the network for RBR system controllers
+ScanSystems:
+    put trim system `hostname -I` into MyIPAddr
+!    log MyIPAddr
+    put the position of the last `.` in MyIPAddr into P
+    increment P
+    put left P of MyIPAddr into Value
+    put json `[]` into List
+    put 245 into N
+    while N is less than 250
+    begin
+        put Value cat N into IPAddr
+        put `Scanning ` cat IPAddr into StatusMessage
+        gosub to Working
+        get Result from url `http://` cat IPAddr cat `:17348/cgi-bin/mac.py` timeout 1 or go to SS2
+        put trim Result into Result
+        log Result
+        log IPAddr cat `: ` cat Result
+        put the position of ` ` in Result into P
+        put left P of Result into MAC
+        increment P
+        put from P of Result into Result
+        put the position of ` ` in Result into P
+        put left P of Result into Password
+        increment P
+        put from P of Result into Name
+        put json `{}` into Item
+        set property `ipaddr` of Item to IPAddr
+        set property `mac` of Item to MAC
+        set property `password` of Item to Password
+        set property Name of Systems to Item
+        log `Adding ` cat Name cat ` to Systems`
+        set property `systems` of Config to Systems
+        gosub to SaveConfigFile
+        append IPAddr to List    ! What's this for?
+    SS2:
+        wait 10 ticks
+        increment N
+    end
+    put the keys of Systems into Keys
+    put element 0 of Keys into Name
+    set property `current` of Config to Name
+    add Name to SystemsCombo
+    enable ScanDevicesButton
+    go to OK
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Refresh the systems combobox
+RefreshSystemsCombo:
+    log `Refresh SystemsCombo`
+    clear SystemsCombo
+    put the keys of Systems into Keys
+    put 0 into S
+    while S is less than the count of Keys
+    begin
+        put element S of Keys into Name
+        log `Add ` cat Name cat ` to SystemsCombo`
+        add Name to SystemsCombo
+        enable RemoveSystemButton
+        increment S
+    end
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Select a system from the combo box
+SystemsComboSelect:
+    put SystemsCombo into SystemName
+    log `Select system ` cat SystemName
+    set property `current` of Config to SystemName
+    gosub to GetConfigData
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Remove a system from the combo box
+RemoveSystemClick:
+    put SystemsCombo into Name
+    log `Remove ` cat Name cat `?`
+    create MessageBox on Window
+        style question
+        title `Remove system`
+        message `Continue you want to remove ` cat Name cat `?`
+    show MessageBox giving Value
+    if Value is `Yes`
+    begin
+        remove the current item from SystemsCombo
+        delete property Name of Systems
+        set property `systems` of Config to Systems
+    end
+    if the count of SystemsCombo is 0 disable RemoveSystemButton
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Get the config data for a system
+GetConfigData:
+    if SystemName is empty return
+    log `Get the config data for ` cat SystemName
+    put property `systems` of Config into Systems
+    put property SystemName of Systems into SystemConfig
+    put property `mac` of SystemConfig into SystemMAC
+    put property `password` of SystemConfig into SystemPassword
+    log SystemMAC cat ` ` cat SystemPassword
+    get Value from url `https://rbrheating.com/ui/resources/php/rest.php/config/`
+        cat SystemMAC cat `/` cat SystemPassword
+    or
+    begin
+        put `Can't read the config file for ` cat SystemName cat `(` cat MAC cat `/` cat Password cat `)` into StatusMessage
+        go to Error
+    end
+    clear Changed
+    if Value is not `{}`
+    begin
+        put json Value into SystemConfig
+        set Changed
+    end
+    if SystemConfig does not have property `devices`
+    begin
+        set property `devices` of SystemConfig to json `{}`
+        set Changed
+    end
+    if Changed
+    begin
+        set property SystemName of Systems to SystemConfig
+        set property `systems` of Config to Systems
+        gosub to SaveConfigFile
+        gosub to PostConfigData
+    end
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Get the config data for all systems
+GetAllConfigData:
+return
+    put the keys of Systems into Keys
+    put 0 into S
+    while S is less than the count of Keys
+    begin
+        put element S of Keys into Name
+        gosub to GetConfigData
+        increment S
+    end
+    return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Clear all the data for the selected system
@@ -382,23 +534,16 @@ ClearSystemClick:
     if Value is `Yes`
     begin
         if CurrentSSID is not HostSSID gosub to ConnectToHost
-        put SystemsCombo into Name
-        put property Name of Systems into SystemConfig
-        put property `mac` of SystemConfig into MAC
-        put property `password` of SystemConfig into Password
+        put property SystemName of Systems into SystemConfig
+        put property `mac` of SystemConfig into SystemMAC
+        put property `password` of SystemConfig into SystemPassword
         put json `{}` into Devices
         set property `devices` of SystemConfig to Devices
-        set property Name of Systems to SystemConfig
+        set property SystemName of Systems to SystemConfig
         set the text of MasterDeviceButton to `(none)`
         put empty into MasterSSID
         clear SlaveList
-        post stringify SystemConfig to
-            `https://rbrheating.com/ui/resources/php/rest.php/config/`
-                cat MAC cat `/` cat Password
-        or begin
-            log `I couldn't post the config file`
-            stop
-        end
+        gosub to PostConfigData
         disable RemoveSystemButton
         gosub to OK
     end
@@ -411,6 +556,8 @@ ScanForDevicesClick:
     put `Scanning for new devices...` into StatusMessage
     log StatusMessage
     gosub to Working
+    put property SystemName of Systems into SystemConfig
+    put property `devices` of SystemConfig into Devices
     put system `nmcli device wifi list` into SystemCallResult
     split SystemCallResult
     put json `[]` into List
@@ -422,6 +569,7 @@ ScanForDevicesClick:
         if left 1 of SSID is `*` begin end
         else
         begin
+            ! We only want RBR-Now-xxxxxxxxxxxx devices
             put trim SSID into SSID
             put the position of ` ` in SSID into P
             put from P of SSID into SSID
@@ -480,165 +628,6 @@ ScanForDevicesClick:
     stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Show information about the master device
-MasterDeviceClick:
-    if MasterDeviceButton is not empty
-    begin
-        log `Select the master device`
-        put MasterDevice into Device
-        gosub to PopulateDeviceInfo
-    end
-    stop
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Show information about a slave device
-SelectSlaveClick:
-    log `Select ` cat SlaveList
-    put property SlaveList of Devices into Device
-    gosub to PopulateDeviceInfo
-    enable UpdateDeviceButton
-    enable RemoveSlaveButton
-    enable DeleteFileButton
-    stop
-
-UpdateDeviceClick:
-    log `Update the files om the selected device`
-    stop
-
-DeleteFileClick:
-    log `Delete a file on the selected device`
-    stop
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Remove a slave from the list
-RemoveSlaveClick:
-    log `Remove the selected slave device`
-    put SlaveList into Name
-    log Name
-    remove the selected item from SlaveList
-    put the keys of Devices into Keys
-    put 0 into D
-    while D is less than the count of Keys
-    begin
-        put element D of Keys into Name
-        put property Name of Devices into Device
-        if property `master` of Device is false
-        begin
-            if property `name` of Device is Name
-            begin
-                delete property Name of Devices
-!                set property `devices` of SystemConfig to Devices
-                put property `name` of SystemConfig into Name
-                set property Name of Systems to SystemConfig
-                stop
-            end
-        end
-        increment D
-    end
-    stop
-
-ScanSystemsClick:
-    log `Scan systems`
-    disable ScanSystemsButton
-    gosub to ScanSystems
-    gosub to RefreshSystemsCombo
-    gosub to GetConfigData
-    enable ScanSystemsButton
-    stop
-
-SystemsComboSelect:
-    put SystemsCombo into Name
-    set property `current` of Config to Name
-    gosub to SetupSystem
-    stop
-
-RemoveSystemClick:
-    put SystemsCombo into Name
-    log `Remove ` cat Name cat `?`
-    create MessageBox on Window
-        style question
-        title `Remove system`
-        message `Continue you want to remove ` cat Name cat `?`
-    show MessageBox giving Value
-    if Value is `Yes`
-    begin
-        remove the current item from SystemsCombo
-        delete property Name of Systems
-        set property `systems` of Config to Systems
-    end
-    if the count of SystemsCombo is 0 disable RemoveSystemButton
-    stop
-
-SaveHostInfoClick:
-    log `Save the host information`
-    stop
-
-UpdateWidgetDataClick:
-    log Device
-    set property `name` of Device to DeviceNameInput
-    log Device
-    put property `ssid` of Device into SSID
-    put from 8 of SSID into MAC
-    gosub to SendConfigFile
-    stop
-
-RelayOffClick:
-    log `Turn the relay OFF`
-    stop
-
-RelayOnClick:
-    log `Turn the relay ON`
-    stop
-
-ExitClick:
-    log `Exit the configurator`
-!    delete property `(none)` of Config
-    save prettify Config to ConfigFile
-    close Window
-    exit
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Subroutines
-
-GetHostPassword:
-    log `Get the host password`
-    put `Type the host password:` into Prompt
-    put `Host password` into Title
-    go to GetRequestedText
-
-GetRequestedText:
-    create VLayout type QVBoxLayout
-    create Label text Prompt align centre
-    add label to VLayout
-    create HLayout type QHBoxLayout
-    add HLayout to VLayout
-    create LineInput size 40
-    add stretch LineInput to HLayout
-    create HLayout type QHBoxLayout
-    add HLayout to VLayout
-    create OKButton text `OK` size 6
-    on click OKButton
-    begin
-        put LineInput into ReturnValue
-        put `OK` into Result
-        close Dialog
-        return
-    end
-    add OKButton to HLayout
-    create CancelButton text `Cancel` size 6
-    on click CancelButton
-    begin
-        put `Cancel` into Result
-        close Dialog
-        return
-    end
-    add CancelButton to HLayout
-    create Dialog title Title layout VLayout size 300 80
-    center Dialog on Window
-    show Dialog
-    stop
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Select an SSID from the list
 SelectSSIDFromList:
     create Layout type QVBoxLayout
@@ -673,6 +662,281 @@ SelectSSIDFromList:
     add CancelButton to HLayout
     add HLayout to Layout
     create Dialog title Title layout Layout size 250 200
+    center Dialog on Window
+    show Dialog
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Set up the device identified by SSID
+SetupDevice:
+    if SSID is HostSSID
+    begin
+        put `Oops - this is the host!` into StatusMessage
+        go to Error
+    end
+
+    ! Connect to the device's AP and get basic data
+    gosub to ConnectToDevice
+    if ErrorFlag return
+    put system `hostname -I` into IPAddr
+    put the position of the last `.` in IPAddr into D
+    increment D
+    put left D of IPAddr into IPAddr
+    put IPAddr cat `1` into IPAddr
+    put `http://` cat IPAddr into URL
+    put `Request AP details for ` cat SSID cat ` at ` cat URL into StatusMessage
+    log StatusMessage
+    gosub to Working
+    get APInfo from url URL
+    or begin
+        put `Failed to interrogate ` cat SSID into StatusMessage
+        go to Error
+    end
+    put trim APInfo into APInfo
+    log `Device info: ` cat APInfo
+    put APInfo into Info
+    split Info on ` `
+    if the elements of Info is less than 4
+    begin
+        put `Bad response from device: ` cat APInfo into StatusMessage
+        go to Error
+    end
+    index Info to 2
+    put Info into Name
+    index Info to 0
+    put Info into MAC
+
+    ! Check if this is the first device to be configured. If so, make it the master.
+    if MasterSSID is empty
+    begin
+        set IsMaster
+        log `Deal with master ` cat Name
+        put SSID into MasterSSID
+        put Name into MasterDeviceName
+        gosub to CreateDevice
+        put Device into MasterDevice
+        put MAC into MasterMAC
+        put IPAddr into MasterIPAddr
+        gosub to SendDeviceConfigFile
+        if SendFail return
+        gosub to RequestReset
+        if SendFail return
+        put `Give the device a few seconds to reboot` into StatusMessage
+        gosub to Working
+        wait 10
+        gosub to ConnectToDevice
+        put MasterSSID cat ` ` cat MasterName into StatusMessage
+        gosub to Working
+        disable MasterDeviceButton
+
+        ! Get the master IP address
+        put `http://` cat MasterIPAddr cat `/?mac=` cat MasterMAC cat `&msg=ipaddr` into URL
+        put `Interrogate the master device` into StatusMessage
+        gosub to Working
+        get Response from url URL
+        or begin
+            put `Failed to get Master ip address of ` cat MasterSSID into StatusMessage
+            go to Error
+        end
+        log Response
+        if left 2 of Response is `OK`
+        begin
+            put from 3 of Response into MasterIPAddr
+            put `Master ip address is ` cat MasterIPAddr into StatusMessage
+            gosub to Idle
+            set the text of MasterDeviceButton to MasterSSID cat ` ` cat MasterName cat ` ` cat MasterIPAddr cat ` ` cat Name
+            set property `ipaddr` of MasterDevice to MasterIPAddr
+        end
+        else
+        begin
+            put `Failed to get Master ip address` into StatusMessage
+            go to Error
+        end
+        disable RemoveSlaveButton
+        enable MasterDeviceButton
+        put MasterDevice into Device
+        gosub to PopulateDeviceInfo
+    end
+    else
+    begin
+        clear IsMaster
+        log `Deal with slave ` cat Name
+        put the position of ` ` in Name into N
+        increment N
+        put from N of Name into Name
+        append SSID cat ` ` cat Name to SlaveDevices
+        set SlaveList to SlaveDevices
+        gosub to CreateDevice
+    end
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Create a device entry in the config file
+CreateDevice:
+    log `Create Device`
+    put json `{}` into Device
+    put `(none)` into Name
+    if IsMaster
+    begin
+        log `Create master device ` cat Name
+        set property `hostssid` of Device to HostSSID
+        set property `hostpass` of Device to HostPassword
+        set property `ipaddr` of Device to empty
+    end
+    else log `Create slave device ` cat Name
+        go to Abort
+    set property `master` of Device to IsMaster
+    set property `name` of Device to Name
+    set property `ssid` of Device to SSID
+    set property `channel` of Device to 1
+    put json `{}` into Pins
+    put json `{}` into Pin
+    set property `pin` of Pin to empty
+    set property `invert` of Pin to false
+    set property `led` of Pins to Pin
+    put json `{}` into Pin
+    set property `pin` of Pin to empty
+    set property `invert` of Pin to false
+    set property `relay` of Pins to Pin
+    put json `{}` into Pin
+    set property `pin` of Pin to empty
+    set property `dht22` of Pins to Pin
+    set property `pins` of Device to Pins
+    set property Name of Devices to Device
+    set property `devices` of SystemConfig to Devices
+    set property Name of Systems to SystemConfig
+    set property `systems` of Config to Systems
+    log prettify Config
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Show information about the master device
+MasterDeviceClick:
+    if MasterDeviceButton is not empty
+    begin
+        log `Select the master device`
+        put MasterDevice into Device
+        gosub to PopulateDeviceInfo
+    end
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Show information about a slave device
+SelectSlaveClick:
+    log `Select ` cat SlaveList
+    put property SlaveList of Devices into Device
+    gosub to PopulateDeviceInfo
+    enable UpdateDeviceButton
+    enable RemoveSlaveButton
+    enable DeleteFileButton
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Update the files on the selected device
+UpdateDeviceClick:
+    log `Update the files om the selected device`
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Delete a file on the selected device
+DeleteFileClick:
+    log `Delete a file on the selected device`
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Remove a slave device from the list
+RemoveSlaveClick:
+    log `Remove the selected slave device`
+    put SlaveList into Name
+    log Name
+    remove the selected item from SlaveList
+    put the keys of Devices into Keys
+    put 0 into D
+    while D is less than the count of Keys
+    begin
+        put element D of Keys into Name
+        put property Name of Devices into Device
+        if property `master` of Device is false
+        begin
+            if property `name` of Device is Name
+            begin
+                delete property Name of Devices
+!                set property `devices` of SystemConfig to Devices
+                put property `name` of SystemConfig into Name
+                set property Name of Systems to SystemConfig
+                stop
+            end
+        end
+        increment D
+    end
+    stop
+
+UpdateWidgetDataClick:
+    log Device
+    set property `name` of Device to DeviceNameInput
+    log Device
+    put property `ssid` of Device into SSID
+    put from 8 of SSID into MAC
+    gosub to SendDeviceConfigFile
+    stop
+
+RelayOffClick:
+    log `Turn the relay OFF`
+    stop
+
+RelayOnClick:
+    log `Turn the relay ON`
+    stop
+
+ExitClick:
+    log `Exit the configurator`
+!    delete property `(none)` of Config
+    save prettify Config to ConfigFile
+    close Window
+    exit
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Save the config file
+SaveConfigFile:
+    save prettify Config to ConfigFile
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Subroutines
+GetHostPassword:
+    log `Get the host password`
+    put `Type the host password:` into Prompt
+    put `Host password` into Title
+    go to GetRequestedText
+
+GetRequestedText:
+    create VLayout type QVBoxLayout
+    create Label text Prompt align centre
+    add label to VLayout
+    create HLayout type QHBoxLayout
+    add HLayout to VLayout
+    create LineInput size 40
+    add stretch LineInput to HLayout
+    create HLayout type QHBoxLayout
+    add HLayout to VLayout
+    create OKButton text `OK` size 6
+    on click OKButton
+    begin
+        put LineInput into ReturnValue
+        put `OK` into Result
+        close Dialog
+        return
+    end
+    add OKButton to HLayout
+    create CancelButton text `Cancel` size 6
+    on click CancelButton
+    begin
+        put `Cancel` into Result
+        close Dialog
+        return
+    end
+    add CancelButton to HLayout
+    create Dialog title Title layout VLayout size 300 80
     center Dialog on Window
     show Dialog
     stop
@@ -727,6 +991,7 @@ ConnectToHost:
         index SystemCallResult to 2
         if SystemCallResult is `successfully`
         begin
+            enable ScanDevicesButton
             put HostSSID into CurrentSSID
             put `Connected to ` cat HostSSID into StatusMessage
             log StatusMessage
@@ -746,100 +1011,6 @@ GetHost:
     if Config does not have property `host-password` gosub to GetHostPassword
     set property `host-password` of Config to ReturnValue
     go to ConnectToHost
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Scan the network for RBR system controllers
-ScanSystems:
-    put trim system `hostname -I` into MyIPAddr
-!    log MyIPAddr
-    put the position of the last `.` in MyIPAddr into P
-    increment P
-    put left P of MyIPAddr into Value
-    put json `[]` into List
-    put 1 into N
-    while N is less than 255
-    begin
-        put Value cat N into IPAddr
-        put `Scanning ` cat IPAddr into StatusMessage
-        gosub to Working
-        get Result from url `http://` cat IPAddr cat `:17348/cgi-bin/mac.py` timeout 1 or go to SS2
-        put trim Result into Result
-        log IPAddr cat `: ` cat Result
-        put the position of ` ` in Result into P
-        put left P of Result into MAC
-        increment P
-        put from P of Result into Result
-        put the position of ` ` in Result into P
-        put left P of Result into Password
-        increment P
-        put from P of Result into Name
-        put json `{}` into Item
-        set property `ipaddr` of Item to IPAddr
-        set property `mac` of Item to MAC
-        set property `password` of Item to Password
-        set property Name of Systems to Item
-        append IPAddr to List
-    SS2:
-        wait 10 ticks
-        increment N
-    end
-    set property `systems` of Config to Systems
-    go to OK
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Get the config data for each of the systems
-GetConfigData:
-    put the keys of Systems into Keys
-    put 0 into S
-    while S is less than the count of Keys
-    begin
-        put element S of Keys into Name
-        ! SystemConfig holds the data for a single system; Systems holds all of the SystemConfigs by system name
-        ! Get the data for this system
-        put property Name of Systems into SystemConfig
-        put property `mac` of SystemConfig into SystemMAC
-        put property `password` of SystemConfig into SystemPassword
-        get Value from url `https://rbrheating.com/ui/resources/php/rest.php/config/`
-            cat SystemMAC cat `/` cat SystemPassword
-        or
-        begin
-            put `Can't read the config file for ` cat Name cat `(` cat MAC cat `/` cat Password cat `)` into StatusMessage
-            go to Error
-        end
-        put json Value into Value
-        push Name onto Stack
-        push Keys onto Stack
-        put the keys of Value into Keys
-        put 0 into K
-        while K is less than the count of Keys
-        begin
-            put element K of Keys into Name
-            put property Name of Value into Item
-            set property Name of SystemConfig to Item
-            increment K
-        end
-        pop Keys from Stack
-        pop Name from Stack
-        set property Name of Systems to SystemConfig
-        increment S
-    end
-    set property `systems` of Config to Systems
-    return
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Refresh the systems combobox
-RefreshSystemsCombo:
-    clear SystemsCombo
-    put the keys of Systems into Keys
-    put 0 into S
-    while S is less than the count of Keys
-    begin
-        put element S of Keys into Name
-        add Name to SystemsCombo
-        enable RemoveSystemButton
-        increment S
-    end
-    return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Set up the system, given its name
@@ -886,145 +1057,6 @@ FailedToConnect:
     go to Error
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Set up the device identified by SSID
-SetupDevice:
-    if SSID is HostSSID
-    begin
-        put `Oops - this is the host!` into StatusMessage
-        go to Error
-    end
-
-    ! Connect to the device's AP and get basic data
-    gosub to ConnectToDevice
-    if ErrorFlag return
-    put system `hostname -I` into IPAddr
-    put the position of the last `.` in IPAddr into D
-    increment D
-    put left D of IPAddr into IPAddr
-    put IPAddr cat `1` into IPAddr
-    put `http://` cat IPAddr into URL
-    put `Request AP details for ` cat SSID cat ` at ` cat URL into StatusMessage
-    log StatusMessage
-    gosub to Working
-    get APInfo from url URL
-    or begin
-        put `Failed to interrogate ` cat SSID into StatusMessage
-        go to Error
-    end
-    put trim APInfo into APInfo
-    log `Device info: ` cat APInfo
-    put APInfo into Info
-    split Info on ` `
-    if the elements of Info is less than 4
-    begin
-        put `Bad response from device: ` cat APInfo into StatusMessage
-        go to Error
-    end
-    index Info to 2
-    put Info into Name
-    index Info to 0
-    put Info into MAC
-
-    ! Check if this is the first device to be configured. If so, make it the master.
-    if MasterSSID is empty
-    begin
-        set IsMaster
-        log `Deal with master ` cat Name
-        put SSID into MasterSSID
-        put Name into MasterDeviceName
-        gosub to CreateDevice
-        put Device into MasterDevice
-        put MAC into MasterMAC
-        put IPAddr into MasterIPAddr
-        gosub to SendConfigFile
-        if SendFail return
-        gosub to RequestReset
-        if SendFail return
-        put `Give the device a few seconds to reboot` into StatusMessage
-        gosub to Working
-        wait 10
-        gosub to ConnectToDevice
-        put MasterSSID cat ` ` cat MasterName into StatusMessage
-        gosub to Working
-        disable MasterDeviceButton
-
-        ! Get the master IP address
-        put `http://` cat MasterIPAddr cat `/?mac=` cat MasterMAC cat `&msg=ipaddr` into URL
-        put `Interrogate the master device` into StatusMessage
-        gosub to Working
-        get Response from url URL
-        or begin
-            put `Failed to get Master ip address of ` cat MasterSSID into StatusMessage
-            go to Error
-        end
-        if left 2 of Response is `OK`
-        begin
-            put from 3 of Response into MasterIPAddr
-            put `Master ip address is ` cat MasterIPAddr into StatusMessage
-            gosub to Idle
-            set the text of MasterDeviceButton to MasterSSID cat ` ` cat MasterName cat ` ` cat MasterIPAddr cat ` ` cat Name
-            set property `ipaddr` of MasterDevice to MasterIPAddr
-        end
-        else
-        begin
-            put `Failed to get Master ip address` into StatusMessage
-            go to Error
-        end
-        disable RemoveSlaveButton
-        enable MasterDeviceButton
-        put MasterDevice into Device
-        gosub to PopulateDeviceInfo
-    end
-    else
-    begin
-        clear IsMaster
-        log `Deal with slave ` cat Name
-        put the position of ` ` in Name into N
-        increment N
-        put from N of Name into Name
-        append SSID cat ` ` cat Name to SlaveDevices
-        set SlaveList to SlaveDevices
-        gosub to CreateDevice
-    end
-    return
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Create a device entry in the config file
-CreateDevice:
-    put json `{}` into Device
-    put `(none)` into Name
-    if IsMaster
-    begin
-        log `Create master device ` cat Name
-        set property `hostssid` of Device to HostSSID
-        set property `hostpass` of Device to HostPassword
-        set property `ipaddr` of Device to empty
-    end
-    else log `Create slave device ` cat Name
-    set property `master` of Device to IsMaster
-    set property `name` of Device to Name
-    set property `ssid` of Device to SSID
-    set property `channel` of Device to 1
-    put json `{}` into Pins
-    put json `{}` into Pin
-    set property `pin` of Pin to empty
-    set property `invert` of Pin to false
-    set property `led` of Pins to Pin
-    put json `{}` into Pin
-    set property `pin` of Pin to empty
-    set property `invert` of Pin to false
-    set property `relay` of Pins to Pin
-    put json `{}` into Pin
-    set property `pin` of Pin to empty
-    set property `dht22` of Pins to Pin
-    set property `pins` of Device to Pins
-    set property Name of Devices to Device
-    set property `devices` of SystemConfig to Devices
-    set property Name of Systems to SystemConfig
-    set property `systems` of Config to Systems
-    return
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Connect to a device
 ConnectToDevice:
     put `Connect to device ` cat SSID cat ` with password 00000000` into StatusMessage
@@ -1057,7 +1089,7 @@ PopulateDeviceInfo:
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Send the config file to a device
-SendConfigFile:
+SendDeviceConfigFile:
     put `config.json` into FileName
     put stringify Device into Content
 
@@ -1222,7 +1254,8 @@ GetDeviceData:
 !   Post the config data
 PostConfigData:
     if CurrentSSID is not HostSSID gosub to ConnectToHost
-    save stringify Config to ConfigFile
+    save prettify Config to ConfigFile
+return
     put `https://rbrheating.com/ui/resources/php/rest.php/config/` cat SystemMAC cat `/` cat SystemPassword into URL
     log `Posting Config to ` cat URL
     post stringify Config to URL
@@ -1248,6 +1281,9 @@ Working:
     clear ErrorFlag
     wait 50 ticks
     return
+
+Abort:
+    put `Abort` into StatusMessage
 
 Error:
     log StatusMessage

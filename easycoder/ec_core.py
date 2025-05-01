@@ -164,7 +164,6 @@ class Core(Handler):
         val['type'] = 'boolean'
         val['content'] = False
         self.putSymbolValue(target, val)
-        # self.add(command)
         return self.nextPC()
 
     # Close a file
