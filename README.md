@@ -1,5 +1,9 @@
 # Introduction
-**_EasyCoder_** is a high-level English-like scripting language suited for prototyping and rapid testing of ideas. It operates on the command line and a graphics module is under construction. The language is written in Python and it acts as a fairly thin wrapper around standard Python functions, giving fast compilation and good runtime performance for general applications.
+**_EasyCoder_** is a high-level English-like domain-specific scripting language (DSL) suited for prototyping and rapid testing of ideas. It operates on the command line and a graphics module is under construction. The language is written in Python and it acts as a fairly thin wrapper around standard Python functions, giving fast compilation and good runtime performance for general applications.
+
+**_EasyCoder_** is well suited to building command-line or graphical applications for expressing random logic such as operating procedures and rules, or controlling physical systems, primarily wifi devices. It is particularly easy to construct and issue REST commands to local or remote web servers.
+
+For more advanced applications, **_EasyCoder_** is designed to be extensible, by enabling extra language syntax to be added via plugin-in modules. Once these are installed they act as seamless extensions to the basic syntax provided. **_EasyCoder_** derives its power from the use of rich and comprehensive language rather than a complex system of frameworks such as those commonly used in modern programming. This makes it very easy to learn as our brains are wired to operate that way. Having said that, the needs of most control systems are usually served by a fairly modest number of keywords and syntactic variants.
 <hr>
 
 There is also a JavaScript version of **_EasyCoder_**, which provides a full set of graphical features to run in a browser. For this, please visit
@@ -11,15 +15,12 @@ Website: [https://easycoder.github.io](https://easycoder.github.io)
 ## Quick Start
 Install **_EasyCoder_** in your Python environment:
 ```
-pip install requests pytz easycoder
+pip install requests easycoder
 ```
 
 Test the install by typing the command `easycoder`.
 <hr>
-On Linux, this will probably fail as the installer places the executable file in the `$HOME/.local/bin` directory. So give the command
-```
-    export PATH=$HOME/.local/bin:$PATH
-```
+On Linux, this will probably fail as the installer places the executable file in the `$HOME/.local/bin` directory. So give the command `export PATH=$HOME/.local/bin:$PATH`
 
 To make this change permanent, edit your `.profile` file, adding the following:
 ```
@@ -72,7 +73,7 @@ Here in the repository is a folder called `scripts` containing some sample scrip
 `benchmark.ecs` allows the performance of **_EasyCoder_** to be compared to other languages if a similar script is written for each one.
 
 ## Graphical programming
-**_EasyCoder_** includes a graphical programming environment based on PySide6, that is in the early stages of development. Some demo scripts will be included in the `scripts` directory as development proceeds.
+**_EasyCoder_** includes a graphical programming environment based on PySide6, that is in under development. Some demo scripts will be included in the `scripts` directory as development proceeds. Anyone wishing to track progress can do so via this repository. At the time of writing we are transitioning from an early version based on PySimpleGUI to one based on PySide, the latter being an open product that matches the needs of a DSL better than does the former.
 
 ## Significant features
 
