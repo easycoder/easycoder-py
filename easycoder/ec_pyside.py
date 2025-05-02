@@ -1,6 +1,7 @@
 import sys
 from easycoder import Handler, FatalError, RuntimeError
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -682,10 +683,15 @@ class Graphics(Handler):
                     widget.takeItem(row)
         return self.nextPC()
 
-    # select {item} [in] {combobox}
+    # select index {n} [of] {combobox]}
+    # select {name} [in] {combobox}
     def k_select(self, command):
-        command['item'] = self.nextValue()
-        self.skip('in')
+        if self.nextIs('index'):
+            command['index'] = self.nextValue()
+            self.skip('of')
+        else:
+            command['name'] = self.nextValue()
+            self.skip('in')
         if self.nextIsSymbol():
             record = self.getSymbolRecord()
             if record['keyword'] == 'combobox':
@@ -695,9 +701,12 @@ class Graphics(Handler):
         return False
     
     def r_select(self, command):
-        item = self.getRuntimeValue(command['item'])
         widget = self.getVariable(command['name'])['widget']
-        index = widget.findText(item, Qt.MatchFixedString)
+        if 'index' in command:
+            index = self.getRuntimeValue(command['index'])
+        else:
+            name = self.getRuntimeValue(command['name'])
+            index = widget.findText(name, Qt.MatchFixedString)
         if index >= 0:
             widget.setCurrentIndex(index)
         return self.nextPC()
@@ -894,7 +903,7 @@ class Graphics(Handler):
                 value['type'] = 'symbol'
                 record = self.getSymbolRecord()
                 keyword = record['keyword']
-                if keyword == 'combobox':
+                if keyword in ['combobox', 'listbox']:
                     value['type'] = 'count'
                     value['name'] = record['name']
                     return value
@@ -956,7 +965,7 @@ class Graphics(Handler):
         record = self.getVariable(v['name'])
         keyword = record['keyword']
         widget = record['widget']
-        if keyword == 'combobox': content = widget.count()
+        if keyword in ['combobox', 'listbox']: content = widget.count()
         value = {}
         value['type'] = 'int'
         value['content'] = content
