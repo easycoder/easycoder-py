@@ -20,7 +20,7 @@ pip install requests easycoder
 
 Test the install by typing the command `easycoder`.
 <hr>
-On Linux, this will probably fail as the installer places the executable file in the `$HOME/.local/bin` directory. So give the command `export PATH=$HOME/.local/bin:$PATH`
+On Linux, this will probably fail as the installer places the executable file in the `$HOME/.local/bin` directory. So give the command `export PATH=$HOME/.local/bin:$PATH`.
 
 To make this change permanent, edit your `.profile` file, adding the following:
 ```
@@ -31,7 +31,7 @@ fi
 ```
 <hr>
 
-Now write a test script, 'hello.ecs', containing the following:
+Now write a test script, `hello.ecs`, containing the following:
 ```
 print `Hello, world!`
 exit
