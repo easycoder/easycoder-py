@@ -1,0 +1,11 @@
+!   RBR-Now configuration
+
+    script RBRConfig
+
+    variable Script
+    module RBRConfig
+
+    get Script from url `https://raw.githubusercontent.com/easycoder/easycoder-py/refs/heads/main/config.ecs`
+    save Script to `temp.ecs`
+    run `temp.ecs` as RBRConfig
+    exit

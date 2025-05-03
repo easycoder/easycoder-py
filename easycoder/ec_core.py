@@ -1605,6 +1605,7 @@ class Core(Handler):
 
     def k_use(self, command):
         if self.nextIs('graphics'):
+            print('Loading graphics module')
             from .ec_pyside import Graphics
             self.program.classes.append(Graphics)
             self.program.processClasses()

@@ -695,13 +695,13 @@ class Graphics(Handler):
         if self.nextIsSymbol():
             record = self.getSymbolRecord()
             if record['keyword'] == 'combobox':
-                command['name'] = record['name']
+                command['widget'] = record['name']
                 self.add(command)
                 return True
         return False
     
     def r_select(self, command):
-        widget = self.getVariable(command['name'])['widget']
+        widget = self.getVariable(command['widget'])['widget']
         if 'index' in command:
             index = self.getRuntimeValue(command['index'])
         else:

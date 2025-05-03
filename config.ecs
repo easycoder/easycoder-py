@@ -223,6 +223,7 @@
 
     variable Config
     variable ConfigFile
+    variable Hosts
     variable Name
     variable Value
     variable ReturnValue
@@ -232,6 +233,7 @@
     variable Item
     variable HostSSID
     variable HostPassword
+    variable SystemHostSSID
     variable SSID
     variable MAC
     variable Password
@@ -292,18 +294,26 @@ Start:
     put trim system `echo $HOME` cat `/.rbr.conf` into ConfigFile
     load Config from ConfigFile
     if Config is empty put json `{}` into Config else put json Config into Config
+    if Config does not have property `hosts` set property `hosts` of Config to json `{}`
+    if Config does not have property `systems` set property `systems` of Config to json `{}`
+    if Config does not have property `current-system` set property `current-system` of Config to empty
+    put property `hosts` of Config into Hosts
 
-!   Look for the host SSID and password. If they're not found, scan for them
-    if Config does not have property `host-ssid` gosub to GetHost
-
-    put property `host-ssid` of Config into HostSSID
-    put property `host-password` of Config into HostPassword
-
-!   Check we're on the right AP. If not, connect to it
-    put `Checking current SSID...` into StatusMessage
+!   Get the host SSID
+    put `Getting host SSID...` into StatusMessage
     gosub to Working
     put trim system `LANG=C nmcli -t -f active,ssid dev wifi | grep ^yes | cut -d: -f2-` into HostSSID
-    if HostSSID is not property `host-ssid` of Config gosub to ConnectToHost
+    if Hosts has property HostSSID put property HostSSID of Hosts into HostPassword
+    else
+    begin
+        gosub to GetHostPassword
+        if HostPassword is not empty
+        begin
+            set property HostSSID of Hosts to HostPassword
+            set property `hosts` of Config to Hosts
+        end
+    end
+    save prettify Config to ConfigFile
     put `Connected to ` cat HostSSID into StatusMessage
     gosub to Idle
 
@@ -316,8 +326,7 @@ Start:
     end
     gosub to RefreshSystemsCombo
 
-!    gosub to GetAllConfigData
-    if ErrorFlag stop
+    put empty into SystemHostSSID
 
 !   Select the current system
     if the count of SystemsCombo is 0 put empty into SystemName
@@ -326,7 +335,7 @@ Start:
         put the keys of Systems into Keys
         put element 0 of Keys into SystemName
     end
-    set property `current` of Config to SystemName
+    set property `current-system` of Config to SystemName
     if SystemName is not empty
     begin
         select SystemName in SystemsCombo
@@ -361,7 +370,6 @@ ScanSystemsClick:
     log `Scan for system controllers`
     disable ScanSystemsButton
     gosub to ScanSystems
-!    if SystemName is not empty gosub to GetConfigData
     gosub to RefreshSystemsCombo
     gosub to PostConfigData
     gosub to ManageButtonStates
@@ -395,20 +403,49 @@ ScanSystems:
         increment P
         put from P of Result into SystemName
         put json `{}` into SystemConfig
+        set property `host-ssid` of SystemConfig to HostSSID
+        set property `host-password` of SystemConfig to HostPassword
         set property `ipaddr` of SystemConfig to IPAddr
         set property `mac` of SystemConfig to SystemMAC
         set property `password` of SystemConfig to SystemPassword
         set property `devices` of SystemConfig to json `{}`
         log `Adding ` cat SystemName cat ` to Systems`
         gosub UpdateSystems
+        log prettify SystemConfig
         gosub to GetConfigData
     SS2:
         wait 10 ticks
         increment N
     end
-    set property `current` of Config to SystemName
+    set property `current-system` of Config to SystemName
     log `After scan: ` cat prettify Config
     go to OK
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Get the config data for a system
+GetConfigData:
+    gosub to SetBusy
+    if SystemName is empty return
+    log `Get the config data for ` cat SystemName
+    put property `devices` of SystemConfig into Devices
+    get Value from url `https://rbrheating.com/ui/resources/php/rest.php/config/`
+        cat SystemMAC cat `/` cat SystemPassword
+    or
+    begin
+        put `Can't read the config file for ` cat SystemName cat `(` cat MAC cat `/` cat Password cat `)` into StatusMessage
+        go to Error
+    end
+    ! If the server has data, use it instead of the local config
+    if Value is empty put `{}` into Value
+    if Value is not `{}`
+    begin
+        log `Use config data from the server`
+        put json Value into SystemConfig
+        gosub to UpdateSystems
+    end
+    log prettify SystemConfig
+    gosub to PostConfigData
+    return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Refresh the systems combobox
@@ -433,11 +470,12 @@ SystemsComboSelect:
     if SystemName is not empty
     begin
         log `Select system ` cat SystemName
-        set property `current` of Config to SystemName
+        set property `current-system` of Config to SystemName
         put property SystemName of Systems into SystemConfig
         gosub to PopulateSystemInfo
     end
     gosub to ManageButtonStates
+    if not ErrorFlag gosub to OK
     stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -456,8 +494,9 @@ RemoveSystemClick:
         remove the current item from SystemsCombo
         delete property SystemName of Systems
         put empty into SystemName
-        set property `current` of Config to SystemsCombo
+        set property `current-system` of Config to SystemsCombo
         set property `systems` of Config to Systems
+        put empty into SystemHostSSID
         gosub to PostConfigData
     end
     if the count of SystemsCombo is 0 disable RemoveSystemButton
@@ -467,38 +506,6 @@ RemoveSystemClick:
     end
     gosub to ManageButtonStates
     stop
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Get the config data for a system
-GetConfigData:
-    gosub to SetBusy
-    if SystemName is empty return
-    log `Get the config data for ` cat SystemName
-!    put property `systems` of Config into Systems
-    put property SystemName of Systems into SystemConfig
-    put property `mac` of SystemConfig into SystemMAC
-    put property `devices` of SystemConfig into Devices
-    put property `password` of SystemConfig into SystemPassword
-    get Value from url `https://rbrheating.com/ui/resources/php/rest.php/config/`
-        cat SystemMAC cat `/` cat SystemPassword
-    or
-    begin
-        put `Can't read the config file for ` cat SystemName cat `(` cat MAC cat `/` cat Password cat `)` into StatusMessage
-        go to Error
-    end
-    ! If the server has data, use it instead of the local config
-!    put json Value into Value
-!    log `Value: ` cat prettify Value
-!    return
-!    put empty into Value
-    if Value is not empty
-    begin
-        log `Use config data from the server`
-        put json Value into SystemConfig
-        gosub to UpdateSystems
-    end
-    gosub to PostConfigData
-    return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Clear all the data for the selected system
@@ -787,6 +794,28 @@ CreateDevice:
 !   Populate the system information fields
 PopulateSystemInfo:
     log `Populate fields for ` cat SystemName
+    put property `host-ssid` of SystemConfig into SystemHostSSID
+    if SystemHostSSID is not HostSSID
+    begin
+        put property SystemHostSSID of Hosts into Password
+        put `Connect to host ` cat SystemHostSSID cat ` with password ` cat Password into StatusMessage
+        gosub to Working
+        put system `nmcli dev wifi connect ` cat SystemHostSSID cat ` password ` cat Password into SystemCallResult
+        split SystemCallResult on ` `
+        if the elements of SystemCallResult is greater than 2
+        begin
+            index SystemCallResult to 2
+            if SystemCallResult is `successfully`
+            begin
+                put SystemHostSSID into HostSSID
+                put HostSSID into CurrentSSID
+                put `Connected to ` cat HostSSID into StatusMessage
+                go to Idle
+            end
+        end
+        put `Failed to connect to ` cat HostSSID into StatusMessage
+        go to Error
+    end
     put property `mac` of SystemConfig into SystemMAC
     put property `password` of SystemConfig into SystemPassword
     put property `devices` of SystemConfig into Devices
@@ -926,7 +955,9 @@ GetHostPassword:
     log `Get the host password`
     put `Type the host password:` into Prompt
     put `Host password` into Title
-    go to GetRequestedText
+    gosub to GetRequestedText
+    put ReturnValue into HostPassword
+    return
 
 GetRequestedText:
     create VLayout type QVBoxLayout
@@ -942,7 +973,6 @@ GetRequestedText:
     on click OKButton
     begin
         put LineInput into ReturnValue
-        put `OK` into Result
         close Dialog
         return
     end
@@ -950,7 +980,7 @@ GetRequestedText:
     create CancelButton text `Cancel` size 6
     on click CancelButton
     begin
-        put `Cancel` into Result
+        put empty into ReturnValue
         close Dialog
         return
     end
@@ -998,8 +1028,6 @@ GetAccessPoints:
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Connect to the host router
 ConnectToHost:
-    put property `host-ssid` of Config into HostSSID
-    put property `host-password` of Config into HostPassword
     put `Connect to host ` cat HostSSID cat ` with password ` cat HostPassword into StatusMessage
     gosub to Working
     put system `nmcli dev wifi connect ` cat HostSSID cat ` password ` cat HostPassword into SystemCallResult
@@ -1011,14 +1039,10 @@ ConnectToHost:
         begin
             put HostSSID into CurrentSSID
             put `Connected to ` cat HostSSID into StatusMessage
-            log StatusMessage
-            go to Working
+            go to Idle
         end
     end
     put `Failed to connect to ` cat HostSSID into StatusMessage
-    ! Fall into GetHost
-
-GetHost:
     gosub to GetAccessPoints
     put `Select HostSSID` into Title
     put `Select the home router for this system` into Prompt
@@ -1026,7 +1050,7 @@ GetHost:
     if HostSSID is empty go to Start
     set property `host-ssid` of Config to HostSSID
     if Config does not have property `host-password` gosub to GetHostPassword
-    set property `host-password` of Config to ReturnValue
+    set property `host-password` of Config to HostPassword
     go to ConnectToHost
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1263,6 +1287,8 @@ Error:
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Enable or disable the various buttons
 ManageButtonStates:
+    if SystemHostSSID is not empty
+        if SystemHostSSID is not HostSSID go to SetBusy
 ! ScanDevicesButton
     if the count of SystemsCombo is 0 disable ScanDevicesButton else enable ScanDevicesButton
 ! ClearSystemButton
