@@ -889,36 +889,35 @@ class Graphics(Handler):
         value['domain'] = self.getName()
         token = self.getToken()
         if self.isSymbol():
-            value['name'] = token
-            value['type'] = 'symbol'
-            return value
-
-        if self.tokenIs('the'):
-            self.nextToken()
-        token = self.getToken()
-
-        if token == 'count':
-            self.skip('of')
-            if self.nextIsSymbol():
+            if self.getSymbolRecord()['extra'] == 'gui':
+                value['name'] = token
                 value['type'] = 'symbol'
-                record = self.getSymbolRecord()
-                keyword = record['keyword']
-                if keyword in ['combobox', 'listbox']:
-                    value['type'] = 'count'
-                    value['name'] = record['name']
-                    return value
-        
-        if token == 'current':
-            self.skip('item')
-            self.skip('in')
-            if self.nextIsSymbol():
-                value['type'] = 'symbol'
-                record = self.getSymbolRecord()
-                keyword = record['keyword']
-                if keyword == 'listbox':
-                    value['type'] = 'current'
-                    value['name'] = record['name']
-                    return value
+                return value
+
+        else:
+            if self.tokenIs('the'): token = self.nextToken()
+            if token == 'count':
+                self.skip('of')
+                if self.nextIsSymbol():
+                    value['type'] = 'symbol'
+                    record = self.getSymbolRecord()
+                    keyword = record['keyword']
+                    if keyword in ['combobox', 'listbox']:
+                        value['type'] = 'count'
+                        value['name'] = record['name']
+                        return value
+            
+            elif token == 'current':
+                self.skip('item')
+                self.skip('in')
+                if self.nextIsSymbol():
+                    value['type'] = 'symbol'
+                    record = self.getSymbolRecord()
+                    keyword = record['keyword']
+                    if keyword == 'listbox':
+                        value['type'] = 'current'
+                        value['name'] = record['name']
+                        return value
 
         return None
 
@@ -957,6 +956,13 @@ class Graphics(Handler):
             content = listbox.currentItem().text()
             v = {}
             v['type'] = 'text'
+            v['content'] = content
+            return v
+        elif keyword == 'checkbox':
+            checkbox = symbolRecord['widget']
+            content = checkbox.isChecked()
+            v = {}
+            v['type'] = 'boolean'
             v['content'] = content
             return v
         return None

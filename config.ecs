@@ -871,6 +871,7 @@ MasterDeviceClick:
         log `Select the master device`
         set IsMaster
         put MasterDevice into Device
+        log prettify Device
         gosub to PopulateDeviceInfo
     end
     gosub to ManageButtonStates
@@ -884,6 +885,13 @@ PopulateDeviceInfo:
         log `Populate device ` cat property `name` of Device
         set the text of DeviceNameInput to property `name` of Device
         set the text of SSIDLabel to property `ssid` of Device
+        put property `pins` of Device into Pins
+        put property `led` of Pins into Pin
+        set the text of LEDPinInput to property `pin` of Pin
+        put property `relay` of Pins into Pin
+        set the text of RelayPinInput to property `pin` of Pin
+        put property `dht22` of Pins into Pin
+        set the text of DHT22PinInput to property `pin` of Pin
         enable UpdateFilesButton
         enable DeleteFileButton
     end
@@ -1079,6 +1087,19 @@ UpdateWidgetDataClick:
     gosub to SetBusy
     put property `name` of Device into Previous
     set property `name` of Device to DeviceNameInput
+    put json `{}` into Pins
+    put json `{}` into Pin
+    set property `pin` of Pin to LEDPinInput
+    set property `invert` of Pin to LEDInvertCheckbox
+    set property `led` of Pins to Pin
+    put json `{}` into Pin
+    set property `pin` of Pin to RelayPinInput
+    set property `invert` of Pin to RelayInvertCheckbox
+    set property `relay` of Pins to Pin
+    put json `{}` into Pin
+    set property `pin` of Pin to DHT22PinInput
+    set property `dht22` of Pins to Pin
+    set property `pins` of Device to Pins
     put `config.json` into FileName
     put stringify Device into Content
     gosub to SendFileToDevice
@@ -1093,6 +1114,7 @@ UpdateWidgetDataClick:
         delete property Previous of Devices
         gosub to UpdateSystemConfig
         gosub to PostConfigData
+        gosub to RequestReset
     end
     gosub to ManageButtonStates
     stop
