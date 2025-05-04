@@ -2,6 +2,8 @@
 
     script RBRConfig
 
+    use graphics
+
     variable Script
     module RBRConfig
 

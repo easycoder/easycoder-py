@@ -23,7 +23,7 @@
     pushbutton ScanDevicesButton
     pushbutton ClearSystemButton
     pushbutton RemoveSlaveButton
-    pushbutton UpdateFilesButton
+    pushbutton UpdateDeviceButton
     pushbutton DeleteFileButton
     pushbutton ExitButton
     pushbutton ScanSystemsButton
@@ -74,9 +74,9 @@
     on click ScanDevicesButton go to ScanForDevicesClick
     add ScanDevicesButton to LeftPanel
 
-    create UpdateFilesButton text `Update files`
-    on click UpdateFilesButton go to UpdateFilesClick
-    add UpdateFilesButton to LeftPanel
+    create UpdateDeviceButton text `Update device`
+    on click UpdateDeviceButton go to UpdateDeviceClick
+    add UpdateDeviceButton to LeftPanel
 
     create DeleteFileButton text `Delete file`
     add DeleteFileButton to LeftPanel
@@ -259,7 +259,6 @@
     variable MasterDeviceName
     variable SlaveDevices
     variable CurrentSSID
-    variable Previous
     variable IsMaster
     variable FileName
     variable FileSize
@@ -271,7 +270,6 @@
     variable Segment
     variable Length
     variable Path
-    variable Count
     variable Content
     variable APInfo
     variable Info
@@ -360,7 +358,6 @@ ResetConfigFileClick:
         delete file ConfigFile
         disable RemoveSystemButton
         set the text of MasterDeviceButton to empty
-        put empty into SystemMAC
         clear SlaveList
         go to Start
     end
@@ -372,13 +369,7 @@ ScanSystemsClick:
     gosub to SetBusy
     log `Scan for system controllers`
     disable ScanSystemsButton
-    put 0 into Count
     gosub to ScanSystems
-    if Count is 0
-    begin
-        put `No new systems were found` into StatusMessage
-        gosub to Error
-    end
     gosub to RefreshSystemsCombo
     gosub to PostConfigData
     gosub to ManageButtonStates
@@ -400,7 +391,6 @@ ScanSystems:
         put `Scanning ` cat IPAddr into StatusMessage
         gosub to Working
         get Result from url `http://` cat IPAddr cat `:17348/cgi-bin/mac.py` timeout 1 or go to SS2
-        increment Count
         put trim Result into Result
         log Result
         log IPAddr cat `: ` cat Result
@@ -710,8 +700,6 @@ SetupDevice:
         put MAC into MasterMAC
         put IPAddr into MasterIPAddr
         if ErrorFlag return
-
-        ! Reboot the device
         gosub to RequestReset
         if ErrorFlag return
         put `Give the device a few seconds to reboot` into StatusMessage
@@ -732,15 +720,15 @@ SetupDevice:
             put `Failed to get Master ip address of ` cat MasterSSID into StatusMessage
             go to Error
         end
+        log Response
         if left 2 of Response is `OK`
         begin
             put from 3 of Response into MasterIPAddr
             put `Master ip address is ` cat MasterIPAddr into StatusMessage
             gosub to Working
-            gosub to SetMasterDeviceButtonText
+            set the text of MasterDeviceButton to MasterSSID cat ` ` cat MasterName cat ` ` cat MasterIPAddr cat ` ` cat Name
             set property `ipaddr` of MasterDevice to MasterIPAddr
-            set property MasterDeviceName of Devices to MasterDevice
-            gosub to UpdateSystemConfig
+            set property MasterName of Devices to MasterDevice
         end
         else
         begin
@@ -771,7 +759,8 @@ CreateDevice:
     put json `{}` into Device
     if IsMaster
     begin
-        log `Create master device ` cat MastertDeviceName
+        put `Master` into Name
+        log `Create master device ` cat Name
         set property `hostssid` of Device to HostSSID
         set property `hostpass` of Device to HostPassword
         set property `ipaddr` of Device to empty
@@ -846,7 +835,7 @@ PopulateSystemInfo:
             put property `name` of MasterDevice into MasterDeviceName
             put property `ssid` of MasterDevice into MasterSSID
             put property `ipaddr` of MasterDevice into MasterIPAddr
-            gosub to SetMasterDeviceButtonText
+            set the text of MasterDeviceButton to MasterSSID cat ` ` cat MasterIPAddr cat ` ` cat MasterDeviceName
         end
         else
         begin
@@ -858,9 +847,16 @@ PopulateSystemInfo:
     return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Update text on MasterDeviceButton
-SetMasterDeviceButtonText:
-    set the text of MasterDeviceButton to MasterSSID cat ` ` cat MasterIPAddr cat ` ` cat MasterDeviceName
+!   Populate the device information fields
+PopulateDeviceInfo:
+    if Device has property `name`
+    begin
+        log `Populate device ` cat property `name` of Device
+        set the text of DeviceNameInput to property `name` of Device
+        set the text of SSIDLabel to property `ssid` of Device
+        enable UpdateDeviceButton
+        enable DeleteFileButton
+    end
     return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -869,7 +865,6 @@ MasterDeviceClick:
     if MasterDeviceButton is not empty
     begin
         log `Select the master device`
-        set IsMaster
         put MasterDevice into Device
         gosub to PopulateDeviceInfo
     end
@@ -877,33 +872,19 @@ MasterDeviceClick:
     stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Populate the device information fields
-PopulateDeviceInfo:
-    if Device has property `name`
-    begin
-        log `Populate device ` cat property `name` of Device
-        set the text of DeviceNameInput to property `name` of Device
-        set the text of SSIDLabel to property `ssid` of Device
-        enable UpdateFilesButton
-        enable DeleteFileButton
-    end
-    return
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Show information about a slave device
 SelectSlaveClick:
     log `Select ` cat SlaveList
-    clear IsMaster
     put property SlaveList of Devices into Device
     gosub to PopulateDeviceInfo
-    enable UpdateFilesButton
+    enable UpdateDeviceButton
     enable DeleteFileButton
     stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Update the files on the selected device
-UpdateFilesClick:
-    log `Update the files on the selected device`
+UpdateDeviceClick:
+    log `Update the files om the selected device`
     stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -938,15 +919,38 @@ RemoveSlaveClick:
     end
     stop
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Close the application and exit
+UpdateWidgetDataClick:
+    gosub to SetBusy
+    put DeviceName into Name
+    set property `name` of Device to DeviceNameInput
+    log prettify Device
+    put property `ssid` of Device into SSID
+    put from 8 of SSID into MAC
+    gosub to SendDeviceConfigFile
+    if not ErrorFlag
+    begin
+        set property DeviceNameInput of Devices to property Name of Devices
+        delete property Name of Devices
+        gosub to UpdateSystemConfig
+    end
+    gosub to ManageButtonStates
+    stop
+
+RelayOffClick:
+    log `Turn the relay OFF`
+    stop
+
+RelayOnClick:
+    log `Turn the relay ON`
+    stop
+
 ExitClick:
     log `Exit the configurator`
     close Window
     exit
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Get the host password
+!   Subroutines
 GetHostPassword:
     log `Get the host password`
     put `Type the host password:` into Prompt
@@ -1074,36 +1078,10 @@ ConnectToDevice:
     return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Update the widget data for the selected device
-UpdateWidgetDataClick:
-    gosub to SetBusy
-    put property `name` of Device into Previous
-    set property `name` of Device to DeviceNameInput
+!   Send the config file to a device
+SendDeviceConfigFile:
     put `config.json` into FileName
     put stringify Device into Content
-    gosub to SendFileToDevice
-    if not ErrorFlag
-    begin
-        set property DeviceNameInput of Devices to Device
-        if IsMaster
-        begin
-            put DeviceNameInput into MasterDeviceName
-            gosub to SetMasterDeviceButtonText
-        end
-        delete property Previous of Devices
-        gosub to UpdateSystemConfig
-        gosub to PostConfigData
-    end
-    gosub to ManageButtonStates
-    stop
-
-RelayOffClick:
-    log `Turn the relay OFF`
-    stop
-
-RelayOnClick:
-    log `Turn the relay ON`
-    stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Send a file to a device
@@ -1207,10 +1185,7 @@ SendRBRMessage:
 !   Send a message to a RBR-Now device
 SendMessageToDevice:
     gosub to GetDeviceData
-    put property `ssid` of Device into SSID
-    put from 8 of SSID into MAC
     put left 30 of Message into Message2
-    if the length of Message is greater than 30 put Message2 cat `...` into Message2
     log `Send '` cat Message2 cat `' to ` cat Name
     put Message into Message2
     if Path is not empty
@@ -1230,7 +1205,7 @@ SendMessageToDevice:
         end
     end
     put `http://` cat MasterIPAddr cat `/?mac=` cat MAC cat `&msg=` cat Message2 into URL
-!    log URL
+    log URL
     get Response from url URL
     or begin
         put `Could not message ` cat Name into StatusMessage
@@ -1260,7 +1235,6 @@ GetDeviceData:
 !   Post the config data
 PostConfigData:
     if CurrentSSID is not HostSSID gosub to ConnectToHost
-    if SystemMAC is empty return
     save prettify Config to ConfigFile
 !    log `Config: ` cat prettify Config
     put `https://rbrheating.com/ui/resources/php/rest.php/config/` cat SystemMAC cat `/` cat SystemPassword into URL
@@ -1321,8 +1295,8 @@ ManageButtonStates:
     if the count of SystemsCombo is 0 disable ClearSystemButton else enable ClearSystemButton
 ! RemoveSlaveButton
     if the count of SlaveList is 0 disable RemoveSlaveButton else enable RemoveSlaveButton
-! UpdateFilesButton
-    if DeviceNameInput is empty disable UpdateFilesButton else enable UpdateFilesButton
+! UpdateDeviceButton
+    if DeviceNameInput is empty disable UpdateDeviceButton else enable UpdateDeviceButton
 ! DeleteFileButton
     if DeviceNameInput is empty disable DeleteFileButton else enable DeleteFileButton
 ! ScanSystemsButton
@@ -1345,7 +1319,7 @@ SetBusy:
     disable ScanDevicesButton
     disable ClearSystemButton
     disable RemoveSlaveButton
-    disable UpdateFilesButton
+    disable UpdateDeviceButton
     disable DeleteFileButton
     disable ScanSystemsButton
     disable RemoveSystemButton

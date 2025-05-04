@@ -990,6 +990,11 @@ class Graphics(Handler):
     #############################################################################
     # Condition handlers
 
+    #############################################################################
+    # Force the application to exit
+    def force_exit(self):
+        QApplication.quit()  # Gracefully close the application
+        sys.exit(0)          # Force a complete system exit
 
 
 def addIconToLayout(layout, icon_path):

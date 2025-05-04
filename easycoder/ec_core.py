@@ -369,6 +369,8 @@ class Core(Handler):
         return True
 
     def r_exit(self, command):
+        if self.program.graphics != None:
+            self.program.graphics.force_exit()
         return -1
 
     # Declare a file variable
@@ -1054,21 +1056,22 @@ class Core(Handler):
         self.putSymbolValue(stackRecord, stack)
         return self.nextPC()
 
-    # Put a value into a variable
     # put {value} into {variable}
     def k_put(self, command):
-        command['value'] = self.nextValue()
-        if self.nextIs('into'):
-            if self.nextIsSymbol():
-                symbolRecord = self.getSymbolRecord()
-                command['target'] = symbolRecord['name']
-                if 'hasValue' in symbolRecord and symbolRecord['hasValue'] == False:
-                    FatalError(self.compiler, f'Symbol {symbolRecord["name"]} is not a value holder')
+        value = self.nextValue()
+        if value != None:
+            command['value'] = value
+            if self.nextIs('into'):
+                if self.nextIsSymbol():
+                    symbolRecord = self.getSymbolRecord()
+                    command['target'] = symbolRecord['name']
+                    if 'hasValue' in symbolRecord and symbolRecord['hasValue'] == False:
+                        FatalError(self.compiler, f'Symbol {symbolRecord["name"]} is not a value holder')
+                    else:
+                        self.add(command)
+                        return True
                 else:
-                    self.add(command)
-                    return True
-            else:
-                FatalError(self.compiler, f'Symbol {self.getToken()} is not a variable')
+                    FatalError(self.compiler, f'Symbol {self.getToken()} is not a variable')
         return False
 
     def r_put(self, command):
@@ -1607,6 +1610,7 @@ class Core(Handler):
         if self.nextIs('graphics'):
             print('Loading graphics module')
             from .ec_pyside import Graphics
+            self.program.graphics = Graphics
             self.program.classes.append(Graphics)
             self.program.processClasses()
             return True

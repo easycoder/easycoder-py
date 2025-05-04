@@ -78,7 +78,7 @@ class Program:
 			while True:
 				if self.running == True:
 					flush()
-					time.sleep(0.1)
+					time.sleep(0.01)
 				else:
 					break
 
