@@ -260,24 +260,27 @@ class Core(Handler):
     # Delete a file or a property
     # delete {filename}
     # delete property {value} of {variable}
+    # delete element {name} of {variable}
     def k_delete(self, command):
         token = self.nextToken( )
+        command['type'] = token
         if token == 'file':
-            command['type'] = 'file'
             command['filename'] = self.nextValue()
             self.add(command)
             return True
-        elif token == 'property':
-            command['key'] = self.nextValue();
-            if self.nextIs('of'):
-                command['type'] = 'property'
-                command['var'] = self.nextToken()
-                self.add(command)
-                return True
-            else:
-                self.warning(f'Core.delete: "of" expected; got {self.getToken()}')
+        elif token in ['property', 'element']:
+            command['key'] = self.nextValue()
+            self.skip('of')
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                if record['hasValue']:
+                    command['var'] = record['name']
+                    self.add(command)
+                    return True
+                FatalError(self.compiler, f'Variable {record['name']} does not hold a value')
+            self.warning(f'Core.delete: variable expected; got {self.getToken()}')
         else:
-            self.warning(f'Core.delete: "file" or "property" expected; got {token}')
+            self.warning(f'Core.delete: "file", "property" or "element" expected; got {token}')
         return False
 
     def r_delete(self, command):
@@ -293,6 +296,14 @@ class Core(Handler):
             value = self.getSymbolValue(symbolRecord)
             content = value['content']
             content.pop(key, None)
+            value['content'] = content
+            self.putSymbolValue(symbolRecord, value)
+        elif type == 'element':
+            key = self.getRuntimeValue(command['key'])
+            symbolRecord = self.getVariable(command['var'])
+            value = self.getSymbolValue(symbolRecord)
+            content = value['content']
+            content.remove(key)
             value['content'] = content
             self.putSymbolValue(symbolRecord, value)
         return self.nextPC()
@@ -921,7 +932,7 @@ class Core(Handler):
                     command['from'] = self.getToken()
                     self.add(command)
                     return True
-        return False;
+        return False
 
     def r_pop(self, command):
         symbolRecord = self.getVariable(command['target'])
@@ -929,7 +940,7 @@ class Core(Handler):
             RuntimeError(self.program, f'{symbolRecord["name"]} does not hold a value')
         stackRecord = self.getVariable(command['from'])
         stack = self.getSymbolValue(stackRecord)
-        v = stack.pop();
+        v = stack.pop()
         self.putSymbolValue(stackRecord, stack)
         value = {}
         value['type'] = 'int' if type(v) == int else 'text'
@@ -1725,7 +1736,6 @@ class Core(Handler):
         symbolRecord = self.getVariable(command['target'])
         if not symbolRecord['hasValue']:
             RuntimeError(self.program, f'{symbolRecord["name"]} does not hold a value')
-            return None
         value = self.getSymbolValue(symbolRecord)
         if value == None:
             RuntimeError(self.program, f'{symbolRecord["name"]} has not been initialised')
@@ -2479,13 +2489,20 @@ class Core(Handler):
         if token == 'does':
             self.nextToken()
             if self.nextIs('not'):
-                if self.nextIs('have'):
+                token = self.nextToken()
+                if token == 'have':
                     if self.nextToken() == 'property':
                         prop = self.nextValue()
                         condition.type = 'hasProperty'
                         condition.property = prop
                         condition.negate = not condition.negate
                         return condition
+                elif token == 'include':
+                    value = self.nextValue()
+                    condition.type = 'includes'
+                    condition.value2 = value
+                    condition.negate = not condition.negate
+                    return condition
             return None
 
         if token in ['starts', 'ends']:
@@ -2586,7 +2603,8 @@ class Core(Handler):
     def c_includes(self, condition):
         value1 = self.getRuntimeValue(condition.value1)
         value2 = self.getRuntimeValue(condition.value2)
-        return value2 in value1
+        includes = value2 in value1
+        return not includes if condition.negate else includes
 
     def c_is(self, condition):
         comparison = self.program.compare(condition.value1, condition.value2)

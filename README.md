@@ -1,7 +1,7 @@
 # Introduction
 **_EasyCoder_** is a high-level English-like domain-specific scripting language (DSL) suited for prototyping and rapid testing of ideas. It operates on the command line and a graphics module is under construction. The language is written in Python and it acts as a fairly thin wrapper around standard Python functions, giving fast compilation and good runtime performance for general applications.
 
-**_EasyCoder_** is well suited to building command-line or graphical applications for expressing random logic such as operating procedures and rules, or controlling physical systems, primarily wifi devices. It is particularly easy to construct and issue REST commands to local or remote web servers.
+**_EasyCoder_** is well suited to building command-line or graphical applications for expressing random logic such as operating procedures and rules, or controlling physical systems, particularly those using wifi devices. It is easy to construct and issue REST commands to local or remote web servers.
 
 For more advanced applications, **_EasyCoder_** is designed to be extensible, by enabling extra language syntax to be added via plugin-in modules. Once these are installed they act as seamless extensions to the basic syntax provided. **_EasyCoder_** derives its power from the use of rich and comprehensive language rather than a complex system of frameworks such as those commonly used in modern programming. This makes it very easy to learn as our brains are wired to operate that way. Having said that, the needs of most control systems are usually served by a fairly modest number of keywords and syntactic variants.
 <hr>

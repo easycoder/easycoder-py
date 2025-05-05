@@ -297,7 +297,7 @@ class Graphics(Handler):
         if self.peek() == 'size':
             self.nextToken()
             size = self.nextValue()
-        else: size = 10
+        else: size = self.compileConstant(10)
         command['size'] = size
         self.add(command)
         return True
@@ -714,6 +714,7 @@ class Graphics(Handler):
     # set [the] width/height [of] {widget} [to] {value}
     # set [the] text [of] {label}/{button}/{lineinput} [to] {text}
     # set [the] color [of] {label}/{button}/{lineinput} [to] {color}
+    # set [the] state [of] {checkbox} [to] {color}
     # set {listbox} to {list}
     def k_set(self, command):
         self.skip('the')
@@ -734,6 +735,16 @@ class Graphics(Handler):
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
                 if record['keyword'] in ['label', 'pushbutton', 'lineinput']:
+                    command['name'] = record['name']
+                    self.skip('to')
+                    command['value'] = self.nextValue()
+                    self.add(command)
+                    return True
+        elif token == 'state':
+            self.skip('of')
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                if record['keyword'] == 'checkbox':
                     command['name'] = record['name']
                     self.skip('to')
                     command['value'] = self.nextValue()
@@ -786,6 +797,10 @@ class Graphics(Handler):
             widget.setText(text)
             if record['keyword'] == 'pushbutton':
                 widget.setAccessibleName(text)
+        elif what == 'state':
+            widget = self.getVariable(command['name'])['widget']
+            state = self.getRuntimeValue(command['value'])
+            widget.setChecked(state)
         elif what == 'color':
             widget = self.getVariable(command['name'])['widget']
             color = self.getRuntimeValue(command['value'])
@@ -797,6 +812,7 @@ class Graphics(Handler):
         elif what == 'listbox':
             widget = self.getVariable(command['name'])['widget']
             value = self.getRuntimeValue(command['value'])
+            widget.clear()
             widget.addItems(value)
         return self.nextPC()
 

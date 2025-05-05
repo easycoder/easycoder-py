@@ -18,7 +18,6 @@
     label Label
     label RelayStateLabel
     label StatusLabel
-    label SSIDLabel
     pushbutton ResetConfigButton
     pushbutton ScanDevicesButton
     pushbutton ClearSystemButton
@@ -152,10 +151,6 @@
     add Label to Layout
     create DeviceNameInput size 40
     add DeviceNameInput to Layout
-    create Label text `SSID:`
-    add Label to Layout
-    create SSIDLabel
-    add SSIDLabel to Layout
     add stretch to Layout
     
     create Layout type QHBoxLayout
@@ -223,6 +218,7 @@
 
     variable Config
     variable ConfigFile
+    variable FirmwareDirectory
     variable Hosts
     variable Name
     variable Value
@@ -245,6 +241,7 @@
     variable SystemName
     variable SystemMAC
     variable SystemPassword
+    variable SystemIPAddr
     variable StatusMessage
     variable Message
     variable Message2
@@ -265,6 +262,7 @@
     variable FileName
     variable FileSize
     variable ErrorFlag
+    variable Attempt
     variable Sequence
     variable Start
     variable Finish
@@ -272,6 +270,7 @@
     variable Segment
     variable Length
     variable Path
+    variable Files
     variable Count
     variable Content
     variable APInfo
@@ -281,6 +280,7 @@
     variable Pins
     variable Pin
     variable D
+    variable F
     variable N
     variable P
     variable S
@@ -330,7 +330,10 @@ Start:
     gosub to RefreshSystemsCombo
 
     put empty into SystemHostSSID
+    put empty into SystemIPAddr
     clear DeviceSelected
+    put trim system `echo $HOME` into FirmwareDirectory
+    put FirmwareDirectory cat `/dev/rbr/roombyroom/Controller/home/orangepi/firmware/NOW/` into FirmwareDirectory
 
 !   Select the current system
     if the count of SystemsCombo is 0 put empty into SystemName
@@ -455,7 +458,7 @@ GetConfigData:
         put json Value into SystemConfig
         gosub to UpdateSystems
     end
-    log prettify SystemConfig
+!    log prettify SystemConfig
     gosub to PostConfigData
     return
 
@@ -478,13 +481,16 @@ RefreshSystemsCombo:
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Select a system from the combo box
 SystemsComboSelect:
+    gosub to ResumeSystemController
     put SystemsCombo into SystemName
     if SystemName is not empty
     begin
         log `Select system ` cat SystemName
         set property `current-system` of Config to SystemName
         put property SystemName of Systems into SystemConfig
+        put property `ipaddr` of SystemConfig into SystemIPAddr
         gosub to PopulateSystemInfo
+        gosub to PauseSystemController
     end
     gosub to ManageButtonStates
     if not ErrorFlag gosub to OK
@@ -759,10 +765,13 @@ SetupDevice:
         log `Deal with slave ` cat Name
         put the position of ` ` in Name into N
         increment N
-        put from N of Name into Name
-        append SSID cat ` ` cat Name to SlaveDevices
-        set SlaveList to SlaveDevices
-        gosub to CreateDevice
+        put SSID cat ` ` cat from N of Name into Item
+        if SlaveDevices does not include Item
+        begin
+            append Item to SlaveDevices
+            set SlaveList to SlaveDevices
+            gosub to CreateDevice
+        end
     end
     return
 
@@ -778,11 +787,7 @@ CreateDevice:
         set property `hostpass` of Device to HostPassword
         set property `ipaddr` of Device to empty
     end
-    else
-    begin
-        put `Slave` into Name
-        log `Create slave device ` cat Name
-    end
+    else log `Create slave device ` cat Name
     set property `master` of Device to IsMaster
     set property `name` of Device to Name
     set property `ssid` of Device to SSID
@@ -852,8 +857,9 @@ PopulateSystemInfo:
         end
         else
         begin
-            append Name to SlaveDevices
-            add Name to SlaveList
+            put property `ssid` of Device into SSID
+            append SSID cat ` ` cat Name to SlaveDevices
+            add SSID cat ` ` cat Name to SlaveList
         end
         increment D
     end
@@ -889,12 +895,13 @@ PopulateDeviceInfo:
         log `Populate device ` cat property `name` of Device
         set the text of DeviceNameInput to property `name` of Device
         set the text of PathInput to property `path` of Device
-        set the text of SSIDLabel to property `ssid` of Device
         put property `pins` of Device into Pins
         put property `led` of Pins into Pin
         set the text of LEDPinInput to property `pin` of Pin
+        set the state of LEDInvertCheckbox to property `invert` of Pin
         put property `relay` of Pins into Pin
         set the text of RelayPinInput to property `pin` of Pin
+        set the state of RelayInvertCheckbox to property `invert` of Pin
         put property `dht22` of Pins into Pin
         set the text of DHT22PinInput to property `pin` of Pin
         enable UpdateFilesButton
@@ -908,43 +915,40 @@ SelectSlaveClick:
     log `Select ` cat SlaveList
     set DeviceSelected
     clear IsMaster
-    put property SlaveList of Devices into Device
+    put SlaveList into Item
+    split Item on ` `
+    index Item to 1
+    put property Item of Devices into Device
+    set the elements of Item to 1
     gosub to PopulateDeviceInfo
-    enable UpdateFilesButton
-    enable DeleteFileButton
-    stop
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Update the files on the selected device
-UpdateFilesClick:
-    log `Update the files on the selected device`
-    stop
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Delete a file on the selected device
-DeleteFileClick:
-    log `Delete a file on the selected device`
+    gosub to ManageButtonStates
     stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Remove a slave device from the list
 RemoveSlaveClick:
-    log `Remove the selected slave device`
     put SlaveList into Name
-    log Name
-    remove the selected item from SlaveList
+    put Name into Item
+    split Item on ` `
+    index Item to 1
+    put Item into Name
+    set the elements of Item to 1
     put the keys of Devices into Keys
     put 0 into D
     while D is less than the count of Keys
     begin
-        put element D of Keys into Name
-        put property Name of Devices into Device
+        put element D of Keys into Item
+        put property Item of Devices into Device
         if property `master` of Device is false
         begin
             if property `name` of Device is Name
             begin
-                delete property Name of Devices
+                log `Deleting ` cat Name
+                delete property Item of Devices
+                delete element SlaveList of SlaveDevices
+                set SlaveList to SlaveDevices
                 gosub to UpdateSystemConfig
+                gosub to PostConfigData
                 stop
             end
         end
@@ -956,6 +960,7 @@ RemoveSlaveClick:
 !   Close the application and exit
 ExitClick:
     log `Exit the configurator`
+    gosub to ResumeSystemController
     close Window
     exit
 
@@ -969,10 +974,12 @@ GetHostPassword:
     put ReturnValue into HostPassword
     return
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Get user input
 GetRequestedText:
     create VLayout type QVBoxLayout
     create Label text Prompt align centre
-    add label to VLayout
+    add Label to VLayout
     create HLayout type QHBoxLayout
     add HLayout to VLayout
     create LineInput size 40
@@ -1109,7 +1116,7 @@ UpdateWidgetDataClick:
     set property `pins` of Device to Pins
     put `config.json` into FileName
     put stringify Device into Content
-    gosub to SendFileToDevice
+    gosub to SendOneFile
     if not ErrorFlag
     begin
         set property DeviceNameInput of Devices to Device
@@ -1123,6 +1130,7 @@ UpdateWidgetDataClick:
         gosub to PostConfigData
         gosub to RequestReset
     end
+    gosub to Idle
     gosub to ManageButtonStates
     stop
 
@@ -1135,8 +1143,66 @@ RelayOnClick:
     stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Update all the files on a device
+UpdateFilesClick:
+    if not DeviceSelected stop
+    put property `ssid` of Device into SSID
+    split SSID on ` `
+    put from 8 of SSID into MAC
+
+    put FirmwareDirectory cat `files.txt` into Path
+    load Files from Path
+    split Files
+    put 0 into F
+    while F is less than the elements of Files
+    begin
+        index Files to F
+        put trim Files into FileName
+        if FileName is not empty gosub to UpdateOneFile
+        if ErrorFlag
+        begin
+            put `File updates did not succeed` into StatusMessage
+            gosub to Error
+            gosub to ManageButtonStates
+            stop
+        end
+        increment F
+    end
+    gosub to RequestReset
+    gosub to ManageButtonStates
+    gosub to Idle
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Update a single file
+UpdateOneFile:
+    put FirmwareDirectory cat FileName into Path
+    if file Path exists begin end
+    else
+    begin
+        log `File ` cat Path cat ` does not exist`
+        return
+    end
+    load Content from Path
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Send a single file with multiple attempts
+SendOneFile:
+    put 0 into Attempt
+    clear ErrorFlag
+SOF2:
+    increment Attempt
+    gosub to SendFileToDevice
+    if ErrorFlag
+    begin
+        if Attempt is less than 10 go to SOF2
+    end
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Send a file to a device
 SendFileToDevice:
+    gosub to SetBusy
     put the length of Content into FileSize
     put `Update device file ` cat FileName cat ` (size=` cat FileSize cat ` chars)` into StatusMessage
     gosub to Working
@@ -1152,23 +1218,26 @@ SendFileToDevice:
         put the length of Segment into Length
         add Length to Total
         put encode Segment into Segment
-        put `Send part ` cat Sequence into StatusMessage
+        put `Send ` cat FileName cat `, part ` cat Sequence cat ` (attempt ` cat Attempt cat `)` into StatusMessage
         gosub to Working
         put `part:`  cat Sequence cat `,text:` cat Segment into Message
         gosub to SendMessageToDevice
-        log `Part ` cat Sequence cat `: ` cat Response
+        if Response is empty
+        begin
+            put `Failed to send part ` cat Sequence into StatusMessage
+            go to SendFileFail
+        end
+!        log `Part ` cat Sequence cat `: ` cat Response
         split Response on ` `
         index Response to 0
         if Response is not Length
         begin
-            put `Failed to send part ` cat Sequence into StatusMessage
-            gosub to Error
-            return
+            put `Mismatched length in part ` cat Sequence into StatusMessage
+            go to SendFileFail
         end
         put Finish into Start
         increment Sequence
     end
-    log `Trigger the save of ` cat FileName
     put `save:` cat FileName into Message
     gosub to SendMessageToDevice
     split Response on ` `
@@ -1176,31 +1245,47 @@ SendFileToDevice:
     if Response is not Total
     begin
         put `Mismatched length: ` cat Total cat ` - ` cat Response into StatusMessage
-        go to Error
+        go to SendFileFail
     end
     put `File ` cat FileName cat ` saved` into StatusMessage
     gosub to Working
     return
 
+SendFileFail:
+    put FileName cat `: ` cat StatusMessage into StatusMessage
+    gosub to Error
+    wait 5
+    return
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Delete a file on a device
-DeleteFile:
-!    get FileName from popup text `File name:` `Confirm delete`
-!    put from 8 of property `ssid` of Device into MAC
-!    put `http://` cat MasterIPAddr cat `/?mac=` cat MAC cat `&msg=delete:` cat FileName into URL
-!    get Response from url URL
-!    or begin
-!        put `Delete failed`
-!       go to Error
-!    end
-!    log Response
+!   Delete a file on the selected device
+DeleteFileClick:
+    put `Name of file to delete:` into Prompt
+    put `Delete file` into Title
+    gosub to GetRequestedText
+    if ReturnValue is not empty
+    begin
+        put ReturnValue into FileName
+        put `Delete  ` cat FileName into StatusMessage
+        gosub to Working
+        wait 1
+        put `delete:` cat FileName into Message
+        gosub to SendRBRMessage
+        if left 2 of Response is not `OK`
+        begin
+            put `Failed to delete ` cat FileName into StatusMessage
+            gosub to Error
+            stop
+        end
+        put `File ` cat FileName cat ` has been deleted` into StatusMessage
+        gosub to Idle
+    end
     stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Send a reset message to a device
 RequestReset:
     gosub to GetDeviceData
-    log `Reset device ` cat Name
     put `Reset ` cat Name into StatusMessage
     gosub to Working
     wait 1
@@ -1211,7 +1296,7 @@ RequestReset:
         put `Failed to reset ` cat Name into StatusMessage
         go to Error
     end
-    put `Device has been reset` into StatusMessage
+    put `Device ` cat Name cat ` has been reset` into StatusMessage
     go to Working
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1240,7 +1325,6 @@ SendMessageToDevice:
     put from 8 of SSID into MAC
     put left 30 of Message into Message2
     if the length of Message is greater than 30 put Message2 cat `...` into Message2
-    log `Send '` cat Message2 cat `' to ` cat Name
     put Message into Message2
     if Path is not empty
     begin
@@ -1314,6 +1398,18 @@ UpdateSystems:
     set property SystemName of Systems to SystemConfig
 UpdateConfig:
     set property `systems` of Config to Systems
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Pause the system controller
+PauseSystemController:
+    if SystemIPAddr is not empty get Response from url `http://` cat SystemIPAddr cat `:17348/cgi-bin/pause.py`
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   PaResumeuse the system controller
+ResumeSystemController:
+    if SystemIPAddr is not empty get Response from url `http://` cat SystemIPAddr cat `:17348/cgi-bin/resume.py`
     return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1392,6 +1488,7 @@ ManageButtonStates:
     if DeviceNameInput is empty disable DeleteFileButton else enable DeleteFileButton
 ! UpdateWidgetDataButton
     if DeviceNameInput is empty disable UpdateWidgetDataButton else enable UpdateWidgetDataButton
+    wait 10 ticks
     return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1408,4 +1505,10 @@ SetBusy:
     disable RelayOffButton
     disable RelayOnButton
     disable UpdateWidgetDataButton
+    disable DeviceNameInput
+    disable PathInput
+    disable LEDPinInput
+    disable RelayPinInput
+    disable DHT22PinInput
+    wait 10 ticks
     return
