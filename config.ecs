@@ -18,7 +18,9 @@
     label Label
     label RelayStateLabel
     label StatusLabel
+    label UptimeLabel
     pushbutton ResetConfigButton
+    pushbutton RBRNowDirectoryButton
     pushbutton ScanDevicesButton
     pushbutton ClearSystemButton
     pushbutton RemoveSlaveButton
@@ -62,6 +64,10 @@
     create ResetConfigButton text `Reset everything`
     on click ResetConfigButton go to ResetConfigFileClick
     add ResetConfigButton to LeftPanel
+
+    create RBRNowDirectoryButton text `Get the RBR-Now directory`
+    on click RBRNowDirectoryButton go to RBRNowDirectoryClick
+    add RBRNowDirectoryButton to LeftPanel
 
     create ClearSystemButton text `Clear the selected system`
     on click ClearSystemButton go to ClearSystemClick
@@ -151,6 +157,12 @@
     add Label to Layout
     create DeviceNameInput size 40
     add DeviceNameInput to Layout
+    create Label text `Uptime:`
+    add Label to Layout
+    create UptimeLabel text `0`
+    add UptimeLabel to Layout
+    create Label text `sec`
+    add Label to Layout
     add stretch to Layout
     
     create Layout type QHBoxLayout
@@ -273,6 +285,7 @@
     variable Files
     variable Count
     variable Content
+    variable Uptime
     variable APInfo
     variable Info
     variable Keys
@@ -302,6 +315,10 @@ Start:
     if Config does not have property `current-system` set property `current-system` of Config to empty
     put property `hosts` of Config into Hosts
 
+    put empty into SystemHostSSID
+    put empty into SystemIPAddr
+    clear DeviceSelected
+
 !   Get the host SSID
     put `Getting host SSID...` into StatusMessage
     gosub to Working
@@ -320,6 +337,8 @@ Start:
     put `Connected to ` cat HostSSID into StatusMessage
     gosub to Idle
 
+    gosub to CheckFirmware
+
 !   Get the list of systems from Config, or create an empty list. Then populate the combo box
     if Config has property `systems` put property `systems` of Config into Systems
     else
@@ -328,12 +347,6 @@ Start:
         set property `systems` of Config to Systems
     end
     gosub to RefreshSystemsCombo
-
-    put empty into SystemHostSSID
-    put empty into SystemIPAddr
-    clear DeviceSelected
-    put trim system `echo $HOME` into FirmwareDirectory
-    put FirmwareDirectory cat `/dev/rbr/roombyroom/Controller/home/orangepi/firmware/NOW/` into FirmwareDirectory
 
 !   Select the current system
     if the count of SystemsCombo is 0 put empty into SystemName
@@ -550,6 +563,42 @@ ClearSystemClick:
     end
     gosub to OK
     stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Get the RBR-Now directory and save it.
+RBRNowDirectoryClick:
+    gosub to GetFirmware
+    gosub to CheckFirmware3
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Check if we have a valid firmware directory.
+CheckFirmware:
+    if Config has property `firmware` put property `firmware` of Config into FirmwareDirectory
+    else put empty into FirmwareDirectory
+CheckFirmware2:
+    if file FirmwareDirectory cat `/files.txt` exists
+    begin
+        set property `firmware` of Config to FirmwareDirectory
+        save prettify Config to ConfigFile
+        go to OK
+    end
+    put `Firmware directory is missing` into StatusMessage
+    gosub to Error
+    gosub to GetFirmware
+CheckFirmware3:
+    if ReturnValue is empty return
+    put trim system `echo $HOME` cat `/` cat ReturnValue into FirmwareDirectory
+    go to CheckFirmware2
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Get the RBR-Now firmware
+GetFirmware:
+    put `RBR-Now firmware` into Title
+    put `Get the directory containing the RBR-Now firmware`
+        cat newline cat `(relative to your home directory)` into Prompt
+    put 80 into Length
+    go to GetRequestedText
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Scan the local network for new devices
@@ -868,7 +917,8 @@ PopulateSystemInfo:
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Update text on MasterDeviceButton
 SetMasterDeviceButtonText:
-    set the text of MasterDeviceButton to MasterSSID cat ` ` cat MasterIPAddr cat ` ` cat MasterDeviceName
+!    set the text of MasterDeviceButton to MasterSSID cat ` ` cat MasterIPAddr cat ` ` cat MasterDeviceName
+    set the text of MasterDeviceButton to MasterSSID cat ` ` cat MasterDeviceName
     return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -893,7 +943,10 @@ PopulateDeviceInfo:
     if Device has property `name`
     begin
         log `Populate device ` cat property `name` of Device
+        gosub to CheckDevice
         set the text of DeviceNameInput to property `name` of Device
+        set the text of UptimeLabel to Uptime
+        set the text of RelayStateLabel to `???`
         set the text of PathInput to property `path` of Device
         put property `pins` of Device into Pins
         put property `led` of Pins into Pin
@@ -970,6 +1023,7 @@ GetHostPassword:
     log `Get the host password`
     put `Type the host password:` into Prompt
     put `Host password` into Title
+    put 40 into Length
     gosub to GetRequestedText
     put ReturnValue into HostPassword
     return
@@ -982,7 +1036,7 @@ GetRequestedText:
     add Label to VLayout
     create HLayout type QHBoxLayout
     add HLayout to VLayout
-    create LineInput size 40
+    create LineInput size Length
     add stretch LineInput to HLayout
     create HLayout type QHBoxLayout
     add HLayout to VLayout
@@ -1134,14 +1188,6 @@ UpdateWidgetDataClick:
     gosub to ManageButtonStates
     stop
 
-RelayOffClick:
-    log `Turn the relay OFF`
-    stop
-
-RelayOnClick:
-    log `Turn the relay ON`
-    stop
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Update all the files on a device
 UpdateFilesClick:
@@ -1262,6 +1308,7 @@ SendFileFail:
 DeleteFileClick:
     put `Name of file to delete:` into Prompt
     put `Delete file` into Title
+    put 40 into Length
     gosub to GetRequestedText
     if ReturnValue is not empty
     begin
@@ -1298,6 +1345,67 @@ RequestReset:
     end
     put `Device ` cat Name cat ` has been reset` into StatusMessage
     go to Working
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Check a device
+CheckDevice:
+    put `uptime` into Message
+    gosub to SendRBRMessage
+    if Response is empty
+    begin
+        put `No response from ` cat Name into StatusMessage
+        gosub to Error
+        put 0 into Uptime
+    end
+    else put from 3 of Response into Uptime
+
+CheckDevice2:
+    put the position of ` ` in Uptime into P
+    put left P of Uptime into Uptime
+    log Name cat ` uptime: ` cat Uptime
+    set the text of UptimeLabel to Uptime
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Turn a relay OFF
+RelayOffClick:
+    log `Turn the relay OFF`
+    put `off` into Message
+    gosub to SendRBRMessage
+    log `ON: ` cat Response
+    if Response is empty
+    begin
+        put `No response from ` cat Name into StatusMessage
+        gosub to Error
+        put 0 into Uptime
+    end
+    begin
+        put from 3 of Response into Uptime
+        set the text of RelayStateLabel to `OFF`
+    end
+    gosub to CheckDevice2
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Turn a relay ON
+RelayOnClick:
+    log `Turn the relay ON`
+    put `on` into Message
+    gosub to SendRBRMessage
+    log `ON: ` cat Response
+    if Response is empty
+    begin
+        put `No response from ` cat Name into StatusMessage
+        gosub to Error
+        put 0 into Uptime
+    end
+    else
+    begin
+        put from 3 of Response into Uptime
+        set the text of RelayStateLabel to `ON`
+    end
+    gosub to CheckDevice2
+    stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Send an RBR-Now message to a device
