@@ -1,3 +1,3 @@
 from easycoder import Program
 
-Program('config.ecs').start()
+Program('rbrconf.ecs').start()

@@ -690,7 +690,7 @@ class Graphics(Handler):
             command['index'] = self.nextValue()
             self.skip('of')
         else:
-            command['name'] = self.nextValue()
+            command['name'] = self.getValue()
             self.skip('in')
         if self.nextIsSymbol():
             record = self.getSymbolRecord()

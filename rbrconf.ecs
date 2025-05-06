@@ -1,6 +1,6 @@
-!   config.ecs
+!   rbrconf.ecs
 
-    script Configurator
+    script RBRConfigurator
 
     use graphics
 
@@ -109,7 +109,6 @@
     create Layout type QHBoxLayout
     add Layout to Group
     create SystemsCombo
-    on select SystemsCombo go to SystemsComboSelect
     add stretch SystemsCombo to Layout
     create ScanSystemsButton text `System Scan`
     disable ScanSystemsButton
@@ -294,6 +293,7 @@
     variable Pin
     variable D
     variable F
+    variable K
     variable N
     variable P
     variable S
@@ -318,6 +318,8 @@ Start:
     put empty into SystemHostSSID
     put empty into SystemIPAddr
     clear DeviceSelected
+
+    gosub to SetBusy
 
 !   Get the host SSID
     put `Getting host SSID...` into StatusMessage
@@ -352,17 +354,17 @@ Start:
     if the count of SystemsCombo is 0 put empty into SystemName
     else
     begin
-        put the keys of Systems into Keys
-        put element 0 of Keys into SystemName
-    end
-    set property `current-system` of Config to SystemName
-    if SystemName is not empty
-    begin
-        select SystemName in SystemsCombo
-        enable ClearSystemButton
+        put property `current-system` of Config into SystemName
+        if SystemName is not empty
+        begin
+            select SystemName in SystemsCombo
+!            log prettify SystemConfig
+            gosub to SelectSystem
+        end
     end
 
     gosub to ManageButtonStates
+    on select SystemsCombo go to SystemsComboSelect
     stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -403,13 +405,13 @@ ScanSystemsClick:
     stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Scan the network for RBR system controllers
+!   Scan the local network for RBR system controllers
 ScanSystems:
     log `Scan systems`
     put trim system `hostname -I` into MyIPAddr
     log MyIPAddr
-    put 245 into N
-    while N is less than 250
+    put 1 into N
+    while N is less than 255
     begin
         put the position of the last `.` in MyIPAddr into P
         increment P
@@ -420,7 +422,6 @@ ScanSystems:
         get Result from url `http://` cat IPAddr cat `:17348/cgi-bin/mac.py` timeout 1 or go to SS2
         increment Count
         put trim Result into Result
-        log Result
         log IPAddr cat `: ` cat Result
         put the position of ` ` in Result into P
         put left P of Result into SystemMAC
@@ -438,15 +439,17 @@ ScanSystems:
         set property `password` of SystemConfig to SystemPassword
         set property `devices` of SystemConfig to json `{}`
         log `Adding ` cat SystemName cat ` to Systems`
-        gosub UpdateSystems
-        log prettify SystemConfig
         gosub to GetConfigData
+!        log prettify SystemConfig
+        set property SystemName of Systems to SystemConfig
     SS2:
         wait 10 ticks
         increment N
     end
     set property `current-system` of Config to SystemName
-    log `After scan: ` cat prettify Config
+    gosub to UpdateSystems
+!    log `After scan: ` cat prettify Config
+    gosub to PostConfigData
     go to OK
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -454,8 +457,8 @@ ScanSystems:
 GetConfigData:
     gosub to SetBusy
     if SystemName is empty return
+    log prettify SystemConfig
     log `Get the config data for ` cat SystemName
-    put property `devices` of SystemConfig into Devices
     get Value from url `https://rbrheating.com/ui/resources/php/rest.php/config/`
         cat SystemMAC cat `/` cat SystemPassword
     or
@@ -463,16 +466,29 @@ GetConfigData:
         put `Can't read the config file for ` cat SystemName cat `(` cat MAC cat `/` cat Password cat `)` into StatusMessage
         go to Error
     end
-    ! If the server has data, use it instead of the local config
+    log Value
+    ! If the server has data, copy it into the local config
+    if Value is `""` put empty into Value
     if Value is empty put `{}` into Value
     if Value is not `{}`
     begin
-        log `Use config data from the server`
-        put json Value into SystemConfig
-        gosub to UpdateSystems
+        log `Add config data from the server`
+        put json Value into Value
+        log prettify Value
+        put the keys of Value into Keys
+        put 0 into K
+        while K is less than the count of Keys
+        begin
+            put element K of Keys into Name
+            log `Adding ` cat Name cat ` ` cat property Name of Value
+            if Name is `ssid` set property `host-ssid` of SystemConfig to property Name of Value
+            else if Name is `password` set property `host-password` of SystemConfig to property Name of Value
+            else set property Name of SystemConfig to property Name of Value
+            increment K
+        end
     end
-!    log prettify SystemConfig
-    gosub to PostConfigData
+    gosub to UpdateSystems
+    put property `devices` of SystemConfig into Devices
     return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -496,18 +512,24 @@ RefreshSystemsCombo:
 SystemsComboSelect:
     gosub to ResumeSystemController
     put SystemsCombo into SystemName
-    if SystemName is not empty
-    begin
-        log `Select system ` cat SystemName
-        set property `current-system` of Config to SystemName
-        put property SystemName of Systems into SystemConfig
-        put property `ipaddr` of SystemConfig into SystemIPAddr
-        gosub to PopulateSystemInfo
-        gosub to PauseSystemController
-    end
+    if SystemName is not empty gosub to SelectSystem
     gosub to ManageButtonStates
     if not ErrorFlag gosub to OK
     stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Select a system
+SelectSystem:
+    log `Select system ` cat SystemName
+    set property `current-system` of Config to SystemName
+    put property SystemName of Systems into SystemConfig
+    put property `ipaddr` of SystemConfig into SystemIPAddr
+    put property `mac` of SystemConfig into SystemMAC
+    put property `password` of SystemConfig into SystemPassword
+    gosub to PopulateSystemInfo
+    gosub to PostConfigData
+    gosub to PauseSystemController
+    return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Remove a system from the combo box
@@ -525,6 +547,9 @@ RemoveSystemClick:
         remove the current item from SystemsCombo
         delete property SystemName of Systems
         put empty into SystemName
+        put empty into SystemConfig
+        set the text of MasterDeviceButton to empty
+        clear SlaveList
         set property `current-system` of Config to SystemsCombo
         set property `systems` of Config to Systems
         put empty into SystemHostSSID
@@ -930,7 +955,6 @@ MasterDeviceClick:
         set DeviceSelected
         set IsMaster
         put MasterDevice into Device
-        log prettify Device
         gosub to PopulateDeviceInfo
     end
     gosub to ManageButtonStates
@@ -960,7 +984,7 @@ PopulateDeviceInfo:
         enable UpdateFilesButton
         enable DeleteFileButton
     end
-    return
+    go to OK
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Show information about a slave device
@@ -1355,16 +1379,16 @@ CheckDevice:
     begin
         put `No response from ` cat Name into StatusMessage
         gosub to Error
-        put 0 into Uptime
+        put `0` into Uptime
     end
     else put from 3 of Response into Uptime
 
 CheckDevice2:
     put the position of ` ` in Uptime into P
-    put left P of Uptime into Uptime
+    if P is greater than 0 put left P of Uptime into Uptime
     log Name cat ` uptime: ` cat Uptime
     set the text of UptimeLabel to Uptime
-    return
+    go to OK
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Turn a relay OFF
@@ -1485,14 +1509,15 @@ GetDeviceData:
 !   Post the config data
 PostConfigData:
     if CurrentSSID is not HostSSID gosub to ConnectToHost
-    if SystemMAC is empty return
     save prettify Config to ConfigFile
 !    log `Config: ` cat prettify Config
+    if SystemMAC is empty return
+    if SystemConfig is empty return
     put `https://rbrheating.com/ui/resources/php/rest.php/config/` cat SystemMAC cat `/` cat SystemPassword into URL
-    log `Posting SystemConfig to ` cat URL
+!    log URL cat ` ` cat prettify SystemConfig
+!    log `Posting SystemConfig to ` cat URL
     post stringify SystemConfig to URL
-    or
-    begin
+    or begin
         put `I couldn't post the config file` into StatusMessage
         go to Error
     end
