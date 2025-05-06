@@ -1217,10 +1217,9 @@ UpdateWidgetDataClick:
 UpdateFilesClick:
     if not DeviceSelected stop
     put property `ssid` of Device into SSID
-    split SSID on ` `
     put from 8 of SSID into MAC
 
-    put FirmwareDirectory cat `files.txt` into Path
+    put FirmwareDirectory cat `/files.txt` into Path
     load Files from Path
     split Files
     put 0 into F
@@ -1246,7 +1245,7 @@ UpdateFilesClick:
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Update a single file
 UpdateOneFile:
-    put FirmwareDirectory cat FileName into Path
+    put FirmwareDirectory cat `/` cat FileName into Path
     if file Path exists begin end
     else
     begin
@@ -1276,7 +1275,7 @@ SendFileToDevice:
     put the length of Content into FileSize
     put `Update device file ` cat FileName cat ` (size=` cat FileSize cat ` chars)` into StatusMessage
     gosub to Working
-    wait 2
+    wait 1
     put 0 into Sequence
     put 0 into Start
     put 0 into Total
@@ -1401,7 +1400,7 @@ RelayOffClick:
     begin
         put `No response from ` cat Name into StatusMessage
         gosub to Error
-        put 0 into Uptime
+        put `0` into Uptime
     end
     begin
         put from 3 of Response into Uptime
@@ -1421,7 +1420,7 @@ RelayOnClick:
     begin
         put `No response from ` cat Name into StatusMessage
         gosub to Error
-        put 0 into Uptime
+        put `0` into Uptime
     end
     else
     begin
@@ -1489,10 +1488,11 @@ SendMessageToDevice:
         put empty into Response
         return
     end
+!    log URL cat ` - ` cat Response
     return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Get data from a device
+!   Get information about a device
 GetDeviceData:
     put property `name` of Device into Name
     put property `ssid` of Device into SSID
