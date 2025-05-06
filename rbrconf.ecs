@@ -583,7 +583,7 @@ CheckFirmware2:
         save prettify Config to ConfigFile
         go to OK
     end
-    put `Firmware directory is missing` into StatusMessage
+    put `Firmware directory is missing or unspecified` into StatusMessage
     gosub to Error
     gosub to GetFirmware
 CheckFirmware3:

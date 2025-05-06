@@ -332,6 +332,7 @@ class Program:
 
 	def kill(self):
 		self.running = False
+		if self.parent != None: self.parent.program.kill()
 
 	def setExternalControl(self):
 		self.externalControl = True

@@ -878,7 +878,6 @@ class Graphics(Handler):
         
     def r_start(self, command):
         def on_last_window_closed():
-            print("Kill the appication...")
             self.program.kill()
         def resume():
             self.program.flush(self.nextPC())
