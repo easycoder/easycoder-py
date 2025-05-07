@@ -8,6 +8,10 @@ class FatalError:
 		print(f'Compile error in {compiler.program.name} at line {lino + 1} ({script}): {message}')
 		sys.exit()
 
+class NoValueError(FatalError):
+	def __init__(self, compiler, record):
+		super().__init__(compiler, 'Variable {record["name"]} does not hold a value')
+
 class AssertionError:
 	def __init__(self, program, msg=None):
 		code = program.code[program.pc]
@@ -29,6 +33,10 @@ class RuntimeError:
 			script = program.script.lines[lino].strip()
 			print(f'Runtime Error in {program.name} at line {lino + 1} ({script}): {message}')
 			sys.exit()
+
+class NoValueRuntimeError(RuntimeError):
+	def __init__(self, program, record):
+		super().__init__(program, 'Variable {record["name"]} does not hold a value')
 
 class RuntimeWarning:
 	def __init__(self, program, message):

@@ -1,5 +1,5 @@
 import sys
-from easycoder import Handler, FatalError, RuntimeError
+from easycoder import Handler, RuntimeError
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (

@@ -481,9 +481,10 @@ GetConfigData:
         begin
             put element K of Keys into Name
             log `Adding ` cat Name cat ` ` cat property Name of Value
-            if Name is `ssid` set property `host-ssid` of SystemConfig to property Name of Value
-            else if Name is `password` set property `host-password` of SystemConfig to property Name of Value
-            else set property Name of SystemConfig to property Name of Value
+!            if Name is `ssid` set property `host-ssid` of SystemConfig to property Name of Value
+!            else if Name is `password` set property `host-password` of SystemConfig to property Name of Value
+!            else
+            set property Name of SystemConfig to property Name of Value
             increment K
         end
     end
@@ -887,26 +888,33 @@ CreateDevice:
 PopulateSystemInfo:
     log `Populate fields for ` cat SystemName
     put property `host-ssid` of SystemConfig into SystemHostSSID
+    put property `host-password` of SystemConfig into Password
     if SystemHostSSID is not HostSSID
     begin
-        put property SystemHostSSID of Hosts into Password
-        put `Connect to host ` cat SystemHostSSID cat ` with password ` cat Password into StatusMessage
+        put `Unknown host SSID ` cat SystemHostSSID into StatusMessage
         gosub to Working
-        put system `nmcli dev wifi connect ` cat SystemHostSSID cat ` password ` cat Password into SystemCallResult
+        put SystemHostSSID into HostSSID
+        put Password into HostPassword
+        put system `nmcli dev wifi connect ` cat HostSSID cat ` password ` cat HostPassword into SystemCallResult
         split SystemCallResult on ` `
         if the elements of SystemCallResult is greater than 2
         begin
             index SystemCallResult to 2
             if SystemCallResult is `successfully`
             begin
-                put SystemHostSSID into HostSSID
+                set property HostSSID of Hosts to HostPassword
+                set property `hosts` of Config to Hosts
+                gosub to PostConfigData
                 put HostSSID into CurrentSSID
                 put `Connected to ` cat HostSSID into StatusMessage
-                go to Idle
+                gosub to Working
+            end
+            else
+            begin
+                put `Failed to connect to ` cat HostSSID into StatusMessage
+                go to Error
             end
         end
-        put `Failed to connect to ` cat HostSSID into StatusMessage
-        go to Error
     end
     put property `mac` of SystemConfig into SystemMAC
     put property `password` of SystemConfig into SystemPassword

@@ -2,7 +2,7 @@ import json, math, hashlib, threading, os, subprocess, sys, requests, time, numb
 from psutil import Process
 from datetime import datetime, timezone
 from random import randrange
-from .ec_classes import FatalError, RuntimeWarning, RuntimeError, AssertionError, Condition, Object
+from .ec_classes import FatalError, RuntimeWarning, RuntimeError, AssertionError, NoValueError, NoValueRuntimeError, Condition, Object
 from .ec_handler import Handler
 from .ec_timestamp import getTimestamp
 
@@ -94,7 +94,7 @@ class Core(Handler):
                     command['target'] = symbolRecord['name']
                     self.add(command)
                     return True
-                self.warning(f'Core.append: Variable "{symbolRecord["name"]}" does not hold a value')
+                self.warning(f'Core.append: Variable {symbolRecord["name"]} does not hold a value')
         return False
 
     def r_append(self, command):
@@ -251,7 +251,7 @@ class Core(Handler):
                 command['target'] = self.getToken()
                 self.add(command)
                 return True
-            self.warning(f'Core.decrement: Variable "{symbolRecord["name"]}" does not hold a value')
+            self.warning(f'Core.decrement: Variable {symbolRecord["name"]} does not hold a value')
         return False
 
     def r_decrement(self, command):
@@ -277,7 +277,7 @@ class Core(Handler):
                     command['var'] = record['name']
                     self.add(command)
                     return True
-                FatalError(self.compiler, f'Variable {record['name']} does not hold a value')
+                NoValueError(self.compiler, record)
             self.warning(f'Core.delete: variable expected; got {self.getToken()}')
         else:
             self.warning(f'Core.delete: "file", "property" or "element" expected; got {token}')
@@ -418,7 +418,7 @@ class Core(Handler):
             if symbolRecord['hasValue']:
                 command['target'] = self.getToken()
             else:
-                FatalError(self.compiler, f'Variable "{symbolRecord["name"]}" does not hold a value')
+                NoValueError(self.compiler, symbolRecord)
         if self.nextIs('from'):
             if self.nextIs('url'):
                 url = self.nextValue()
@@ -629,7 +629,7 @@ class Core(Handler):
                 command['target'] = self.getToken()
                 self.add(command)
                 return True
-            self.warning(f'Core.increment: Variable "{symbolRecord["name"]}" does not hold a value')
+            self.warning(f'Core.increment: Variable {symbolRecord["name"]} does not hold a value')
         return False
 
     def r_increment(self, command):
@@ -829,13 +829,13 @@ class Core(Handler):
                 command['target'] = self.getToken()
                 self.add(command)
                 return True
-            self.warning(f'Core.negate: Variable "{symbolRecord["name"]}" does not hold a value')
+            self.warning(f'Core.negate: Variable {symbolRecord["name"]} does not hold a value')
         return False
 
     def r_negate(self, command):
         symbolRecord = self.getVariable(command['target'])
         if not symbolRecord['hasValue']:
-            RuntimeError(self.program, f'{symbolRecord["name"]} does not hold a value')
+            NoValueRuntimeError(self.program, symbolRecord)
             return None
         value = self.getSymbolValue(symbolRecord)
         if value == None:
@@ -937,7 +937,7 @@ class Core(Handler):
     def r_pop(self, command):
         symbolRecord = self.getVariable(command['target'])
         if not symbolRecord['hasValue']:
-            RuntimeError(self.program, f'{symbolRecord["name"]} does not hold a value')
+            NoValueRuntimeError(self.program, symbolRecord)
         stackRecord = self.getVariable(command['from'])
         stack = self.getSymbolValue(stackRecord)
         v = stack.pop()
@@ -1091,7 +1091,7 @@ class Core(Handler):
             return -1
         symbolRecord = self.getVariable(command['target'])
         if not symbolRecord['hasValue']:
-            RuntimeError(self.program, f'{symbolRecord["name"]} does not hold a value')
+            NoValueRuntimeError(self.program, symbolRecord)
             return -1
         self.putSymbolValue(symbolRecord, value)
         return self.nextPC()
@@ -1406,13 +1406,13 @@ class Core(Handler):
                 command['target'] = self.getToken()
                 self.add(command)
                 return True
-            self.warning(f'Core.negate: Variable "{symbolRecord["name"]}" does not hold a value')
+            self.warning(f'Core.negate: Variable {symbolRecord["name"]} does not hold a value')
         return False
 
     def r_shuffle(self, command):
         symbolRecord = self.getVariable(command['target'])
         if not symbolRecord['hasValue']:
-            RuntimeError(self.program, f'{symbolRecord["name"]} does not hold a value')
+            NoValueRuntimeError(self.program, symbolRecord)
             return None
         value = self.getSymbolValue(symbolRecord)
         if value == None:
@@ -1735,7 +1735,7 @@ class Core(Handler):
     def incdec(self, command, mode):
         symbolRecord = self.getVariable(command['target'])
         if not symbolRecord['hasValue']:
-            RuntimeError(self.program, f'{symbolRecord["name"]} does not hold a value')
+            NoValueRuntimeError(self.program, symbolRecord)
         value = self.getSymbolValue(symbolRecord)
         if value == None:
             RuntimeError(self.program, f'{symbolRecord["name"]} has not been initialised')
@@ -1805,7 +1805,7 @@ class Core(Handler):
                     if symbolRecord['hasValue']:
                         value['target'] = symbolRecord['name']
                         return value
-                self.warning(f'Core.compileValue: Token \'{self.getToken()}\' does not hold a value')
+                self.warning(f'Core.compileValue: Token {symbolRecord["name"]} does not hold a value')
             return None
 
         if token == 'property':
@@ -1816,7 +1816,7 @@ class Core(Handler):
                     if symbolRecord['hasValue']:
                         value['target'] = symbolRecord['name']
                         return value
-                    FatalError(self.compiler, 'Variable does not hold a value')
+                    NoValueError(self.compiler, symbolRecord)
             return None
 
         if token == 'arg':
