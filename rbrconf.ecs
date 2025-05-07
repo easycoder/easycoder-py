@@ -466,7 +466,7 @@ GetConfigData:
         put `Can't read the config file for ` cat SystemName cat `(` cat MAC cat `/` cat Password cat `)` into StatusMessage
         go to Error
     end
-    log Value
+!    log Value
     ! If the server has data, copy it into the local config
     if Value is `""` put empty into Value
     if Value is empty put `{}` into Value
@@ -474,7 +474,7 @@ GetConfigData:
     begin
         log `Add config data from the server`
         put json Value into Value
-        log prettify Value
+!        log prettify Value
         put the keys of Value into Keys
         put 0 into K
         while K is less than the count of Keys
@@ -891,28 +891,43 @@ PopulateSystemInfo:
     put property `host-password` of SystemConfig into Password
     if SystemHostSSID is not HostSSID
     begin
-        put `Unknown host SSID ` cat SystemHostSSID into StatusMessage
+        put `Different host SSID: ` cat SystemHostSSID into StatusMessage
         gosub to Working
-        put SystemHostSSID into HostSSID
-        put Password into HostPassword
-        put system `nmcli dev wifi connect ` cat HostSSID cat ` password ` cat HostPassword into SystemCallResult
-        split SystemCallResult on ` `
-        if the elements of SystemCallResult is greater than 2
+        create MessageBox on Window
+            style question
+            title `Move system`
+            message `Shall I move the system to the current host (` cat HostSSID cat `)?`
+        show MessageBox giving Value
+        if Value is `Yes`
         begin
-            index SystemCallResult to 2
-            if SystemCallResult is `successfully`
+            put HostSSID into SystemHostSSID
+            set property `host-ssid` of SystemConfig to HostSSID
+            set property `host-password` of SystemConfig to HostPassword
+            gosub to UpdateSystems
+        end
+        else
+        begin
+            put SystemHostSSID into HostSSID
+            put Password into HostPassword
+            put system `nmcli dev wifi connect ` cat HostSSID cat ` password ` cat HostPassword into SystemCallResult
+            split SystemCallResult on ` `
+            if the elements of SystemCallResult is greater than 2
             begin
-                set property HostSSID of Hosts to HostPassword
-                set property `hosts` of Config to Hosts
-                gosub to PostConfigData
-                put HostSSID into CurrentSSID
-                put `Connected to ` cat HostSSID into StatusMessage
-                gosub to Working
-            end
-            else
-            begin
-                put `Failed to connect to ` cat HostSSID into StatusMessage
-                go to Error
+                index SystemCallResult to 2
+                if SystemCallResult is `successfully`
+                begin
+                    set property HostSSID of Hosts to HostPassword
+                    set property `hosts` of Config to Hosts
+                    gosub to PostConfigData
+                    put HostSSID into CurrentSSID
+                    put `Connected to ` cat HostSSID into StatusMessage
+                    gosub to Working
+                end
+                else
+                begin
+                    put `Failed to connect to ` cat HostSSID into StatusMessage
+                    go to Error
+                end
             end
         end
     end
