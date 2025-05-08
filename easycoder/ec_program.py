@@ -46,6 +46,7 @@ class Program:
 		self.compiler = Compiler(self)
 		self.value = self.compiler.value
 		self.condition = self.compiler.condition
+		self.graphics = None
 		self.processClasses()
 		self.externalControl = False
 		self.running = True

@@ -1,0 +1,63 @@
+	script Benchmark
+
+	variable Start
+	variable Finish
+	variable N
+	variable M
+	variable Array
+	variable Dictionary
+
+!	debug step
+
+	print `FOR loop counting to 500,000`
+	put now into Start
+	put 0 into N
+	while N is less than 500000 increment N
+	put now into Finish
+	take Start from Finish giving N
+	print N cat ` seconds`
+
+	print `Compare 500,000 long integers for equality`
+	put now into Start
+	put 0 into N
+	while N is less than 500000
+	begin
+		if N is 1234567890 begin end
+		increment N
+	end
+	put now into Finish
+	take Start from Finish giving N
+	print N cat ` seconds`
+
+	print `Allocate and initialize a 500,000 element array`
+	put now into Start
+	set the elements of Array to 500000
+	put 0 into N
+	while N is less than 500000
+	begin
+		index Array to N
+		put N into Array
+		increment N
+	end
+	put now into Finish
+	take Start from Finish giving N
+	print N cat ` seconds`
+
+	print `Allocate and initialize a 5000 element dictionary`
+	put json `{}` into Dictionary
+	put now into Start
+	put 0 into N
+	while N is less than 100
+	begin
+		put 0 into M
+		while M is less than 50
+		begin
+			set property N cat ` ` cat M of Dictionary to M
+			increment M
+		end
+		increment N
+	end
+	put now into Finish
+	take Start from Finish giving N
+	print N cat ` seconds`
+	exit

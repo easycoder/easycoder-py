@@ -2,7 +2,7 @@ import pytz, time
 from datetime import datetime
 
 def getTimestamp(t):
-    tz = pytz.timezone('Europe/London') # Localize this!
+    tz = pytz.timezone('GB') # Localize this!
     dt = datetime.fromtimestamp(t)
     # print(f'{dt} + {tz.dst(dt).seconds}')
     return int(t) + tz.dst(dt).seconds
