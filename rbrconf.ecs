@@ -160,8 +160,6 @@
     add Label to Layout
     create UptimeLabel text `0`
     add UptimeLabel to Layout
-    create Label text `sec`
-    add Label to Layout
     add stretch to Layout
     
     create Layout type QHBoxLayout
@@ -896,7 +894,8 @@ PopulateSystemInfo:
         create MessageBox on Window
             style question
             title `Move system`
-            message `Shall I move the system to the current host (` cat HostSSID cat `)?`
+            message `Shall I move system ` cat SystemName cat ` to the current host (` cat HostSSID cat `)?` cat newline
+                cat `(If 'No' I will attempt to connect to ` cat SystemHostSSID cat `)`
         show MessageBox giving Value
         if Value is `Yes`
         begin
@@ -1407,7 +1406,12 @@ CheckDevice:
 
 CheckDevice2:
     put the position of ` ` in Uptime into P
-    if P is greater than 0 put left P of Uptime into Uptime
+    if P is greater than 0
+    begin
+        put left P of Uptime into Uptime
+        put Uptime cat ` sec` into Uptime
+    end
+    else put `Unknown` into Uptime
     log Name cat ` uptime: ` cat Uptime
     set the text of UptimeLabel to Uptime
     go to OK
@@ -1427,6 +1431,7 @@ RelayOffClick:
     end
     begin
         put from 3 of Response into Uptime
+        put Uptime cat ` sec` into Uptime
         set the text of RelayStateLabel to `OFF`
     end
     gosub to CheckDevice2
@@ -1448,6 +1453,7 @@ RelayOnClick:
     else
     begin
         put from 3 of Response into Uptime
+        put Uptime cat ` sec` into Uptime
         set the text of RelayStateLabel to `ON`
     end
     gosub to CheckDevice2
@@ -1496,6 +1502,7 @@ SendMessageToDevice:
             put Path into MAC
         end
     end
+    put empty into Response
     put `http://` cat MasterIPAddr cat `/?mac=` cat MAC cat `&msg=` cat Message2 into URL
 !    log URL
     get Response from url URL
@@ -1508,7 +1515,6 @@ SendMessageToDevice:
             set property `path` of Device to empty
             go to SendMessageToDevice
         end
-        put empty into Response
         return
     end
 !    log URL cat ` - ` cat Response
@@ -1559,13 +1565,23 @@ UpdateConfig:
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Pause the system controller
 PauseSystemController:
-    if SystemIPAddr is not empty get Response from url `http://` cat SystemIPAddr cat `:17348/cgi-bin/pause.py`
+    if SystemIPAddr is not empty
+        get Response from url `http://` cat SystemIPAddr cat `:17348/cgi-bin/pause.py`
+        or begin
+            put `Unable to contact server at ` cat IPAddr into StatusMessage
+            goto Working
+        end
     return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   PaResumeuse the system controller
+!   Resume the system controller
 ResumeSystemController:
-    if SystemIPAddr is not empty get Response from url `http://` cat SystemIPAddr cat `:17348/cgi-bin/resume.py`
+    if SystemIPAddr is not empty
+        get Response from url `http://` cat SystemIPAddr cat `:17348/cgi-bin/resume.py`
+        or begin
+            put `Unable to contact server at ` cat IPAddr into StatusMessage
+            goto Working
+        end
     return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
