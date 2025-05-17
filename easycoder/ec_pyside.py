@@ -386,9 +386,13 @@ class Graphics(Handler):
         if y == None: y = (self.screenHeight - h) / 2
         else: y = self.getRuntimeValue(x)
         window.setGeometry(x, y, w, h)
-        container = QWidget()
-        container.setLayout(self.getVariable(command['layout'])['widget'])
-        window.setCentralWidget(container)
+        # content = self.getVariable(command['layout'])['widget']
+        # if isinstance(content, QWidget):
+        #     container = content
+        # else:
+        #     container = QWidget()
+        #     container.setLayout(content)
+        # window.setCentralWidget(container)
         record['window'] = window
         return self.nextPC()
     
@@ -712,6 +716,7 @@ class Graphics(Handler):
         return self.nextPC()
 
     # set [the] width/height [of] {widget} [to] {value}
+    # set [the] layout of {window} to {layout}
     # set [the] text [of] {label}/{button}/{lineinput} [to] {text}
     # set [the] color [of] {label}/{button}/{lineinput} [to] {color}
     # set [the] state [of] {checkbox} [to] {color}
@@ -730,6 +735,18 @@ class Graphics(Handler):
                     command['value'] = self.nextValue()
                     self.add(command)
                     return True
+        elif token == 'layout':
+            self.skip('of')
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                if record['keyword'] == 'window':
+                    command['name'] = record['name']
+                    self.skip('to')
+                    if self.nextIsSymbol():
+                        record = self.getSymbolRecord()
+                        command['layout'] = record['name']
+                        self.add(command)
+                        return True
         elif token == 'text':
             self.skip('of')
             if self.nextIsSymbol():
@@ -790,6 +807,13 @@ class Graphics(Handler):
         elif what == 'width':
             widget = self.getVariable(command['name'])['widget']
             widget.setFixedWidth(self.getRuntimeValue(command['value']))
+        elif what == 'layout':
+            window = self.getVariable(command['name'])['window']
+            layout = self.getVariable(command['layout'])
+            content = self.getVariable(command['layout'])['widget']
+            container = QWidget()
+            container.setLayout(content)
+            window.setCentralWidget(container)
         elif what == 'text':
             record = self.getVariable(command['name'])
             widget = self.getVariable(command['name'])['widget']

@@ -1,3 +1,3 @@
 from easycoder import Program
 
-Program('test.ecs').start()
+Program('scripts/rbr_ui.ecs').start()

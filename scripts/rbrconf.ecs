@@ -218,7 +218,8 @@
     gosub to OK 
     add StatusLabel to RightPanel
 
-    create Window title `RBR-Now configurator` size 700 500 layout MainPanel
+    create Window title `RBR-Now configurator` size 700 500
+    set the layout of Window to MainPanel
     show Window
 
     start graphics
@@ -629,9 +630,9 @@ GetFirmware:
 ScanForDevicesClick:
     gosub to SetBusy
     put `Scanning for new devices...` into StatusMessage
-    log StatusMessage
     gosub to Working
     put system `nmcli device wifi list` into SystemCallResult
+    log SystemCallResult
     split SystemCallResult
     put json `[]` into List
     put 1 into N
@@ -672,7 +673,7 @@ ScanForDevicesClick:
     SFDC2:
         increment N
     end
-!    log `SSIDs: ` cat List
+    log `SSIDs: ` cat List
     if the count of List is 0
     begin
         put `No new devices were found` into StatusMessage
@@ -734,7 +735,8 @@ SelectSSIDFromList:
     end
     add CancelButton to HLayout
     add HLayout to Layout
-    create Dialog title Title layout Layout size 250 200
+    create Dialog title Title size 250 200
+    set the layout of Dialog to Layout
     center Dialog on Window
     show Dialog
     stop
@@ -908,6 +910,7 @@ PopulateSystemInfo:
         begin
             put SystemHostSSID into HostSSID
             put Password into HostPassword
+            system `nmcli connection delete ` cat HostSSID
             put system `nmcli dev wifi connect ` cat HostSSID cat ` password ` cat HostPassword into SystemCallResult
             split SystemCallResult on ` `
             if the elements of SystemCallResult is greater than 2
@@ -1102,7 +1105,8 @@ GetRequestedText:
         return
     end
     add CancelButton to HLayout
-    create Dialog title Title layout VLayout size 300 80
+    create Dialog title Title size 300 80
+    set the layout of Dialog to VLayout
     center Dialog on Window
     show Dialog
     stop
@@ -1147,6 +1151,7 @@ GetAccessPoints:
 ConnectToHost:
     put `Connect to host ` cat HostSSID cat ` with password ` cat HostPassword into StatusMessage
     gosub to Working
+    system `nmcli connection delete ` cat HostSSID
     put system `nmcli dev wifi connect ` cat HostSSID cat ` password ` cat HostPassword into SystemCallResult
     split SystemCallResult on ` `
     if the elements of SystemCallResult is greater than 2
@@ -1183,6 +1188,7 @@ FailedToConnect:
 ConnectToDevice:
     put `Connect to device ` cat SSID cat ` with password 00000000` into StatusMessage
     gosub to Working
+    system `nmcli connection delete ` cat SSID
     put system `nmcli dev wifi connect ` cat SSID cat ` password 00000000` into SystemCallResult
     put SystemCallResult into Value
     split Value on ` `
@@ -1309,7 +1315,8 @@ SendFileToDevice:
         put the length of Segment into Length
         add Length to Total
         put encode Segment into Segment
-        put `Send ` cat FileName cat `, part ` cat Sequence cat ` (attempt ` cat Attempt cat `)` into StatusMessage
+        put `Send ` cat FileName cat `, part ` cat Sequence into StatusMessage
+        if Attempt is not 1 put StatusMessage cat ` (attempt ` cat Attempt cat `)` into StatusMessage
         gosub to Working
         put `part:`  cat Sequence cat `,text:` cat Segment into Message
         gosub to SendMessageToDevice
@@ -1412,7 +1419,7 @@ CheckDevice2:
         put Uptime cat ` sec` into Uptime
     end
     else put `Unknown` into Uptime
-    log Name cat ` uptime: ` cat Uptime
+!    log Name cat ` uptime: ` cat Uptime
     set the text of UptimeLabel to Uptime
     go to OK
 

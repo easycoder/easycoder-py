@@ -1,6 +1,6 @@
-import json, math, hashlib, threading, os, subprocess, sys, requests, time, numbers, base64, binascii, random
+import json, math, hashlib, threading, os, subprocess, sys, time, numbers, base64, binascii, random, requests
 from psutil import Process
-from datetime import datetime, timezone
+from datetime import datetime
 from random import randrange
 from .ec_classes import FatalError, RuntimeWarning, RuntimeError, AssertionError, NoValueError, NoValueRuntimeError, Condition, Object
 from .ec_handler import Handler
@@ -381,7 +381,7 @@ class Core(Handler):
 
     def r_exit(self, command):
         if self.program.graphics != None:
-            self.program.graphics.force_exit()
+            self.program.graphics.force_exit(None)
         return -1
 
     # Declare a file variable

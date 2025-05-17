@@ -98,7 +98,7 @@
     add Row to Layout
 
     create Window `RBR XR Config`
-        layout Layout
+    set the layout of Window to Layout
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Event handlers for the main window
