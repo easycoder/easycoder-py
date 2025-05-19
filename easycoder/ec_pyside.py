@@ -37,11 +37,6 @@ from PySide6.QtWidgets import (
 
 class Graphics(Handler):
 
-    class MainWindow(QMainWindow):
-
-        def __init__(self):
-            super().__init__()
-
     def __init__(self, compiler):
         Handler.__init__(self, compiler)
 
@@ -375,24 +370,17 @@ class Graphics(Handler):
         return False
     
     def r_createWindow(self, command, record):
-        window = self.MainWindow()
+        window = QMainWindow()
         window.setWindowTitle(self.getRuntimeValue(command['title']))
         w = self.getRuntimeValue(command['w'])
         h = self.getRuntimeValue(command['h'])
         x = command['x']
         y = command['y']
-        if x == None: x = (self.screenWidth - w) / 2
+        if x == None: x = (self.program.screenWidth - w) / 2
         else: x = self.getRuntimeValue(x)
-        if y == None: y = (self.screenHeight - h) / 2
+        if y == None: y = (self.program.screenHeight - h) / 2
         else: y = self.getRuntimeValue(x)
         window.setGeometry(x, y, w, h)
-        # content = self.getVariable(command['layout'])['widget']
-        # if isinstance(content, QWidget):
-        #     container = content
-        # else:
-        #     container = QWidget()
-        #     container.setLayout(content)
-        # window.setCentralWidget(container)
         record['window'] = window
         return self.nextPC()
     
@@ -549,9 +537,9 @@ class Graphics(Handler):
     def r_init(self, command):
         self.app = QApplication(sys.argv)
         screen = QApplication.screens()[0].size().toTuple()
-        self.screenWidth = screen[0]
-        self.screenHeight = screen[1]
-        print(f'Screen: {self.screenWidth}x{self.screenHeight}')
+        self.program.screenWidth = screen[0]
+        self.program.screenHeight = screen[1]
+        print(f'Screen: {self.program.screenWidth}x{self.program.screenHeight}')
         return self.nextPC()
 
     # Declare a label variable
