@@ -39,6 +39,7 @@ class Graphics(Handler):
 
     def __init__(self, compiler):
         Handler.__init__(self, compiler)
+        self.blocked = False
 
     def getName(self):
         return 'graphics'
@@ -83,13 +84,14 @@ class Graphics(Handler):
         elif self.isSymbol():
             record = self.getSymbolRecord()
             if record['extra'] == 'gui':
-                if self.peek() == 'to':
-                    # (2)
-                    record = self.getSymbolRecord()
-                    command['widget'] = record['name']
-                    self.nextToken()
-                    return addToLayout()
-                return False
+                if record['keyword'] in ['layout', 'groupbox', 'label', 'pushbutton', 'checkbox', 'lineinput', 'listbox', 'combobox']:
+                    if self.peek() == 'to':
+                        # (2)
+                        record = self.getSymbolRecord()
+                        command['widget'] = record['name']
+                        self.nextToken()
+                        return addToLayout()
+                else: return False
         # (1)
         command['value'] = self.getValue()
         self.skip('to')
@@ -705,10 +707,12 @@ class Graphics(Handler):
 
     # set [the] width/height [of] {widget} [to] {value}
     # set [the] layout of {window} to {layout}
+    # set [the] spacing of {layout} to {value}
     # set [the] text [of] {label}/{button}/{lineinput} [to] {text}
     # set [the] color [of] {label}/{button}/{lineinput} [to] {color}
     # set [the] state [of] {checkbox} [to] {color}
     # set {listbox} to {list}
+    # set blocked true/false
     def k_set(self, command):
         self.skip('the')
         token = self.nextToken()
@@ -735,6 +739,16 @@ class Graphics(Handler):
                         command['layout'] = record['name']
                         self.add(command)
                         return True
+        elif token == 'spacing':
+            self.skip('of')
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                if record['keyword'] == 'layout':
+                    command['name'] = record['name']
+                    self.skip('to')
+                    command['value'] = self.nextValue()
+                    self.add(command)
+                    return True
         elif token == 'text':
             self.skip('of')
             if self.nextIsSymbol():
@@ -776,6 +790,9 @@ class Graphics(Handler):
                     command['value'] = self.nextValue()
                     self.add(command)
                     return True
+        elif token == 'blocked':
+            self.blocked = True if self.nextToken() == 'true' else False
+            return True
         elif self.isSymbol():
             record = self.getSymbolRecord()
             if record['keyword'] == 'listbox':
@@ -797,11 +814,13 @@ class Graphics(Handler):
             widget.setFixedWidth(self.getRuntimeValue(command['value']))
         elif what == 'layout':
             window = self.getVariable(command['name'])['window']
-            layout = self.getVariable(command['layout'])
             content = self.getVariable(command['layout'])['widget']
             container = QWidget()
             container.setLayout(content)
             window.setCentralWidget(container)
+        elif what == 'spacing':
+            layout = self.getVariable(command['name'])['widget']
+            layout.setSpacing(self.getRuntimeValue(command['value']))
         elif what == 'text':
             record = self.getVariable(command['name'])
             widget = self.getVariable(command['name'])['widget']
@@ -891,14 +910,14 @@ class Graphics(Handler):
     def r_start(self, command):
         def on_last_window_closed():
             self.program.kill()
-        def resume():
+        def init():
             self.program.flush(self.nextPC())
         def flush():
-            self.program.flushCB()
+            if not self.blocked: self.program.flushCB()
         timer = QTimer()
         timer.timeout.connect(flush)
         timer.start(10)
-        QTimer.singleShot(500, resume)
+        QTimer.singleShot(500, init)
         self.app.lastWindowClosed.connect(on_last_window_closed)
         self.app.exec()
 

@@ -16,6 +16,7 @@ class Compiler:
 		self.program.compiler = self
 		self.addCommand = self.program.add
 		self.compileConstant = self.value.compileConstant
+		self.debugCompile = False
 
 	def getPC(self):
 		return len(self.program.code)
@@ -174,7 +175,7 @@ class Compiler:
 					self.rewindTo(mark)
 			else:
 				self.rewindTo(mark)
-		FatalError(self, f'Unable to compile this "{token}" command. Perhaps a syntax error?')
+		FatalError(self, f'Unable to compile this "{token}" command')
 
 	# Compile a single command
 	def compileOne(self):
@@ -196,7 +197,7 @@ class Compiler:
 		while True:
 			token = self.tokens[self.index]
 			keyword = token.token
-#			line = self.script.lines[token.lino]
+			if self.debugCompile: print(self.script.lines[token.lino])
 #			print(f'{keyword} - {line}')
 #			if keyword != 'else':
 			if self.compileOne() == True:

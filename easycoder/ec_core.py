@@ -202,7 +202,11 @@ class Core(Handler):
     # Debug the script
     def k_debug(self, command):
         token = self.peek()
-        if token in ['step', 'stop', 'program', 'custom']:
+        if token == 'compile':
+            self.compiler.debugCompile = True
+            self.nextToken()
+            return True
+        elif token in ['step', 'stop', 'program', 'custom']:
             command['mode'] = token
             self.nextToken()
         elif token == 'stack':
@@ -222,7 +226,9 @@ class Core(Handler):
         return True
 
     def r_debug(self, command):
-        if command['mode'] == 'step':
+        if command['mode'] == 'compile':
+            self.program.debugStep = True
+        elif command['mode'] == 'step':
             self.program.debugStep = True
         elif command['mode'] == 'stop':
             self.program.debugStep = False
@@ -1455,6 +1461,7 @@ class Core(Handler):
         content = value['content'].split(self.getRuntimeValue(command['on']))
         elements = len(content)
         target['elements'] = elements
+        target['index'] = 0
         target['value'] = [None] * elements
 
         for index, item in enumerate(content):
