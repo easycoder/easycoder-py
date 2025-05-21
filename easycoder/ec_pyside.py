@@ -93,7 +93,9 @@ class Graphics(Handler):
                         return addToLayout()
                 else: return False
         # (1)
-        command['value'] = self.getValue()
+        value = self.getValue()
+        if value == None: return False
+        command['value'] = value
         self.skip('to')
         if self.nextIsSymbol():
             record = self.getSymbolRecord()
