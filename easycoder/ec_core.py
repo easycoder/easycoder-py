@@ -1995,6 +1995,9 @@ class Core(Handler):
             value['command'] = self.nextValue()
             return value
 
+        if token == 'ticker':
+            return value
+
         return None
 
     #############################################################################
@@ -2385,6 +2388,12 @@ class Core(Handler):
         value = {}
         value['type'] = 'int'
         value['content'] = round(math.tan(angle * 0.01745329) * radius)
+        return value
+
+    def v_ticker(self, v):
+        value = {}
+        value['type'] = 'int'
+        value['content'] = self.program.ticker
         return value
 
     def v_timestamp(self, v):

@@ -49,6 +49,7 @@ class Program:
 		self.graphics = None
 		self.processClasses()
 		self.externalControl = False
+		self.ticker = 0
 		self.running = True
 
 	def start(self, parent=None, module = None, exports=[]):
@@ -288,7 +289,9 @@ class Program:
 			self.parent.waiting = False
 			self.parent.program.run(self.parent.pc)
 
+	# This is called at 10msec intervals by the GUI code
 	def flushCB(self):
+		self.ticker += 1
 		flush()
 
 	# Flush the queue

@@ -1049,16 +1049,3 @@ class Graphics(Handler):
     def force_exit(self):
         QApplication.quit()  # Gracefully close the application
         sys.exit(0)          # Force a complete system exit
-
-
-def addIconToLayout(layout, icon_path):
-    """
-    Adds an icon to the specified layout.
-
-    :param layout: The layout to which the icon will be added.
-    :param icon_path: The file path of the icon image.
-    """
-    icon_label = QLabel()
-    pixmap = QPixmap(icon_path)
-    icon_label.setPixmap(pixmap)
-    layout.addWidget(icon_label)
