@@ -24,9 +24,6 @@ class Program:
 			exit()
 		self.classes=[Core]
 		scriptName = argv
-		if scriptName.endswith('.ecg'):
-			from .ec_graphics import Graphics
-			self.classes.append(Graphics)
 
 		f = open(scriptName, 'r')
 		source = f.read()
@@ -51,6 +48,11 @@ class Program:
 		self.externalControl = False
 		self.ticker = 0
 		self.running = True
+
+	# This is called at 10msec intervals by the GUI code
+	def flushCB(self):
+		self.ticker += 1
+		flush()
 
 	def start(self, parent=None, module = None, exports=[]):
 		self.parent = parent
@@ -289,11 +291,6 @@ class Program:
 			self.parent.waiting = False
 			self.parent.program.run(self.parent.pc)
 
-	# This is called at 10msec intervals by the GUI code
-	def flushCB(self):
-		self.ticker += 1
-		flush()
-
 	# Flush the queue
 	def flush(self, pc):
 		global queue
@@ -326,7 +323,7 @@ class Program:
 					elif self.pc == None or self.pc == 0 or self.pc >= len(self.code):
 						break
 
-	# Run the script
+	# Run the script at a given PC value
 	def run(self, pc):
 		global queue
 		item = Object()

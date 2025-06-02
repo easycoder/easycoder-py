@@ -40,12 +40,16 @@ class Graphics(Handler):
     def __init__(self, compiler):
         Handler.__init__(self, compiler)
         self.blocked = False
+        self.runOnTick = 0
 
     def getName(self):
         return 'graphics'
 
     def closeEvent(self):
         print('window closed')
+    
+    def isWidget(self, keyword):
+        return keyword in ['layout', 'groupbox', 'label', 'pushbutton', 'checkbox', 'lineinput', 'listbox', 'combobox']
 
     #############################################################################
     # Keyword handlers
@@ -84,7 +88,7 @@ class Graphics(Handler):
         elif self.isSymbol():
             record = self.getSymbolRecord()
             if record['extra'] == 'gui':
-                if record['keyword'] in ['layout', 'groupbox', 'label', 'pushbutton', 'checkbox', 'lineinput', 'listbox', 'combobox']:
+                if self.isWidget(record['keyword']):
                     if self.peek() == 'to':
                         # (2)
                         record = self.getSymbolRecord()
@@ -170,9 +174,11 @@ class Graphics(Handler):
     # clear {widget}
     def k_clear(self, command):
         if self.nextIsSymbol():
-            command['name'] = self.getSymbolRecord()['name']
-            self.add(command)
-            return True
+            record = self.getSymbolRecord()
+            if self.isWidget(record['keyword']):
+                command['name'] = record['name']
+                self.add(command)
+                return True
         return False
     
     def r_clear(self, command):
@@ -583,9 +589,9 @@ class Graphics(Handler):
 
     # on click {pushbutton}
     # on select {combobox}/{listbox}
+    # on tick
     def k_on(self, command):
         def setupOn():
-            command['name'] = record['name']
             command['goto'] = self.getPC() + 2
             self.add(command)
             self.nextToken()
@@ -606,34 +612,65 @@ class Graphics(Handler):
             cmd['keyword'] = 'stop'
             cmd['debug'] = False
             self.addCommand(cmd)
-            # Fixup the link
+            # Fixup the goto
             self.getCommandAt(pcNext)['goto'] = self.getPC()
 
         token = self.nextToken()
+        command['type'] = token
         if token == 'click':
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
                 if record['keyword'] == 'pushbutton':
+                    command['name'] = record['name']
                     setupOn()
                     return True
         elif token == 'select':
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
                 if record['keyword'] in ['combobox', 'listbox']:
+                    command['name'] = record['name']
                     setupOn()
                     return True
+        elif token == 'tick':
+            command['tick'] = True
+            command['runOnTick'] = self.getPC() + 2
+            self.addCommand(command)
+            self.nextToken()
+            # Step over the on tick action
+            pcNext = self.getPC()
+            cmd = {}
+            cmd['domain'] = 'core'
+            cmd['lino'] = command['lino']
+            cmd['keyword'] = 'gotoPC'
+            cmd['goto'] = 0
+            cmd['debug'] = False
+            self.addCommand(cmd)
+            # This is the on tick handler
+            self.compileOne()
+            cmd = {}
+            cmd['domain'] = 'core'
+            cmd['lino'] = command['lino']
+            cmd['keyword'] = 'stop'
+            cmd['debug'] = False
+            self.addCommand(cmd)
+            # Fixup the goto
+            self.getCommandAt(pcNext)['goto'] = self.getPC()
+            return True
         return False
     
     def r_on(self, command):
-        record = self.getVariable(command['name'])
-        widget = record['widget']
-        keyword = record['keyword']
-        if keyword == 'pushbutton':
-            widget.clicked.connect(lambda: self.run(command['goto']))
-        elif keyword == 'combobox':
-            widget.currentIndexChanged.connect(lambda: self.run(command['goto']))
-        elif keyword == 'listbox':
-            widget.itemClicked.connect(lambda: self.run(command['goto']))
+        if command['type'] == 'tick':
+            self.runOnTick = command['runOnTick']
+        else:
+            record = self.getVariable(command['name'])
+            widget = record['widget']
+            keyword = record['keyword']
+            if keyword == 'pushbutton':
+                widget.clicked.connect(lambda: self.run(command['goto']))
+            elif keyword == 'combobox':
+                widget.currentIndexChanged.connect(lambda: self.run(command['goto']))
+            elif keyword == 'listbox':
+                widget.itemClicked.connect(lambda: self.run(command['goto']))
         return self.nextPC()
 
     # Declare a pushbutton variable
@@ -915,7 +952,10 @@ class Graphics(Handler):
         def init():
             self.program.flush(self.nextPC())
         def flush():
-            if not self.blocked: self.program.flushCB()
+            if not self.blocked:
+                if self.runOnTick != 0:
+                    self.program.run(self.runOnTick)
+                self.program.flushCB()
         timer = QTimer()
         timer.timeout.connect(flush)
         timer.start(10)
