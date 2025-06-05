@@ -977,10 +977,12 @@ class Graphics(Handler):
         value['domain'] = self.getName()
         token = self.getToken()
         if self.isSymbol():
-            if self.getSymbolRecord()['extra'] == 'gui':
-                value['name'] = token
-                value['type'] = 'symbol'
-                return value
+            record = self.getSymbolRecord()
+            if record['extra'] == 'gui':
+                if self.isWidget(record['keyword']):
+                    value['name'] = token
+                    value['type'] = 'symbol'
+                    return value
 
         else:
             if self.tokenIs('the'): token = self.nextToken()
