@@ -12,7 +12,8 @@ def flush():
 	global queue
 	while len(queue):
 		item = queue.popleft()
-		item.program.flush(item.pc)
+		if item.pc != None:
+			item.program.flush(item.pc)
 
 class Program:
 
