@@ -1,4 +1,5 @@
-import json, math, hashlib, threading, os, subprocess, sys, time, numbers, base64, binascii, random, requests
+import json, math, hashlib, threading, os, subprocess, sys, time
+import numbers, base64, binascii, random, requests, paramiko
 from psutil import Process
 from datetime import datetime
 from random import randrange
@@ -712,7 +713,7 @@ class Core(Handler):
         return self.nextPC()
 
     # 1 Load a plugin. This is done at compile time.
-    # 2 Load text from a file
+    # 2 Load text from a file or ssh
     def k_load(self, command):
         self.nextToken()
         if self.tokenIs('plugin'):
@@ -726,7 +727,15 @@ class Core(Handler):
             if symbolRecord['hasValue']:
                 command['target'] = symbolRecord['name']
                 if self.nextIs('from'):
-                    command['file'] = self.nextValue()
+                    if self.nextIsSymbol():
+                        record = self.getSymbolRecord()
+                        if record['keyword'] == 'ssh':
+                            command['ssh'] = record['name']
+                            command['path'] = self.nextValue()
+                            self.add(command)
+                            return True
+
+                    command['file'] = self.getValue()
                     self.add(command)
                     return True
         else:
@@ -735,15 +744,24 @@ class Core(Handler):
 
     def r_load(self, command):
         target = self.getVariable(command['target'])
-        filename = self.getRuntimeValue(command['file'])
-        try:
-            with open(filename) as f: content = f.read()
-        except:
-            content = ''
-        try:
-            if filename.endswith('.json'): content = json.loads(content)
-        except:
-            RuntimeError(self.program, 'Bad or null JSON string')
+        if 'ssh' in command:
+            ssh = self.getVariable(command['ssh'])
+            path = self.getRuntimeValue(command['path'])
+            sftp = ssh['sftp']
+            try:
+                with sftp.open(path, 'r') as remote_file: content = remote_file.read().decode()
+            except:
+                RuntimeError(self.program, 'Unable to read data')
+        else:
+            filename = self.getRuntimeValue(command['file'])
+            try:
+                with open(filename) as f: content = f.read()
+            except:
+                content = ''
+            try:
+                if filename.endswith('.json'): content = json.loads(content)
+            except:
+                RuntimeError(self.program, 'Bad or null JSON string')
         value = {}
         value['type'] = 'text'
         value['content'] = content
@@ -1277,16 +1295,40 @@ class Core(Handler):
 
     # Set a value
     # set {variable}
+    # set {ssh} host {host} user {user} password {password}
     # set the elements of {variable} to {value}
     # set element/property of {variable} to {value}
     def k_set(self, command):
         if self.nextIsSymbol():
-            target = self.getSymbolRecord()
-            if target['hasValue']:
+            record = self.getSymbolRecord()
+            command['target'] = record['name']
+            if record['hasValue']:
                 command['type'] = 'set'
-                command['target'] = target['name']
                 self.add(command)
                 return True
+            elif record['keyword'] == 'ssh':
+                host = None
+                user = None
+                password = None
+                while True:
+                    token = self.peek()
+                    if token == 'host':
+                        self.nextToken()
+                        host = self.nextValue()
+                    elif token == 'user':
+                        self.nextToken()
+                        user = self.nextValue()
+                    elif token == 'password':
+                        self.nextToken()
+                        password = self.nextValue()
+                    else: break
+                command['host'] = host
+                command['user'] = user
+                command['password'] = password
+                command['type'] = 'ssh'
+                self.add(command)
+                return True
+
             return False
 
         token = self.getToken()
@@ -1415,6 +1457,17 @@ class Core(Handler):
             val['content'] = content
             self.putSymbolValue(targetVariable, val)
             return self.nextPC()
+        
+        elif cmdType == 'ssh':
+            target = self.getVariable(command['target'])
+            host = self.getRuntimeValue(command['host'])
+            user = self.getRuntimeValue(command['user'])
+            password = self.getRuntimeValue(command['password'])
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(host, username=user, password=password)
+            target['sftp'] = ssh.open_sftp()
+            return self.nextPC()
 
     # Shuffle a list
     def k_shuffle(self, command):
@@ -1483,6 +1536,12 @@ class Core(Handler):
             element['content'] = item
             target['value'][index] = element
 
+        return self.nextPC()
+
+    def k_ssh(self, command):
+        return self.compileVariable(command, False)
+
+    def r_ssh(self, command):
         return self.nextPC()
 
     # Declare a stack variable
