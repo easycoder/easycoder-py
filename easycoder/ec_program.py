@@ -317,9 +317,8 @@ class Program:
 						queue = deque()
 						if self.parent != None:
 							self.releaseParent()
-						else:
-							self.running = False
-							break
+						self.running = False
+						break
 					elif self.pc == None or self.pc == 0 or self.pc >= len(self.code):
 						break
 

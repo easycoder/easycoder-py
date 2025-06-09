@@ -386,7 +386,7 @@ class Core(Handler):
         return True
 
     def r_exit(self, command):
-        if self.program.graphics != None:
+        if self.program.parent == None and self.program.graphics != None:
             self.program.graphics.force_exit(None)
         return -1
 
@@ -601,6 +601,7 @@ class Core(Handler):
                 variable['name'] = name
                 variable['keyword'] = keyword
                 variable['import'] = None
+                variable['used'] = False
                 self.addCommand(variable)
                 if self.peek() != 'and':
                     break
@@ -1203,9 +1204,9 @@ class Core(Handler):
                 if record['keyword'] == 'module':
                     name = record['name']
                     command['module'] = name
-                else: RuntimeError(self.program, f'Symbol \'name\' is not a module')
-            else: RuntimeError(self.program, 'Module name expected after \'as\'')
-        else: RuntimeError(self.program, '\'as {module name}\' expected')
+                else: FatalError(self.compiler, f'Symbol \'name\' is not a module')
+            else: FatalError(self.compiler, 'Module name expected after \'as\'')
+        else: FatalError(self.compiler, '\'as {module name}\' expected')
         exports = []
         if self.peek() == 'with':
             self.nextToken()
@@ -1333,6 +1334,12 @@ class Core(Handler):
                         command['value'] = self.nextValue()
                         self.add(command)
                         return True
+        
+        elif token == 'path':
+            command['path'] = self.nextValue()
+            self.add(command)
+            return True
+
         return False
 
     def r_set(self, command):
@@ -1382,6 +1389,11 @@ class Core(Handler):
 
         elif cmdType == 'encoding':
             self.encoding = self.getRuntimeValue(command['encoding'])
+            return self.nextPC()
+
+        elif cmdType == 'path':
+            path = self.getRuntimeValue(command['path'])
+            os.chdir(path)
             return self.nextPC()
 
         elif cmdType == 'property':
@@ -1624,6 +1636,7 @@ class Core(Handler):
         target['locked'] = False
         return self.nextPC()
 
+    # Use a plugin module
     def k_use(self, command):
         if self.nextIs('graphics'):
             print('Loading graphics module')
