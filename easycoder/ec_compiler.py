@@ -14,7 +14,6 @@ class Compiler:
 		self.symbols = self.program.symbols
 		self.code = self.program.code
 		self.program.compiler = self
-		self.addCommand = self.program.add
 		self.compileConstant = self.value.compileConstant
 		self.debugCompile = False
 
@@ -76,6 +75,10 @@ class Compiler:
 
 	def getCommandAt(self, pc):
 		return self.program.code[pc]
+
+	# Add a command to the code list
+	def add(self, command):
+		self.code.append(command)
 
 	def isSymbol(self):
 		token=self.getToken()
@@ -148,7 +151,7 @@ class Compiler:
 		command['import'] = None
 		command['locked'] = False
 		command['extra'] = extra
-		self.addCommand(command)
+		self.add(command)
 		return True
 
 	# Compile the current token

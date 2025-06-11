@@ -126,7 +126,7 @@ class Core(Handler):
             command['with'] = self.nextValue()
         else:
             command['with'] = None
-        self.addCommand(command)
+        self.add(command)
         return True
 
     def r_assert(self, command):
@@ -143,7 +143,7 @@ class Core(Handler):
             cmd['keyword'] = 'end'
             cmd['debug'] = True
             cmd['lino'] = command['lino']
-            self.addCommand(cmd)
+            self.add(cmd)
             return self.nextPC()
         else:
             return self.compileFromHere(['end'])
@@ -441,7 +441,7 @@ class Core(Handler):
                         timeout['type'] = 'int'
                         timeout['content'] = 5
                         command['timeout'] = timeout
-                    self.addCommand(command)
+                    self.add(command)
                     if self.peek() == 'or':
                         self.nextToken()
                         self.nextToken()
@@ -453,7 +453,7 @@ class Core(Handler):
                         cmd['goto'] = 0
                         cmd['debug'] = False
                         skip = self.getPC()
-                        self.addCommand(cmd)
+                        self.add(cmd)
                         # Process the 'or'
                         self.getCommandAt(get)['or'] = self.getPC()
                         self.compileOne()
@@ -535,7 +535,7 @@ class Core(Handler):
     # if <condition> <action> [else <action>]
     def k_if(self, command):
         command['condition'] = self.nextCondition()
-        self.addCommand(command)
+        self.add(command)
         self.nextToken()
         pcElse = self.getPC()
         cmd = {}
@@ -544,7 +544,7 @@ class Core(Handler):
         cmd['keyword'] = 'gotoPC'
         cmd['goto'] = 0
         cmd['debug'] = False
-        self.addCommand(cmd)
+        self.add(cmd)
         # Get the 'then' code
         self.compileOne()
         if self.peek() == 'else':
@@ -557,7 +557,7 @@ class Core(Handler):
             cmd['keyword'] = 'gotoPC'
             cmd['goto'] = 0
             cmd['debug'] = False
-            self.addCommand(cmd)
+            self.add(cmd)
             # Fixup the link to the 'else' branch
             self.getCommandAt(pcElse)['goto'] = self.getPC()
             # Process the 'else' branch
@@ -603,7 +603,7 @@ class Core(Handler):
                 variable['keyword'] = keyword
                 variable['import'] = None
                 variable['used'] = False
-                self.addCommand(variable)
+                self.add(variable)
                 if self.peek() != 'and':
                     break
                 self.nextToken()
@@ -732,17 +732,37 @@ class Core(Handler):
                         if record['keyword'] == 'ssh':
                             command['ssh'] = record['name']
                             command['path'] = self.nextValue()
-                            self.add(command)
-                            return True
-
-                    command['file'] = self.getValue()
+                        else:
+                            command['file'] = self.getValue()
+                    else:
+                        command['file'] = self.getValue()
+                    command['or'] = None
+                    load = self.getPC()
                     self.add(command)
+                    if self.peek() == 'or':
+                        self.nextToken()
+                        self.nextToken()
+                        # Add a 'goto' to skip the 'or'
+                        cmd = {}
+                        cmd['lino'] = command['lino']
+                        cmd['domain'] = 'core'
+                        cmd['keyword'] = 'gotoPC'
+                        cmd['goto'] = 0
+                        cmd['debug'] = False
+                        skip = self.getPC()
+                        self.add(cmd)
+                        # Process the 'or'
+                        self.getCommandAt(load)['or'] = self.getPC()
+                        self.compileOne()
+                        # Fixup the skip
+                        self.getCommandAt(skip)['goto'] = self.getPC()
                     return True
         else:
             FatalError(self.compiler, f'I don\'t understand \'{self.getToken()}\'')
         return False
 
     def r_load(self, command):
+        errorReason = None
         target = self.getVariable(command['target'])
         if 'ssh' in command:
             ssh = self.getVariable(command['ssh'])
@@ -751,17 +771,24 @@ class Core(Handler):
             try:
                 with sftp.open(path, 'r') as remote_file: content = remote_file.read().decode()
             except:
-                RuntimeError(self.program, 'Unable to read data')
+                errorReason = f'Unable to read from {path}'
         else:
             filename = self.getRuntimeValue(command['file'])
             try:
                 with open(filename) as f: content = f.read()
+                try:
+                    if filename.endswith('.json'): content = json.loads(content)
+                except:
+                    errorReason = 'Bad or null JSON string'
             except:
-                content = ''
-            try:
-                if filename.endswith('.json'): content = json.loads(content)
-            except:
-                RuntimeError(self.program, 'Bad or null JSON string')
+                errorReason = f'Unable to read from {filename}'
+
+        if errorReason:
+            if command['or'] != None:
+                print(f'Exception "{errorReason}": Running the "or" clause')
+                return command['or']
+            else:
+                RuntimeError(self.program, f'Error: {errorReason}')
         value = {}
         value['type'] = 'text'
         value['content'] = content
@@ -888,7 +915,7 @@ class Core(Handler):
             cmd['keyword'] = 'gotoPC'
             cmd['goto'] = 0
             cmd['debug'] = False
-            self.addCommand(cmd)
+            self.add(cmd)
             # Add the action and a 'stop'
             self.compileOne()
             cmd = {}
@@ -896,7 +923,7 @@ class Core(Handler):
             cmd['lino'] = command['lino']
             cmd['keyword'] = 'stop'
             cmd['debug'] = False
-            self.addCommand(cmd)
+            self.add(cmd)
             # Fixup the link
             command['goto'] = self.getPC()
             return True
@@ -990,7 +1017,7 @@ class Core(Handler):
             command['result'] = None
         command['or'] = None
         post = self.getPC()
-        self.addCommand(command)
+        self.add(command)
         if self.peek() == 'or':
             self.nextToken()
             self.nextToken()
@@ -1002,7 +1029,7 @@ class Core(Handler):
             cmd['goto'] = 0
             cmd['debug'] = False
             skip = self.getPC()
-            self.addCommand(cmd)
+            self.add(cmd)
             # Process the 'or'
             self.getCommandAt(post)['or'] = self.getPC()
             self.compileOne()
@@ -1055,10 +1082,10 @@ class Core(Handler):
         program = command['program']
         code = program.code[program.pc]
         lino = str(code['lino'] + 1)
-        while len(lino) < 5: lino = f' {lino}'
+#        while len(lino) < 5: lino = f' {lino}'
         if value == None: value = '<empty>'
         if 'log' in command:
-            print(f'{datetime.now().time()}:{lino}-> {value}')
+            print(f'{datetime.now().time()}:{self.program.name}:{lino}->{value}')
         else:
             print(value)
         return self.nextPC()
@@ -1262,17 +1289,65 @@ class Core(Handler):
     # Save a value to a file
     def k_save(self, command):
         command['content'] = self.nextValue()
-        if self.nextIs('to'):
-            command['file'] = self.nextValue()
-            self.add(command)
-            return True
-        return False
+        self.skip('to')
+        if self.nextIsSymbol():
+            record = self.getSymbolRecord()
+            if record['keyword'] == 'ssh':
+                command['ssh'] = record['name']
+                command['path'] = self.nextValue()
+                self.add(command)
+            else:
+                command['file'] = self.getValue()
+        else:
+            command['file'] = self.getValue()
+        command['or'] = None
+        save = self.getPC()
+        self.add(command)
+        if self.peek() == 'or':
+            self.nextToken()
+            self.nextToken()
+            # Add a 'goto' to skip the 'or'
+            cmd = {}
+            cmd['lino'] = command['lino']
+            cmd['domain'] = 'core'
+            cmd['keyword'] = 'gotoPC'
+            cmd['goto'] = 0
+            cmd['debug'] = False
+            skip = self.getPC()
+            self.add(cmd)
+            # Process the 'or'
+            self.getCommandAt(save)['or'] = self.getPC()
+            self.compileOne()
+            # Fixup the skip
+            self.getCommandAt(skip)['goto'] = self.getPC()
+        return True
 
     def r_save(self, command):
+        errorReason = None
         content = self.getRuntimeValue(command['content'])
-        filename = self.getRuntimeValue(command['file'])
-        if filename.endswith('.json'): content = json.dumps(content)
-        with open(filename, 'w') as f: f.write(content)
+        if 'ssh' in command:
+            ssh = self.getVariable(command['ssh'])
+            path = self.getRuntimeValue(command['path'])
+            sftp = ssh['sftp']
+            if path.endswith('.json'): content = json.dumps(content)
+            try:
+                with sftp.open(path, 'w') as remote_file: remote_file.write(content)
+            except:
+                errorReason = 'Unable to write to {path}'
+        else:
+            filename = self.getRuntimeValue(command['file'])
+            if filename.endswith('.json'): content = json.dumps(content)
+            try:
+                with open(filename, 'w') as f: f.write(content)
+            except:
+                errorReason = f'Unable to write to {filename}'
+
+        if errorReason:
+            if command['or'] != None:
+                print(f'Exception "{errorReason}": Running the "or" clause')
+                return command['or']
+            else:
+                RuntimeError(self.program, f'Error: {errorReason}')
         return self.nextPC()
 
     # Send a message to a module
@@ -1746,7 +1821,7 @@ class Core(Handler):
         # token = self.getToken()
         command['condition'] = code
         test = self.getPC()
-        self.addCommand(command)
+        self.add(command)
         # Set up a goto for when the test fails
         fail = self.getPC()
         cmd = {}
@@ -1755,7 +1830,7 @@ class Core(Handler):
         cmd['keyword'] = 'gotoPC'
         cmd['goto'] = 0
         cmd['debug'] = False
-        self.addCommand(cmd)
+        self.add(cmd)
         # Do the body of the while
         self.nextToken()
         if self.compileOne() == False:
@@ -1767,7 +1842,7 @@ class Core(Handler):
         cmd['keyword'] = 'gotoPC'
         cmd['goto'] = test
         cmd['debug'] = False
-        self.addCommand(cmd)
+        self.add(cmd)
         # Fixup the 'goto' on completion
         self.getCommandAt(fail)['goto'] = self.getPC()
         return True

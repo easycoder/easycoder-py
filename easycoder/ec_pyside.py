@@ -603,7 +603,7 @@ class Graphics(Handler):
             cmd['keyword'] = 'gotoPC'
             cmd['goto'] = 0
             cmd['debug'] = False
-            self.addCommand(cmd)
+            self.add(cmd)
             # This is the click handler
             self.compileOne()
             cmd = {}
@@ -611,7 +611,7 @@ class Graphics(Handler):
             cmd['lino'] = command['lino']
             cmd['keyword'] = 'stop'
             cmd['debug'] = False
-            self.addCommand(cmd)
+            self.add(cmd)
             # Fixup the goto
             self.getCommandAt(pcNext)['goto'] = self.getPC()
 
@@ -634,7 +634,7 @@ class Graphics(Handler):
         elif token == 'tick':
             command['tick'] = True
             command['runOnTick'] = self.getPC() + 2
-            self.addCommand(command)
+            self.add(command)
             self.nextToken()
             # Step over the on tick action
             pcNext = self.getPC()
@@ -644,7 +644,7 @@ class Graphics(Handler):
             cmd['keyword'] = 'gotoPC'
             cmd['goto'] = 0
             cmd['debug'] = False
-            self.addCommand(cmd)
+            self.add(cmd)
             # This is the on tick handler
             self.compileOne()
             cmd = {}
@@ -652,7 +652,7 @@ class Graphics(Handler):
             cmd['lino'] = command['lino']
             cmd['keyword'] = 'stop'
             cmd['debug'] = False
-            self.addCommand(cmd)
+            self.add(cmd)
             # Fixup the goto
             self.getCommandAt(pcNext)['goto'] = self.getPC()
             return True
@@ -692,12 +692,12 @@ class Graphics(Handler):
             if record['keyword'] == 'combobox':
                 command['variant'] = 'current'
                 command['name'] = record['name']
-                self.addCommand(command)
+                self.add(command)
                 return True
             elif record['keyword'] == 'listbox':
                 command['variant'] = 'current'
                 command['name'] = record['name']
-                self.addCommand(command)
+                self.add(command)
                 return True
         return False
         

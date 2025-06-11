@@ -23,14 +23,13 @@ class Handler:
 		self.rewindTo = compiler.rewindTo
 		self.warning = compiler.warning
 		self.getPC = compiler.getPC
-		self.addCommand = compiler.addCommand
+		self.add = compiler.add
 		self.getCommandAt = compiler.getCommandAt
 		self.compileOne = compiler.compileOne
 		self.compileFromHere = compiler.compileFromHere
 		self.compileConstant = compiler.compileConstant
 
 		self.code = self.program.code
-		self.add = self.program.add
 		self.evaluate = self.program.evaluate
 		self.getVariable = self.program.getSymbolRecord
 		self.getRuntimeValue = self.program.getRuntimeValue

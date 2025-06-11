@@ -116,10 +116,6 @@ class Program:
 	def getDomains(self):
 		return self.domains
 
-	# Add a command to the code list
-	def add(self, command):
-		self.code.append(command)
-
 	def getSymbolRecord(self, name):
 		try:
 			target = self.code[self.symbols[name]]
