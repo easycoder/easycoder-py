@@ -12,6 +12,6 @@ Declare a variable - an arbitrary storage item. Variables may hold string, numer
 Variables can be assigned any number of elements - see [set the elements](set.md). Each element can hold a data value of any of the 3 types above.
 
 Next: [wait](wait.md)  
-Prev: [unlock](toggle.md)
+Prev: [use](use.md)
 
 [Back](../../README.md)

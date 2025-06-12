@@ -25,7 +25,7 @@
 
 -- Sets the encoding to be used by the [encode](../values/encode.md) and [decode](../values/decode.md) value handlers. The encoder options are `utf-8` and `base64`. The default is `utf-8` if none is set by the script.
 
-Next: [split](split.md)  
-Prev: [script](script.md)
+Next: [shuffle](shuffle.md)  
+Prev: [send](send.md)
 
 [Back](../../README.md)

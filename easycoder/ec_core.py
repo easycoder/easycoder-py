@@ -110,14 +110,6 @@ class Core(Handler):
         self.putSymbolValue(target, val)
         return self.nextPC()
 
-    # Define an array
-    def k_array(self, command):
-        return self.compileVariable(command)
-
-    def r_array(self, command):
-        return self.nextPC()
-
-    # Assertion
     #assert {condition} [with {message}]
     def k_assert(self, command):
         command['test'] = self.nextCondition()
@@ -896,13 +888,6 @@ class Core(Handler):
         self.putSymbolValue(symbolRecord, value)
         return self.nextPC()
 
-    # Define an object variable
-    def k_object(self, command):
-        return self.compileVariable(command)
-
-    def r_object(self, command):
-        return self.nextPC()
-
     # on message {action}
     def k_on(self, command):
         if self.nextIs('message'):
@@ -1187,6 +1172,16 @@ class Core(Handler):
             self.putSymbolValue(symbolRecord, value)
         return self.nextPC()
 
+    # Release the parent script
+    def k_release(self, command):
+        if self.nextIs('parent'):
+            self.add(command)
+        return True
+
+    def r_release(self, command):
+        self.program.releaseParent()
+        return self.nextPC()
+
     # Replace a substring
     #replace {value} with {value} in {variable}
     def k_replace(self, command):
@@ -1215,16 +1210,6 @@ class Core(Handler):
         value['numeric'] = False
         value['content'] = content
         self.putSymbolValue(templateRecord, value)
-        return self.nextPC()
-
-    # Release the parent script
-    def k_release(self, command):
-        if self.nextIs('parent'):
-            self.add(command)
-        return True
-
-    def r_release(self, command):
-        self.program.releaseParent()
         return self.nextPC()
 
     # Return from subroutine
@@ -1280,11 +1265,6 @@ class Core(Handler):
         p = self.program.__class__
         p(path).start(parent, module, exports)
         return 0
-
-    # Provide a name for the script
-    def k_script(self, command):
-        self.program.name = self.nextToken()
-        return True
 
     # Save a value to a file
     def k_save(self, command):
@@ -1349,6 +1329,11 @@ class Core(Handler):
             else:
                 RuntimeError(self.program, f'Error: {errorReason}')
         return self.nextPC()
+
+    # Provide a name for the script
+    def k_script(self, command):
+        self.program.name = self.nextToken()
+        return True
 
     # Send a message to a module
     def k_send(self, command):

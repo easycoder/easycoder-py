@@ -1,4 +1,4 @@
-# ulock
+# unlock
 
 ## Syntax:
 `unlock {variable}`
@@ -9,7 +9,7 @@
 ## Description:
 Unlocks a locked variable to allow it to be modified. See also [lock](lock.md).
 
-Next: [lock](lock.md)  
-Prev: [init](init.md)
+Next: [use](use.md)  
+Prev: [truncate](truncate.md)
 
 [Back](../../README.md)
