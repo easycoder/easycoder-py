@@ -919,12 +919,25 @@ class Graphics(Handler):
             title = data['title']
             message = data['message']
             if style == 'question':
-                button = QMessageBox.question(window, title, message)
-                if button == QMessageBox.Yes: result = 'Yes'
+                choice = QMessageBox.question(window, title, message)
+                if choice == QMessageBox.Yes: result = 'Yes'
                 else: result = 'No'
+            if style == 'yesnocancel':
+                choice = QMessageBox.question(
+                    window, 
+                    title, 
+                    message,
+                    QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
+                )
+                if choice == QMessageBox.Yes: 
+                    result = 'Yes'
+                elif choice == QMessageBox.No:
+                    result = 'No'
+                else:
+                    result = 'Cancel'
             elif style == 'warning':
-                button = QMessageBox.warning(window, title, message)
-                if button == QMessageBox.Ok: result = 'OK'
+                choice = QMessageBox.warning(window, title, message)
+                if choice == QMessageBox.Ok: result = 'OK'
                 else: result = ''
             else: result = 'Cancel'
             v = {}
