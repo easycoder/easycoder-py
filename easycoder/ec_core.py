@@ -409,7 +409,6 @@ class Core(Handler):
         self.run(label)
         return next
 
-    # Issue a REST GET request
     # get {variable) from {url} [or {command}]
     def k_get(self, command):
         if self.nextIsSymbol():
