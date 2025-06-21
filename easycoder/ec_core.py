@@ -357,6 +357,29 @@ class Core(Handler):
         self.putSymbolValue(target, value)
         return self.nextPC()
 
+    # download [binary] {url} to {path}
+    def k_download(self, command):
+        if self.nextIs('binary'):
+            command['binary'] = True
+            self.nextToken()
+        else: command['binary'] = False
+        command['url'] = self.getValue()
+        self.skip('to')
+        command['path'] = self.nextValue()
+        self.add(command)
+        return True
+    
+    def r_download(self, command):
+        binary = command['binary']
+        url = self.getRuntimeValue(command['url'])
+        path = self.getRuntimeValue(command['path'])
+        mode = 'wb' if binary else 'w'
+        response = requests.get(url, stream=True)
+        with open(path, mode) as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk: f.write(chunk)
+        return self.nextPC()
+
     # Dummy command for testing
     def k_dummy(self, command):
         self.add(command)

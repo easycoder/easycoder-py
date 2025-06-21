@@ -920,9 +920,8 @@ class Graphics(Handler):
             message = data['message']
             if style == 'question':
                 choice = QMessageBox.question(window, title, message)
-                if choice == QMessageBox.Yes: result = 'Yes'
-                else: result = 'No'
-            if style == 'yesnocancel':
+                result = 'Yes' if choice == QMessageBox.Yes else 'No'
+            elif style == 'yesnocancel':
                 choice = QMessageBox.question(
                     window, 
                     title, 
