@@ -1748,6 +1748,24 @@ class Core(Handler):
         self.add(command)
         return self.nextPC()
 
+    # Trim whitespace from a variable
+    def k_trim(self, command):
+        if self.nextIsSymbol():
+            record = self.getSymbolRecord()
+            if record['hasValue']:
+                command['name'] = record['name']
+                self.add(command)
+                return True
+        return False
+
+    def r_trim(self, command):
+        record = self.getVariable(command['name'])
+        value = record['value'][record['index']]
+        if value['type'] == 'text':
+            content = value['content']
+            value['content'] = content.strip()
+        return self.nextPC()
+
     # Truncate a file
     def k_truncate(self, command):
         if self.nextIsSymbol():
