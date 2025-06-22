@@ -166,7 +166,7 @@ class Graphics(Handler):
 
     # Declare a checkbox variable
     def k_checkbox(self, command):
-        return self.compileVariable(command, False, 'gui')
+        return self.compileVariable(command, 'gui')
 
     def r_checkbox(self, command):
         return self.nextPC()
@@ -201,7 +201,7 @@ class Graphics(Handler):
 
     # Declare a combobox variable
     def k_combobox(self, command):
-        return self.compileVariable(command, False, 'gui')
+        return self.compileVariable(command, 'gui')
 
     def r_combobox(self, command):
         return self.nextPC()
@@ -501,7 +501,7 @@ class Graphics(Handler):
 
     # Declare a dialog variable
     def k_dialog(self, command):
-        return self.compileVariable(command, False)
+        return self.compileVariable(command)
 
     def r_dialog(self, command):
         return self.nextPC()
@@ -532,7 +532,7 @@ class Graphics(Handler):
 
     # Create a group box
     def k_groupbox(self, command):
-        return self.compileVariable(command, False, 'gui')
+        return self.compileVariable(command, 'gui')
 
     def r_groupbox(self, command):
         return self.nextPC()
@@ -554,35 +554,35 @@ class Graphics(Handler):
 
     # Declare a label variable
     def k_label(self, command):
-        return self.compileVariable(command, False, 'gui')
+        return self.compileVariable(command, 'gui')
 
     def r_label(self, command):
         return self.nextPC()
 
     # Declare a layout variable
     def k_layout(self, command):
-        return self.compileVariable(command, False, 'gui')
+        return self.compileVariable(command, 'gui')
 
     def r_layout(self, command):
         return self.nextPC()
 
     # Declare a line input variable
     def k_lineinput(self, command):
-        return self.compileVariable(command, False, 'gui')
+        return self.compileVariable(command, 'gui')
 
     def r_lineinput(self, command):
         return self.nextPC()
 
     # Declare a listbox input variable
     def k_listbox(self, command):
-        return self.compileVariable(command, False, 'gui')
+        return self.compileVariable(command, 'gui')
 
     def r_listbox(self, command):
         return self.nextPC()
 
     # Declare a messagebox variable
     def k_messagebox(self, command):
-        return self.compileVariable(command, False)
+        return self.compileVariable(command)
 
     def r_messagebox(self, command):
         return self.nextPC()
@@ -675,7 +675,7 @@ class Graphics(Handler):
 
     # Declare a pushbutton variable
     def k_pushbutton(self, command):
-        return self.compileVariable(command, False, 'gui')
+        return self.compileVariable(command, 'gui')
 
     def r_pushbutton(self, command):
         return self.nextPC()
@@ -977,7 +977,7 @@ class Graphics(Handler):
 
     # Declare a window variable
     def k_window(self, command):
-        return self.compileVariable(command, False)
+        return self.compileVariable(command)
 
     def r_window(self, command):
         return self.nextPC()

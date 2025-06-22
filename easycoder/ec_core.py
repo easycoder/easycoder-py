@@ -287,7 +287,6 @@ class Core(Handler):
         if type == 'file':
             filename = self.getRuntimeValue(command['filename'])
             if os.path.isfile(filename):
-                print('Deleting',filename)
                 os.remove(filename)
         elif type == 'property':
             key = self.getRuntimeValue(command['key'])
@@ -408,7 +407,7 @@ class Core(Handler):
 
     # Declare a file variable
     def k_file(self, command):
-        return self.compileVariable(command, False)
+        return self.compileVariable(command)
 
     def r_file(self, command):
         return self.nextPC()
@@ -617,6 +616,7 @@ class Core(Handler):
                 variable['keyword'] = keyword
                 variable['import'] = None
                 variable['used'] = False
+                variable['hasValue'] = True if keyword == 'variable' else False
                 self.add(variable)
                 if self.peek() != 'and':
                     break
@@ -1621,7 +1621,7 @@ class Core(Handler):
         return self.nextPC()
 
     def k_ssh(self, command):
-        return self.compileVariable(command, False)
+        return self.compileVariable(command)
 
     def r_ssh(self, command):
         return self.nextPC()
@@ -1807,7 +1807,8 @@ class Core(Handler):
 
     # Declare a general-purpose variable
     def k_variable(self, command):
-        return self.compileVariable(command, True)
+        self.compiler.addValueType()
+        return self.compileVariable(command)
 
     def r_variable(self, command):
         return self.nextPC()

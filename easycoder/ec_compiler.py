@@ -16,6 +16,7 @@ class Compiler:
 		self.program.compiler = self
 		self.compileConstant = self.value.compileConstant
 		self.debugCompile = False
+		self.valueTypes = {}
 
 	def getPC(self):
 		return len(self.program.code)
@@ -124,13 +125,19 @@ class Compiler:
 		symbolRecord['used'] = True
 		return symbolRecord
 
+	def addValueType(self):
+		self.valueTypes[self.getToken()] = True
+
+	def hasValue(self, type):
+		return type in self.valueTypes
+
 	def compileLabel(self, command):
-		return self.compileSymbol(command, self.getToken(), False)
+		return self.compileSymbol(command, self.getToken())
 
-	def compileVariable(self, command, hasValue = False, extra=None):
-		return self.compileSymbol(command, self.nextToken(), hasValue, extra)
+	def compileVariable(self, command, extra=None):
+		return self.compileSymbol(command, self.nextToken(), extra)
 
-	def compileSymbol(self, command, name, hasValue, extra=None):
+	def compileSymbol(self, command, name, extra=None):
 		try:
 			v = self.symbols[name]
 		except:
@@ -141,7 +148,6 @@ class Compiler:
 		self.symbols[name] = self.getPC()
 		command['program'] = self.program
 		command['type'] = 'symbol'
-		command['hasValue'] = hasValue
 		command['name'] = name
 		command['elements'] = 1
 		command['index'] = 0
@@ -151,6 +157,7 @@ class Compiler:
 		command['import'] = None
 		command['locked'] = False
 		command['extra'] = extra
+		if 'keyword' in command: command['hasValue'] = self.hasValue(command['keyword'])
 		self.add(command)
 		return True
 

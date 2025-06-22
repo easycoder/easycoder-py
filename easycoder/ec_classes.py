@@ -10,7 +10,7 @@ class FatalError:
 
 class NoValueError(FatalError):
 	def __init__(self, compiler, record):
-		super().__init__(compiler, 'Variable {record["name"]} does not hold a value')
+		super().__init__(compiler, f'Variable {record["name"]} does not hold a value')
 
 class AssertionError:
 	def __init__(self, program, msg=None):
