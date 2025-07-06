@@ -1546,6 +1546,7 @@ class Core(Handler):
             user = self.getRuntimeValue(command['user'])
             password = self.getRuntimeValue(command['password'])
             ssh = paramiko.SSHClient()
+            target['ssh'] = ssh
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             ssh.connect(host, username=user, password=password)
             target['sftp'] = ssh.open_sftp()
@@ -1941,9 +1942,10 @@ class Core(Handler):
                 value['type'] = 'module'
                 return value
 
-            if keyword == 'variable':
+            if keyword in ['ssh', 'variable']:
                 value['type'] = 'symbol'
                 return value
+
             return None
 
         value['type'] = token
@@ -2535,9 +2537,17 @@ class Core(Handler):
         return value
 
     # This is used by the expression evaluator to get the value of a symbol
-    def v_symbol(self, symbolRecord):
-        if symbolRecord['keyword'] == 'variable':
+    def v_symbol(self, value):
+        name = value['name']
+        symbolRecord = self.program.getSymbolRecord(name)
+        keyword = symbolRecord['keyword']
+        if keyword == 'variable':
             return self.getSymbolValue(symbolRecord)
+        elif keyword == 'ssh':
+            v = {}
+            v['type'] = 'boolean'
+            v['content']  = True if 'ssh' in symbolRecord else False
+            return v
         else:
             return None
 
@@ -2720,7 +2730,7 @@ class Core(Handler):
             condition.type = 'is'
             condition.value2 = self.getValue()
             return condition
-
+ 
         if condition.value1:
             # It's a boolean if
             condition.type = 'boolean'
