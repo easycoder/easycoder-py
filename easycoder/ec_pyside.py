@@ -326,10 +326,9 @@ class Graphics(Handler):
             if self.peek() == 'title':
                 self.nextToken()
                 title = self.nextValue()
-            elif self.peek() == 'layout':
+            elif self.peek() == 'type':
                 self.nextToken()
-                if self.nextIsSymbol():
-                    command['layout'] = self.getSymbolRecord()['name']
+                command['type'] =  self.nextToken()
             else: break
         command['title'] = title
         self.add(command)
@@ -462,14 +461,18 @@ class Graphics(Handler):
         return self.nextPC()
     
     def r_createDialog(self, command, record):
-        layout = self.getVariable(command['layout'])['widget']
         dialog = QDialog()
+        mainLayout = QVBoxLayout(dialog)
         dialog.setWindowTitle(self.getRuntimeValue(command['title']))
+        dialogType = command['type']
+        if dialogType in ['lineinput']:
+            if dialogType == 'lineinput':
+                input = QLineEdit()
+                mainLayout.addWidget(input)
         dialog.buttonBox = QDialogButtonBox((QDialogButtonBox.Ok | QDialogButtonBox.Cancel))
         dialog.buttonBox.accepted.connect(dialog.accept)
         dialog.buttonBox.rejected.connect(dialog.reject)
-        layout.addWidget(dialog.buttonBox)
-        dialog.setLayout(layout)
+        mainLayout.addWidget(dialog.buttonBox, alignment=Qt.AlignHCenter)
         record['dialog'] = dialog
         return self.nextPC()
     
@@ -948,7 +951,8 @@ class Graphics(Handler):
             window.show()
         elif 'dialog' in command:
             dialog = self.getVariable(command['dialog'])['dialog']
-            dialog.exec()
+            result = dialog.exec()
+            # TODO: Finish the dialog box for getting the request relay name
         return self.nextPC()
 
     # Start the graphics
