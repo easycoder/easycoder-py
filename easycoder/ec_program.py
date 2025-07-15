@@ -149,14 +149,14 @@ class Program:
 		elif valType == 'symbol':
 			name = value['name']
 			symbolRecord = self.getSymbolRecord(name)
-			if symbolRecord['hasValue']:
-				handler = self.domainIndex[symbolRecord['domain']].valueHandler('symbol')
-				result = handler(symbolRecord)
-			else:
-				# Call the given domain to handle a value
-				domain = self.domainIndex[value['domain']]
-				handler = domain.valueHandler(value['type'])
-				if handler: result = handler(value)
+			# if symbolRecord['hasValue']:
+			handler = self.domainIndex[symbolRecord['domain']].valueHandler('symbol')
+			result = handler(symbolRecord)
+		# 	else:
+		# 		# Call the given domain to handle a value
+		# 		# domain = self.domainIndex[value['domain']]
+		# 		handler = domain.valueHandler(value['type'])
+		# 		if handler: result = handler(value)
 		else:
 			# Call the given domain to handle a value
 			domain = self.domainIndex[value['domain']]

@@ -467,12 +467,12 @@ class Graphics(Handler):
         dialogType = command['type']
         if dialogType in ['lineinput']:
             if dialogType == 'lineinput':
-                input = QLineEdit()
-                mainLayout.addWidget(input)
-        dialog.buttonBox = QDialogButtonBox((QDialogButtonBox.Ok | QDialogButtonBox.Cancel))
-        dialog.buttonBox.accepted.connect(dialog.accept)
-        dialog.buttonBox.rejected.connect(dialog.reject)
-        mainLayout.addWidget(dialog.buttonBox, alignment=Qt.AlignHCenter)
+                dialog.lineEdit = QLineEdit(dialog)
+                mainLayout.addWidget(dialog.lineEdit)
+        buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, dialog)
+        buttonBox.accepted.connect(dialog.accept)
+        buttonBox.rejected.connect(dialog.reject)
+        mainLayout.addWidget(buttonBox, alignment=Qt.AlignHCenter)
         record['dialog'] = dialog
         return self.nextPC()
     
@@ -504,7 +504,7 @@ class Graphics(Handler):
 
     # Declare a dialog variable
     def k_dialog(self, command):
-        return self.compileVariable(command)
+        return self.compileVariable(command, 'gui')
 
     def r_dialog(self, command):
         return self.nextPC()
@@ -950,9 +950,9 @@ class Graphics(Handler):
             window = self.getVariable(command['window'])['window']
             window.show()
         elif 'dialog' in command:
-            dialog = self.getVariable(command['dialog'])['dialog']
-            result = dialog.exec()
-            # TODO: Finish the dialog box for getting the request relay name
+            record = self.getVariable(command['dialog'])
+            dialog = record['dialog']
+            record['result'] = dialog.exec()
         return self.nextPC()
 
     # Start the graphics
@@ -1069,6 +1069,13 @@ class Graphics(Handler):
             content = checkbox.isChecked()
             v = {}
             v['type'] = 'boolean'
+            v['content'] = content
+            return v
+        elif keyword == 'dialog':
+            dialog = symbolRecord['dialog']
+            content = dialog.lineEdit.text() if symbolRecord['result'] == QDialog.Accepted else ''
+            v = {}
+            v['type'] = 'text'
             v['content'] = content
             return v
         return None
