@@ -2635,7 +2635,7 @@ class Core(Handler):
         v = self.getRuntimeValue(v['content'])
         value = {}
         value['type'] = 'int'
-        value['content'] = int(v)
+        value['content'] = int(v) if v != '' else 0
         return value
 
     def v_weekday(self, v):
