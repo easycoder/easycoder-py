@@ -349,8 +349,10 @@ class Program:
 			return 0
 		v1 = val1['content']
 		v2 = val2['content']
-		if v1 == None and v2 != None or v1 != None and v2 == None:
-			return 0
+#		if v1 == None and v2 != None or v1 != None and v2 == None:
+#			return 0
+		if v1 == None and v2 != None: return -1
+		elif v2 == None and v1 != None: return 1
 		if v1 != None and val1['type'] == 'int':
 			if not val2['type'] == 'int':
 				if type(v2) is str:
