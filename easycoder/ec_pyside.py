@@ -321,16 +321,23 @@ class Graphics(Handler):
             if self.nextIsSymbol():
                 command['window'] = self.getSymbolRecord()['name']
         else: command['window'] = None
-        title = ''
         while True:
-            if self.peek() == 'title':
-                self.nextToken()
-                title = self.nextValue()
-            elif self.peek() == 'type':
+            if self.peek() == 'type':
                 self.nextToken()
                 command['type'] =  self.nextToken()
+            elif self.peek() == 'title':
+                self.nextToken()
+                command['title'] = self.nextValue()
+            elif self.peek() == 'prompt':
+                self.nextToken()
+                command['prompt'] =  self.nextValue()
+            elif self.peek() == 'value':
+                self.nextToken()
+                command['value'] =  self.nextValue()
             else: break
-        command['title'] = title
+        if not 'title' in command: command['title'] = self.compileConstant('')
+        if not 'value' in command: command['value'] = self.compileConstant('')
+        if not 'prompt' in command: command['prompt'] = self.compileConstant('')
         self.add(command)
         return True
 
@@ -464,10 +471,17 @@ class Graphics(Handler):
         dialog = QDialog()
         mainLayout = QVBoxLayout(dialog)
         dialog.setWindowTitle(self.getRuntimeValue(command['title']))
-        dialogType = command['type']
-        if dialogType in ['lineinput']:
-            if dialogType == 'lineinput':
+        dialogType = command['type'].lower()
+        dialog.dialogType = dialogType
+        prompt = self.getRuntimeValue(command['prompt'])
+        if dialogType in ['confirm', 'lineedit']:
+            if dialogType == 'confirm':
+                mainLayout.addWidget(QLabel(prompt))
+            elif dialogType == 'lineedit':
+                mainLayout.addWidget(QLabel(prompt))
                 dialog.lineEdit = QLineEdit(dialog)
+                dialog.value = self.getRuntimeValue(command['value'])
+                dialog.lineEdit.setText(dialog.value)
                 mainLayout.addWidget(dialog.lineEdit)
         buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, dialog)
         buttonBox.accepted.connect(dialog.accept)
@@ -476,7 +490,7 @@ class Graphics(Handler):
         record['dialog'] = dialog
         return self.nextPC()
     
-    # Creates a message box but doesn'r run it
+    # Creates a message box but doesn't run it
     def r_createMessageBox(self, command, record):
         data = {}
         data['window'] = command['window']
@@ -952,7 +966,13 @@ class Graphics(Handler):
         elif 'dialog' in command:
             record = self.getVariable(command['dialog'])
             dialog = record['dialog']
-            record['result'] = dialog.exec()
+            if dialog.dialogType in ['confirm', 'lineedit']:
+                if dialog.dialogType == 'confirm':
+                    record['result'] = True if dialog.exec() == QDialog.Accepted else False
+                elif dialog.dialogType == 'lineedit':
+                    if dialog.exec() == QDialog.Accepted:
+                        record['result'] = dialog.lineEdit.text()
+                    else: record['result'] = dialog.value
         return self.nextPC()
 
     # Start the graphics
@@ -1072,8 +1092,7 @@ class Graphics(Handler):
             v['content'] = content
             return v
         elif keyword == 'dialog':
-            dialog = symbolRecord['dialog']
-            content = dialog.lineEdit.text() if symbolRecord['result'] == QDialog.Accepted else ''
+            content = symbolRecord['result']
             v = {}
             v['type'] = 'text'
             v['content'] = content
