@@ -41,6 +41,7 @@ class Graphics(Handler):
         Handler.__init__(self, compiler)
         self.blocked = False
         self.runOnTick = 0
+        self.vkb = False
 
     def getName(self):
         return 'graphics'
@@ -970,6 +971,7 @@ class Graphics(Handler):
                 if dialog.dialogType == 'confirm':
                     record['result'] = True if dialog.exec() == QDialog.Accepted else False
                 elif dialog.dialogType == 'lineedit':
+                    if self.vkb: print('Show virtual keyboard')
                     if dialog.exec() == QDialog.Accepted:
                         record['result'] = dialog.lineEdit.text()
                     else: record['result'] = dialog.value
@@ -998,6 +1000,15 @@ class Graphics(Handler):
         QTimer.singleShot(500, init)
         self.app.lastWindowClosed.connect(on_last_window_closed)
         self.app.exec()
+
+    # use virtual keyboard
+    def k_use(self, command):
+        if self.nextIs('virtual'):
+            if self.nextIs('keyboard'):
+                print('Use the virtual keyboard')
+                self.vkb = True
+                return True
+        return False
 
     # Declare a window variable
     def k_window(self, command):

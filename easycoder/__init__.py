@@ -8,5 +8,7 @@ from .ec_handler import *
 from .ec_program import *
 from .ec_timestamp import *
 from .ec_value import *
+from .ec_pyside import *
+from .keyboard import *
 
-__version__ = "250721.2"
+__version__ = "250722.1"

@@ -22,7 +22,6 @@ class Program:
 		if len(argv) == 0:
 			print('No script supplied')
 			exit()
-		self.classes=[Core]
 		scriptName = argv
 
 		f = open(scriptName, 'r')
@@ -44,7 +43,7 @@ class Program:
 		self.value = self.compiler.value
 		self.condition = self.compiler.condition
 		self.graphics = None
-		self.processClasses()
+		self.useClass(Core)
 		self.externalControl = False
 		self.ticker = 0
 		self.running = True
@@ -101,16 +100,13 @@ class Program:
 		module = module.replace('/','.').replace('.py','')
 		module = importlib.import_module(module)
 		plugin = getattr(module, args[1])
-		self.classes.append(plugin)
-		self.processClasses()
+		self.useClass(plugin)
 
-	# Process the class list to get the domains
-	def processClasses(self):
-		self.domains=[]
-		for clazz in self.classes:
-			handler = clazz(self.compiler)
-			self.domains.append(handler)
-			self.domainIndex[handler.getName()] = handler
+	# Use a specified class
+	def useClass(self, clazz):
+		handler = clazz(self.compiler)
+		self.domains.append(handler)
+		self.domainIndex[handler.getName()] = handler
 
 	# Get the domain list
 	def getDomains(self):

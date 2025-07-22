@@ -1798,13 +1798,14 @@ class Core(Handler):
 
     # Use a plugin module
     def k_use(self, command):
-        if self.nextIs('graphics'):
-            print('Loading graphics module')
-            from .ec_pyside import Graphics
-            self.program.graphics = Graphics
-            self.program.classes.append(Graphics)
-            self.program.processClasses()
-            return True
+        if self.nextIs('plugin'):
+            if self.nextIs('graphics'):
+                print('Loading graphics module')
+                from .ec_pyside import Graphics
+                self.program.graphics = Graphics
+                self.program.useClass(Graphics)
+                return True
+        return False
 
     # Declare a general-purpose variable
     def k_variable(self, command):
