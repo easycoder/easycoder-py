@@ -19,6 +19,9 @@ dependencies = [
     "pyside6"
 ]
 
+[tool.flit.sdist]
+include = ["ec_*.py"]
+
 [project.scripts]
 easycoder = "easycoder:Main"
 

@@ -5,10 +5,10 @@ from .ec_compiler import *
 from .ec_condition import *
 from .ec_core import *
 from .ec_handler import *
+from .ec_keyboard import *
 from .ec_program import *
+from .ec_pyside import *
 from .ec_timestamp import *
 from .ec_value import *
-from .ec_pyside import *
-from .keyboard import *
 
-__version__ = "250722.1"
+__version__ = "250722.5"
