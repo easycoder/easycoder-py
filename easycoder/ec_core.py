@@ -2,7 +2,6 @@ import json, math, hashlib, threading, os, subprocess, sys, time
 import numbers, base64, binascii, random, requests, paramiko
 from psutil import Process
 from datetime import datetime
-from random import randrange
 from .ec_classes import FatalError, RuntimeWarning, RuntimeError, AssertionError, NoValueError, NoValueRuntimeError, Condition, Object
 from .ec_handler import Handler
 from .ec_timestamp import getTimestamp
@@ -1804,6 +1803,8 @@ class Core(Handler):
                 from .ec_pyside import Graphics
                 self.program.graphics = Graphics
                 self.program.useClass(Graphics)
+                # from .ec_keyboard import Keyboard
+                # self.program.useClass(Keyboard)
                 return True
         return False
 

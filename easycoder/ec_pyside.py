@@ -1,5 +1,7 @@
 import sys
-from easycoder import Handler, RuntimeError
+from .ec_handler import Handler
+from .ec_classes import RuntimeError
+from .ec_keyboard import Keyboard
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
