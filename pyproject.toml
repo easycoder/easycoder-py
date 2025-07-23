@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [tool.flit.sdist]
-include = ["ec_*.py"]
+include = ["ec_*.py", "*.png"]
 
 [project.scripts]
 easycoder = "easycoder:Main"
