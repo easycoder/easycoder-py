@@ -48,10 +48,10 @@ class Keyboard(Handler):
         def mousePressEvent(self, event):
             x = self.width() - self.pixmap.width()
             y = 0
-            icon_rect = self.pixmap.rect().translated(x, y)
-            if icon_rect.contains(event.pos()):
+            iconRect = self.pixmap.rect().translated(x, y)
+            if iconRect.contains(event.pos()):
                 self.iconClicked.emit()
-            elif self._bar_rect().contains(event.pos()):
+            elif self._barRect().contains(event.pos()):
                 if hasattr(self.window().windowHandle(), 'startSystemMove'):
                     self.window().windowHandle().startSystemMove()
                 else:
@@ -72,19 +72,19 @@ class Keyboard(Handler):
             self._drag_active = False
             super().mouseReleaseEvent(event)
 
-        def _bar_rect(self):
+        def _barRect(self):
             bar_width = 100
             bar_height = 20
             bar_x = (self.width() - bar_width) // 2
             bar_y = (self.height() - bar_height) // 2
             return QRect(bar_x, bar_y, bar_width, bar_height)
     
-    def __init__(self, program, receiver, parent=None):
-        Handler.__init__(self, program.compiler)
+    def __init__(self, program, receiver, caller = None, parent=None):
+        super().__init__(program.compiler)
 
         self.program = program
 
-        dialog = QDialog()
+        dialog = QDialog(caller)
         
 #        dialog.setWindowTitle('')
         dialog.setWindowFlags(Qt.FramelessWindowHint)

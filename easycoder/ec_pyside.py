@@ -1,7 +1,7 @@
 import sys
 from .ec_handler import Handler
 from .ec_classes import RuntimeError
-from .ec_keyboard import Keyboard
+from .ec_keyboard import Keyboard, TextReceiver
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
@@ -40,7 +40,7 @@ from PySide6.QtWidgets import (
 class Graphics(Handler):
 
     def __init__(self, compiler):
-        Handler.__init__(self, compiler)
+        super().__init__(compiler)
         self.blocked = False
         self.runOnTick = 0
         self.vkb = False
@@ -53,6 +53,18 @@ class Graphics(Handler):
     
     def isWidget(self, keyword):
         return keyword in ['layout', 'groupbox', 'label', 'pushbutton', 'checkbox', 'lineinput', 'listbox', 'combobox']
+
+    class ECDialog(QDialog):
+        def __init__(self, parent, record):
+            super().__init__(parent)
+            self.record = record
+        
+        def showEvent(self, event):
+            super().showEvent(event)
+            QTimer.singleShot(100, self.afterShown)
+        
+        def afterShown(self):
+            self.record['action']()
 
     #############################################################################
     # Keyword handlers
@@ -471,7 +483,10 @@ class Graphics(Handler):
         return self.nextPC()
     
     def r_createDialog(self, command, record):
-        dialog = QDialog()
+        win = command['window']
+        if win != None:
+            win = self.getVariable(win)['window']
+        dialog = self.ECDialog(win, record)
         mainLayout = QVBoxLayout(dialog)
         dialog.setWindowTitle(self.getRuntimeValue(command['title']))
         dialogType = command['type'].lower()
@@ -973,7 +988,6 @@ class Graphics(Handler):
                 if dialog.dialogType == 'confirm':
                     record['result'] = True if dialog.exec() == QDialog.Accepted else False
                 elif dialog.dialogType == 'lineedit':
-                    if self.vkb: print('Show virtual keyboard')
                     if dialog.exec() == QDialog.Accepted:
                         record['result'] = dialog.lineEdit.text()
                     else: record['result'] = dialog.value
@@ -1002,15 +1016,6 @@ class Graphics(Handler):
         QTimer.singleShot(500, init)
         self.app.lastWindowClosed.connect(on_last_window_closed)
         self.app.exec()
-
-    # use virtual keyboard
-    def k_use(self, command):
-        if self.nextIs('virtual'):
-            if self.nextIs('keyboard'):
-                print('Use the virtual keyboard')
-                self.vkb = True
-                return True
-        return False
 
     # Declare a window variable
     def k_window(self, command):
