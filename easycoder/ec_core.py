@@ -17,6 +17,26 @@ class Core(Handler):
     
     def noSymbolWarning(self):
         self.warning(f'Symbol "{self.getToken()}" not found')
+    
+    def processOr(self, command, orHere):
+        self.add(command)
+        if self.peek() == 'or':
+            self.nextToken()
+            self.nextToken()
+            # Add a 'goto' to skip the 'or'
+            cmd = {}
+            cmd['lino'] = command['lino']
+            cmd['domain'] = 'core'
+            cmd['keyword'] = 'gotoPC'
+            cmd['goto'] = 0
+            cmd['debug'] = False
+            skip = self.getPC()
+            self.add(cmd)
+            # Process the 'or'
+            self.getCommandAt(orHere)['or'] = self.getPC()
+            self.compileOne()
+            # Fixup the skip
+            self.getCommandAt(skip)['goto'] = self.getPC()
 
     #############################################################################
     # Keyword handlers
@@ -453,24 +473,7 @@ class Core(Handler):
                         timeout['type'] = 'int'
                         timeout['content'] = 5
                         command['timeout'] = timeout
-                    self.add(command)
-                    if self.peek() == 'or':
-                        self.nextToken()
-                        self.nextToken()
-                        # Add a 'goto' to skip the 'or'
-                        cmd = {}
-                        cmd['lino'] = command['lino']
-                        cmd['domain'] = 'core'
-                        cmd['keyword'] = 'gotoPC'
-                        cmd['goto'] = 0
-                        cmd['debug'] = False
-                        skip = self.getPC()
-                        self.add(cmd)
-                        # Process the 'or'
-                        self.getCommandAt(get)['or'] = self.getPC()
-                        self.compileOne()
-                        # Fixup the skip
-                        self.getCommandAt(skip)['goto'] = self.getPC()
+                    self.processOr(command, get)
                     return True
         return False
 
@@ -751,24 +754,7 @@ class Core(Handler):
                         command['file'] = self.getValue()
                     command['or'] = None
                     load = self.getPC()
-                    self.add(command)
-                    if self.peek() == 'or':
-                        self.nextToken()
-                        self.nextToken()
-                        # Add a 'goto' to skip the 'or'
-                        cmd = {}
-                        cmd['lino'] = command['lino']
-                        cmd['domain'] = 'core'
-                        cmd['keyword'] = 'gotoPC'
-                        cmd['goto'] = 0
-                        cmd['debug'] = False
-                        skip = self.getPC()
-                        self.add(cmd)
-                        # Process the 'or'
-                        self.getCommandAt(load)['or'] = self.getPC()
-                        self.compileOne()
-                        # Fixup the skip
-                        self.getCommandAt(skip)['goto'] = self.getPC()
+                    self.processOr(command, load)
                     return True
         else:
             FatalError(self.compiler, f'I don\'t understand \'{self.getToken()}\'')
@@ -1023,24 +1009,7 @@ class Core(Handler):
             command['result'] = None
         command['or'] = None
         post = self.getPC()
-        self.add(command)
-        if self.peek() == 'or':
-            self.nextToken()
-            self.nextToken()
-            # Add a 'goto' to skip the 'or'
-            cmd = {}
-            cmd['lino'] = command['lino']
-            cmd['domain'] = 'core'
-            cmd['keyword'] = 'gotoPC'
-            cmd['goto'] = 0
-            cmd['debug'] = False
-            skip = self.getPC()
-            self.add(cmd)
-            # Process the 'or'
-            self.getCommandAt(post)['or'] = self.getPC()
-            self.compileOne()
-            # Fixup the skip
-            self.getCommandAt(skip)['goto'] = self.getPC()
+        self.processOr(command, post)
         return True
 
     def r_post(self, command):
@@ -1137,7 +1106,8 @@ class Core(Handler):
                     if 'hasValue' in symbolRecord and symbolRecord['hasValue'] == False:
                         FatalError(self.compiler, f'Symbol {symbolRecord["name"]} is not a value holder')
                     else:
-                        self.add(command)
+                        command['or'] = None
+                        self.processOr(command, self.getPC())
                         return True
                 else:
                     FatalError(self.compiler, f'Symbol {self.getToken()} is not a variable')
@@ -1146,7 +1116,10 @@ class Core(Handler):
     def r_put(self, command):
         value = self.evaluate(command['value'])
         if value == None:
-            return -1
+            if command['or'] != None:
+                return command['or']
+            else:
+                RuntimeError(self.program, f'Error: could not compute value')
         symbolRecord = self.getVariable(command['target'])
         if not symbolRecord['hasValue']:
             NoValueRuntimeError(self.program, symbolRecord)
@@ -1303,24 +1276,7 @@ class Core(Handler):
             command['file'] = self.getValue()
         command['or'] = None
         save = self.getPC()
-        self.add(command)
-        if self.peek() == 'or':
-            self.nextToken()
-            self.nextToken()
-            # Add a 'goto' to skip the 'or'
-            cmd = {}
-            cmd['lino'] = command['lino']
-            cmd['domain'] = 'core'
-            cmd['keyword'] = 'gotoPC'
-            cmd['goto'] = 0
-            cmd['debug'] = False
-            skip = self.getPC()
-            self.add(cmd)
-            # Process the 'or'
-            self.getCommandAt(save)['or'] = self.getPC()
-            self.compileOne()
-            # Fixup the skip
-            self.getCommandAt(skip)['goto'] = self.getPC()
+        self.processOr(command, save)
         return True
 
     def r_save(self, command):
@@ -2396,7 +2352,7 @@ class Core(Handler):
         try:
             value['content'] = json.loads(item)
         except:
-            RuntimeError(self.program, 'Cannot encode value')
+            value = None
         return value
 
     def v_keys(self, v):

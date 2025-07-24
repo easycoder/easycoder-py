@@ -52,9 +52,12 @@ class Keyboard(Handler):
             if icon_rect.contains(event.pos()):
                 self.iconClicked.emit()
             elif self._bar_rect().contains(event.pos()):
-                self._drag_active = True
-                self._drag_start_pos = event.globalPosition().toPoint()
-                self._dialog_start_pos = self.window().pos()
+                if hasattr(self.window().windowHandle(), 'startSystemMove'):
+                    self.window().windowHandle().startSystemMove()
+                else:
+                    self._drag_active = True
+                    self._drag_start_pos = event.globalPosition().toPoint()
+                    self._dialog_start_pos = self.window().pos()
             else:
                 super().mousePressEvent(event)
 
