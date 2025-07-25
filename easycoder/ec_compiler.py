@@ -82,7 +82,7 @@ class Compiler:
 		self.code.append(command)
 
 	def isSymbol(self):
-		token=self.getToken()
+		token = self.getToken()
 		try:
 			self.symbols[token]
 		except:

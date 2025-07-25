@@ -73,34 +73,44 @@ class Graphics(Handler):
     # (2) add {widget} to {layout}
     # (3) add stretch {widget} to {layout}
     # (4) add stretch to {layout}
+    # (5) add spacer {size} to {layout}
     def k_add(self, command):
         def addToLayout():
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                command['layout'] = record['name']
-                self.add(command)
-                return True
+                if record['keyword'] in ['layout', 'groupbox', 'element']:
+                    command['layout'] = record['name']
+                    self.add(command)
+                    return True
             return False
-
-        command['stretch'] = False
-        if self.nextIs('stretch'):
-            # It's either (3) or (4)
+        
+        token = self.peek()
+        if token == 'stretch':
             self.nextToken()
-            if self.tokenIs('to'):
+            # It's either (3) or (4)
+            if self.nextIs('to'):
                 # (4)
+                command['stretch'] = False
                 command['widget'] = 'stretch'
                 return addToLayout()
-            # (3)
             if self.isSymbol():
+                # (3)
                 record = self.getSymbolRecord()
                 command['widget'] = record['name']
                 command['stretch'] = True
                 if self.nextIs('to'):
                     return addToLayout()
             return False
+        
+        elif token == 'spacer':
+            self.nextToken()
+            command['widget'] = 'spacer'
+            command['size'] = self.nextValue()
+            self.skip('to')
+            return addToLayout()
 
         # Here it's either (1) or (2)
-        elif self.isSymbol():
+        elif self.nextIsSymbol():
             record = self.getSymbolRecord()
             if record['extra'] == 'gui':
                 if self.isWidget(record['keyword']):
@@ -134,12 +144,14 @@ class Graphics(Handler):
             widget = command['widget']
             if widget == 'stretch':
                 layoutRecord['widget'].addStretch()
+            elif widget == 'spacer':
+                layoutRecord['widget'].addSpacing(self.getRuntimeValue(command['size']))
             else:
                 widgetRecord = self.getVariable(widget)
                 layoutRecord = self.getVariable(command['layout'])
                 widget = widgetRecord['widget']
                 layout = layoutRecord['widget']
-                stretch = command['stretch']
+                stretch = 'stretch' in command
                 if widgetRecord['keyword'] == 'layout':
                     if layoutRecord['keyword'] == 'groupbox':
                         if widgetRecord['keyword'] == 'layout':
@@ -432,7 +444,7 @@ class Graphics(Handler):
         return self.nextPC()
     
     def r_createLabel(self, command, record):
-        label = QLabel(self.getRuntimeValue(command['text']))
+        label = QLabel(str(self.getRuntimeValue(command['text'])))
         if 'size' in command:
             fm = label.fontMetrics()
             c = label.contentsMargins()
