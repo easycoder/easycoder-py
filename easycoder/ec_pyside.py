@@ -64,7 +64,7 @@ class Graphics(Handler):
             QTimer.singleShot(100, self.afterShown)
         
         def afterShown(self):
-            self.record['action']()
+            if 'action' in self.record: self.record['action']()
 
     #############################################################################
     # Keyword handlers

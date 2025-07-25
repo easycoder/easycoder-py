@@ -36,22 +36,13 @@ class Keyboard(Handler):
             y = 0
             painter.drawPixmap(x, y, self.pixmap)
 
-            # Draw the drag bar in the center
-            bar_width = 100
-            bar_height = 20
-            bar_x = (self.width() - bar_width) // 2
-            bar_y = (self.height() - bar_height) // 2
-            painter.setBrush(QColor("#bbb"))
-            painter.setPen(Qt.NoPen)
-            painter.drawRoundedRect(bar_x, bar_y, bar_width, bar_height, 10, 10)
-
         def mousePressEvent(self, event):
             x = self.width() - self.pixmap.width()
             y = 0
             iconRect = self.pixmap.rect().translated(x, y)
             if iconRect.contains(event.pos()):
                 self.iconClicked.emit()
-            elif self._barRect().contains(event.pos()):
+            elif QRect(0, 0, self.width(), self.height()).contains(event.pos()):
                 if hasattr(self.window().windowHandle(), 'startSystemMove'):
                     self.window().windowHandle().startSystemMove()
                 else:
@@ -71,26 +62,23 @@ class Keyboard(Handler):
         def mouseReleaseEvent(self, event):
             self._drag_active = False
             super().mouseReleaseEvent(event)
-
-        def _barRect(self):
-            bar_width = 100
-            bar_height = 20
-            bar_x = (self.width() - bar_width) // 2
-            bar_y = (self.height() - bar_height) // 2
-            return QRect(bar_x, bar_y, bar_width, bar_height)
     
-    def __init__(self, program, receiver, caller = None, parent=None):
+    def __init__(self, program, keyboardType, receiver, caller = None, parent=None):
         super().__init__(program.compiler)
 
         self.program = program
+        self.keyboardType = keyboardType
+        self.receiver = receiver
 
         dialog = QDialog(caller)
+        self.dialog = dialog
         
 #        dialog.setWindowTitle('')
         dialog.setWindowFlags(Qt.FramelessWindowHint)
         dialog.setModal(True)
         dialog.setFixedSize(500, 250)
         dialog.setStyleSheet('background-color: white;border:1px solid black;')
+        self.originalText = receiver.getContent()
 
         # Add drop shadow
         shadow = QGraphicsDropShadowEffect(dialog)
@@ -103,9 +91,9 @@ class Keyboard(Handler):
         layout = QVBoxLayout(dialog)
 
         border = self.Border()
-        border.iconClicked.connect(dialog.reject)
+        border.iconClicked.connect(self.reject)
         layout.addWidget(border)
-        layout.addWidget(VirtualKeyboard(42, receiver, dialog.reject))
+        layout.addWidget(VirtualKeyboard(keyboardType, 42, receiver, dialog.accept))
         
         # Position at bottom of parent window
         dialog.show()  # Ensure geometry is calculated
@@ -117,17 +105,15 @@ class Keyboard(Handler):
 
         dialog.exec()
 
+    def reject(self):
+        self.receiver.setContent(self.originalText)
+        self.dialog.reject()
 
 class TextReceiver():
     def __init__(self, field):
         self.field = field
 
-    def add_character(self, char):
-        """
-        Add a character to the text field.
-        
-        :param char: A single character to add to the field.
-        """
+    def addCharacter(self, char):
         char = char.replace('&&', '&')
         if len(char) == 1:
             self.field.setText(self.field.text() + char)
@@ -135,20 +121,14 @@ class TextReceiver():
             raise ValueError("Only single characters are allowed.")
 
     def backspace(self):
-        """
-        Remove the last character from the text field.
-        If the field is already empty, do nothing.
-        """
         current_text = self.field.text()
         if current_text:
             self.field.setText(current_text[:-1])
 
-    def get_content(self):
-        """
-        Return the current content of the text field.
-        
-        :return: The current text in the field.
-        """
+    def setContent(self, text):
+        self.field.setText(text)
+
+    def getContent(self):
         return self.field.text()
         
 class KeyboardButton(QPushButton):
@@ -196,8 +176,9 @@ class KeyboardView(QVBoxLayout):
             self.addLayout(row)
 
 class VirtualKeyboard(QStackedWidget):
-    def __init__(self, buttonHeight, textField, onFinished=None):
+    def __init__(self, keyboardType, buttonHeight, textField, onFinished):
         super().__init__()
+        self.keyboardType = keyboardType
         self.buttonHeight = buttonHeight
         self.textField = textField
         self.onFinished = onFinished
@@ -424,7 +405,7 @@ class VirtualKeyboard(QStackedWidget):
     # Callback functions
     def onClickChar(self,keycode):
         # print(f"Key pressed: {keycode}")
-        self.textField.add_character(keycode)
+        self.textField.addCharacter(keycode)
 
     def onClickShift(self,keycode):
         # print("Shift pressed")
@@ -451,9 +432,9 @@ class VirtualKeyboard(QStackedWidget):
 
     def onClickSpace(self,keycode):
         # print("Space pressed")
-        self.textField.add_character(' ')
+        self.textField.addCharacter(' ')
 
     def onClickEnter(self,keycode):
         # print("Enter pressed")
-        # print(self.textField.get_content())
-        if self.onFinished: self.onFinished()
+        if self.keyboardType == 'multiline': self.textField.addCharacter('\n')
+        else: self.onFinished()
