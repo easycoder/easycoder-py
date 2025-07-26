@@ -11,4 +11,4 @@ from .ec_pyside import *
 from .ec_timestamp import *
 from .ec_value import *
 
-__version__ = "250725.3"
+__version__ = "250726.2"

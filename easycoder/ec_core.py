@@ -2196,7 +2196,7 @@ class Core(Handler):
             fmt = self.getRuntimeValue(fmt)
         value = {}
         value['type'] = 'text'
-        value['content'] = datetime.fromtimestamp(ts).strftime(fmt)
+        value['content'] = datetime.fromtimestamp(ts/1000).strftime(fmt)
         return value
 
     def v_decode(self, v):
