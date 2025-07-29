@@ -1753,15 +1753,13 @@ class Core(Handler):
 
     # Use a plugin module
     def k_use(self, command):
-        if self.nextIs('plugin'):
-            if self.nextIs('graphics'):
-                print('Loading graphics module')
-                from .ec_pyside import Graphics
-                self.program.graphics = Graphics
-                self.program.useClass(Graphics)
-                # from .ec_keyboard import Keyboard
-                # self.program.useClass(Keyboard)
-                return True
+        self.skip('plugin')
+        if self.nextIs('graphics'):
+            print('Loading graphics module')
+            from .ec_pyside import Graphics
+            self.program.graphics = Graphics
+            self.program.useClass(Graphics)
+            return True
         return False
 
     # Declare a general-purpose variable
