@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLCDNumber,
     QLineEdit,
+    QPlainTextEdit,
     QListWidget,
     QMainWindow,
     QProgressBar,
@@ -52,7 +53,20 @@ class Graphics(Handler):
         print('window closed')
     
     def isWidget(self, keyword):
-        return keyword in ['layout', 'groupbox', 'label', 'pushbutton', 'checkbox', 'lineinput', 'listbox', 'combobox']
+        return keyword in [
+            'layout',
+            'groupbox',
+            'label',
+            'pushbutton',
+            'checkbox',
+            'lineinput',
+            'multiline',
+            'listbox',
+            'combobox'
+            ]
+
+    def dialogTypes(self):
+        return ['confirm', 'lineedit', 'multiline']
 
     class ECDialog(QDialog):
         def __init__(self, parent, record):
@@ -334,6 +348,23 @@ class Graphics(Handler):
         self.add(command)
         return True
 
+    def k_createMultiLineEdit(self, command):
+        cols = self.compileConstant(30)
+        rows = self.compileConstant(5)
+        while True:
+            next = self.peek()
+            if next == 'cols':
+                self.nextToken()
+                cols = self.nextValue()
+            elif next == 'rows':
+                self.nextToken()
+                rows = self.nextValue()
+            else: break;
+        command['cols'] = cols
+        command['rows'] = rows
+        self.add(command)
+        return True
+
     def k_createListWidget(self, command):
         self.add(command)
         return True
@@ -351,7 +382,9 @@ class Graphics(Handler):
         while True:
             if self.peek() == 'type':
                 self.nextToken()
-                command['type'] =  self.nextToken()
+                dialogType = self.nextToken()
+                if dialogType in self.dialogTypes(): command['type'] = dialogType
+                else: return False
             elif self.peek() == 'title':
                 self.nextToken()
                 command['title'] = self.nextValue()
@@ -406,6 +439,7 @@ class Graphics(Handler):
             elif keyword == 'pushbutton': return self.k_createPushbutton(command)
             elif keyword == 'checkbox': return self.k_createCheckBox(command)
             elif keyword == 'lineinput': return self.k_createLineEdit(command)
+            elif keyword == 'multiline': return self.k_createMultiLineEdit(command)
             elif keyword == 'listbox': return self.k_createListWidget(command)
             elif keyword == 'combobox': return self.k_createComboBox(command)
             elif keyword == 'dialog': return self.k_createDialog(command)
@@ -486,6 +520,16 @@ class Graphics(Handler):
         record['widget'] = lineinput
         return self.nextPC()
     
+    def r_createMultiLineEdit(self, command, record):
+        textinput = QPlainTextEdit()
+        fontMetrics = textinput.fontMetrics()
+        charWidth = fontMetrics.horizontalAdvance('x')
+        charHeight = fontMetrics.height()
+        textinput.setFixedWidth(charWidth * self.getRuntimeValue(command['cols']))
+        textinput.setFixedHeight(charHeight * self.getRuntimeValue(command['rows']))
+        record['widget'] = textinput
+        return self.nextPC()
+    
     def r_createListWidget(self, command, record):
         record['widget'] = QListWidget()
         return self.nextPC()
@@ -504,18 +548,22 @@ class Graphics(Handler):
         dialogType = command['type'].lower()
         dialog.dialogType = dialogType
         prompt = self.getRuntimeValue(command['prompt'])
-        if dialogType in ['confirm', 'lineedit']:
-            if dialogType == 'confirm':
-                mainLayout.addWidget(QLabel(prompt))
-            elif dialogType == 'lineedit':
-                mainLayout.addWidget(QLabel(prompt))
-                dialog.lineEdit = QLineEdit(dialog)
-                dialog.value = self.getRuntimeValue(command['value'])
-                dialog.lineEdit.setText(dialog.value)
-                mainLayout.addWidget(dialog.lineEdit)
-        buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, dialog)
-        buttonBox.accepted.connect(dialog.accept)
-        buttonBox.rejected.connect(dialog.reject)
+        if dialogType == 'confirm':
+            mainLayout.addWidget(QLabel(prompt))
+        elif dialogType == 'lineedit':
+            mainLayout.addWidget(QLabel(prompt))
+            dialog.lineEdit = QLineEdit(dialog)
+            dialog.value = self.getRuntimeValue(command['value'])
+            dialog.lineEdit.setText(dialog.value)
+            mainLayout.addWidget(dialog.lineEdit)
+        elif dialogType == 'multiline':
+            mainLayout.addWidget(QLabel(prompt))
+            dialog.textEdit = QPlainTextEdit(self)
+            dialog.textEdit.setText(dialog.value)
+            mainLayout.addWidget(dialog.textEdit)
+        buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttonBox.accepted.connect(self.accept)
+        buttonBox.rejected.connect(self.reject)
         mainLayout.addWidget(buttonBox, alignment=Qt.AlignHCenter)
         record['dialog'] = dialog
         return self.nextPC()
@@ -540,6 +588,7 @@ class Graphics(Handler):
         elif keyword == 'pushbutton': return self.r_createPushbutton(command, record)
         elif keyword == 'checkbox': return self.r_createCheckBox(command, record)
         elif keyword == 'lineinput': return self.r_createLineEdit(command, record)
+        elif keyword == 'multiline': return self.r_createMultiLineEdit(command, record)
         elif keyword == 'listbox': return self.r_createListWidget(command, record)
         elif keyword == 'combobox': return self.r_createComboBox(command, record)
         elif keyword == 'dialog': return self.r_createDialog(command, record)
@@ -632,6 +681,13 @@ class Graphics(Handler):
         return self.compileVariable(command)
 
     def r_messagebox(self, command):
+        return self.nextPC()
+
+    # Declare a multiline input variable
+    def k_multiline(self, command):
+        return self.compileVariable(command, 'gui')
+
+    def r_multiline(self, command):
         return self.nextPC()
 
     # on click {pushbutton}
@@ -794,8 +850,8 @@ class Graphics(Handler):
     # set [the] width/height [of] {widget} [to] {value}
     # set [the] layout of {window} to {layout}
     # set [the] spacing of {layout} to {value}
-    # set [the] text [of] {label}/{button}/{lineinput} [to] {text}
-    # set [the] color [of] {label}/{button}/{lineinput} [to] {color}
+    # set [the] text [of] {label}/{button}/{lineinput}/{multiline} [to] {text}
+    # set [the] color [of] {label}/{button}/{lineinput}/{multiline} [to] {color}
     # set [the] state [of] {checkbox} [to] {color}
     # set {listbox} to {list}
     # set blocked true/false
@@ -839,7 +895,7 @@ class Graphics(Handler):
             self.skip('of')
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                if record['keyword'] in ['label', 'pushbutton', 'lineinput']:
+                if record['keyword'] in ['label', 'pushbutton', 'lineinput', 'multiline']:
                     command['name'] = record['name']
                     self.skip('to')
                     command['value'] = self.nextValue()
@@ -870,7 +926,7 @@ class Graphics(Handler):
             self.skip('of')
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                if record['keyword'] in ['label', 'pushbutton', 'lineinput']:
+                if record['keyword'] in ['label', 'pushbutton', 'lineinput', 'multiline']:
                     command['name'] = record['name']
                     self.skip('to')
                     command['value'] = self.nextValue()
@@ -911,7 +967,10 @@ class Graphics(Handler):
             record = self.getVariable(command['name'])
             widget = self.getVariable(command['name'])['widget']
             text = self.getRuntimeValue(command['value'])
-            widget.setText(text)
+            if isinstance(widget, QLineEdit):
+                widget.setText(text)
+            elif isinstance(widget, QPlainTextEdit):
+                widget.setPlainText(text)
             if record['keyword'] == 'pushbutton':
                 widget.setAccessibleName(text)
         elif what == 'state':
@@ -996,13 +1055,16 @@ class Graphics(Handler):
         elif 'dialog' in command:
             record = self.getVariable(command['dialog'])
             dialog = record['dialog']
-            if dialog.dialogType in ['confirm', 'lineedit']:
-                if dialog.dialogType == 'confirm':
-                    record['result'] = True if dialog.exec() == QDialog.Accepted else False
-                elif dialog.dialogType == 'lineedit':
-                    if dialog.exec() == QDialog.Accepted:
-                        record['result'] = dialog.lineEdit.text()
-                    else: record['result'] = dialog.value
+            if dialog.dialogType == 'confirm':
+                record['result'] = True if dialog.exec() == QDialog.Accepted else False
+            elif dialog.dialogType == 'lineedit':
+                if dialog.exec() == QDialog.Accepted:
+                    record['result'] = dialog.lineEdit.text()
+                else: record['result'] = dialog.value
+            elif dialog.dialogType == 'multiline':
+                if dialog.exec() == QDialog.Accepted:
+                    record['result'] = dialog.textEdit.toPlainText()
+                else: record['result'] = dialog.value
         return self.nextPC()
 
     # Start the graphics
@@ -1100,6 +1162,12 @@ class Graphics(Handler):
             v = {}
             v['type'] = 'text'
             v['content'] = lineinput.displayText()
+            return v
+        elif keyword == 'multiline':
+            multiline = symbolRecord['widget']
+            v = {}
+            v['type'] = 'text'
+            v['content'] = multiline.toPlainText()
             return v
         elif keyword == 'combobox':
             combobox = symbolRecord['widget']

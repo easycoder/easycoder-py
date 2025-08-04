@@ -6,6 +6,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QPushButton,
+    QLineEdit,
+    QPlainTextEdit,
     QWidget,
     QStackedWidget,
     QSpacerItem,
@@ -126,10 +128,16 @@ class TextReceiver():
             self.field.setText(current_text[:-1])
 
     def setContent(self, text):
-        self.field.setText(text)
+        if isinstance(self.field, QLineEdit):
+            self.field.setText(text)
+        elif isinstance(self.field, QPlainTextEdit):
+            self.field.setPlainText(text)
 
     def getContent(self):
-        return self.field.text()
+        if isinstance(self.field, QLineEdit):
+            return self.field.text()
+        elif isinstance(self.field, QPlainTextEdit):
+            return self.field.toPlainText()
         
 class KeyboardButton(QPushButton):
     def __init__(self, width, height, onClick, text=None, icon=None):
