@@ -1,4 +1,4 @@
-import json, math, hashlib, threading, os, subprocess, sys, time
+import json, math, hashlib, threading, os, subprocess, time
 import numbers, base64, binascii, random, requests, paramiko
 from psutil import Process
 from datetime import datetime
@@ -771,6 +771,11 @@ class Core(Handler):
                 with sftp.open(path, 'r') as remote_file: content = remote_file.read().decode()
             except:
                 errorReason = f'Unable to read from {path}'
+                if command['or'] != None:
+                    print(f'Exception "{errorReason}": Running the "or" clause')
+                    return command['or']
+                else:
+                    RuntimeError(self.program, f'Error: {errorReason}')
         else:
             filename = self.getRuntimeValue(command['file'])
             try:
@@ -1291,6 +1296,11 @@ class Core(Handler):
                 with sftp.open(path, 'w') as remote_file: remote_file.write(content)
             except:
                 errorReason = 'Unable to write to {path}'
+                if command['or'] != None:
+                    print(f'Exception "{errorReason}": Running the "or" clause')
+                    return command['or']
+                else:
+                    RuntimeError(self.program, f'Error: {errorReason}')
         else:
             filename = self.getRuntimeValue(command['file'])
             if filename.endswith('.json'): content = json.dumps(content)
