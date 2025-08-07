@@ -22,6 +22,7 @@ class Program:
 		if len(argv) == 0:
 			print('No script supplied')
 			exit()
+		if argv in ['-v', '--version']: return
 		scriptName = argv
 
 		f = open(scriptName, 'r')
@@ -47,6 +48,7 @@ class Program:
 		self.externalControl = False
 		self.ticker = 0
 		self.running = True
+		self.start()
 
 	# This is called at 10msec intervals by the GUI code
 	def flushCB(self):
@@ -388,9 +390,9 @@ class Program:
 # This is the program launcher
 def Main():
 	if (len(sys.argv) > 1):
-		Program(sys.argv[1]).start()
+		Program(sys.argv[1])
 	else:
-		print('Syntax: easycoder <scriptname> [plugins]')
+		Program('-v')
 
 if __name__ == '__main__':
     Main()

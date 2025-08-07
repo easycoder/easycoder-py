@@ -593,39 +593,29 @@ class Core(Handler):
             self.program.pc += 1
         return self.program.pc
 
+    # Import one or more variables
     def k_import(self, command):
-        if self.peek() == 'plugin':
-            # Import a plugin
+        imports = []
+        while True:
+            keyword = self.nextToken()
+            name = self.nextToken()
+            item = [keyword, name]
+            imports.append(item)
+            self.symbols[name] = self.getPC()
+            variable = {}
+            variable['domain'] = None
+            variable['name'] = name
+            variable['keyword'] = keyword
+            variable['import'] = None
+            variable['used'] = False
+            variable['hasValue'] = True if keyword == 'variable' else False
+            self.add(variable)
+            if self.peek() != 'and':
+                break
             self.nextToken()
-            clazz = self.nextToken()
-            if self.nextIs('from'):
-                source = self.nextToken()
-                self.program.importPlugin(f'{source}:{clazz}')
-                return True
-            return False
-        else:
-            # Import one or more variables
-            imports = []
-            while True:
-                keyword = self.nextToken()
-                name = self.nextToken()
-                item = [keyword, name]
-                imports.append(item)
-                self.symbols[name] = self.getPC()
-                variable = {}
-                variable['domain'] = None
-                variable['name'] = name
-                variable['keyword'] = keyword
-                variable['import'] = None
-                variable['used'] = False
-                variable['hasValue'] = True if keyword == 'variable' else False
-                self.add(variable)
-                if self.peek() != 'and':
-                    break
-                self.nextToken()
-            command['imports'] = json.dumps(imports)
-            self.add(command)
-            return True
+        command['imports'] = json.dumps(imports)
+        self.add(command)
+        return True
 
     def r_import(self, command):
         exports = self.program.exports
@@ -1763,8 +1753,16 @@ class Core(Handler):
 
     # Use a plugin module
     def k_use(self, command):
-        self.skip('plugin')
-        if self.nextIs('graphics'):
+        if self.peek() == 'plugin':
+            # Import a plugin
+            self.nextToken()
+            clazz = self.nextToken()
+            if self.nextIs('from'):
+                source = self.nextToken()
+                self.program.importPlugin(f'{source}:{clazz}')
+                return True
+            return False
+        elif self.nextIs('graphics'):
             print('Loading graphics module')
             from .ec_pyside import Graphics
             self.program.graphics = Graphics
@@ -2476,7 +2474,7 @@ class Core(Handler):
         limit = self.getRuntimeValue(v['content'])
         value = {}
         value['type'] = 'int'
-        value['content'] = randrange(0, limit)
+        value['content'] = random.randrange(0, limit)
         return value
 
     def v_right(self, v):

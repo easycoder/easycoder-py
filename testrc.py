@@ -4,4 +4,4 @@ import os
 from easycoder import Program
 
 os.chdir('../../rbr/')
-Program('rbrconf.ecs').start()
+Program('rbrconf.ecs')
