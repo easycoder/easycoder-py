@@ -967,9 +967,10 @@ class Graphics(Handler):
             record = self.getVariable(command['name'])
             widget = self.getVariable(command['name'])['widget']
             text = self.getRuntimeValue(command['value'])
-            if isinstance(widget, QLineEdit):
+            keyword = record['keyword']
+            if keyword in ['label', 'pushbutton', 'lineinput']:
                 widget.setText(text)
-            elif isinstance(widget, QPlainTextEdit):
+            elif keyword == 'multiline':
                 widget.setPlainText(text)
             if record['keyword'] == 'pushbutton':
                 widget.setAccessibleName(text)
