@@ -390,7 +390,7 @@ class Program:
 # This is the program launcher
 def Main():
 	if (len(sys.argv) > 1):
-		Program(sys.argv[1])
+		Program(sys.argv[1]).start()
 	else:
 		Program('-v')
 
