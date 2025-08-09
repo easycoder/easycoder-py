@@ -1,8 +1,7 @@
 import sys
 from .ec_handler import Handler
 from .ec_classes import RuntimeError
-from .ec_keyboard import Keyboard, TextReceiver
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -79,6 +78,38 @@ class Graphics(Handler):
         
         def afterShown(self):
             if 'action' in self.record: self.record['action']()
+
+    class ClickableLineEdit(QLineEdit):
+        clicked = Signal()
+
+        def __init__(self):
+            super().__init__()
+            self.program = None
+        
+        def setCallback(self, program, pc):
+            self.program = program
+            self.pc = pc
+
+        def mousePressEvent(self, event):
+            self.clicked.emit()
+            super().mousePressEvent(event)
+            if self.program != None: self.program.run(self.pc)
+
+    class ClickablePlainTextEdit(QPlainTextEdit):
+        clicked = Signal()
+
+        def __init__(self):
+            super().__init__()
+            self.program = None
+        
+        def setCallback(self, program, pc):
+            self.program = program
+            self.pc = pc
+
+        def mousePressEvent(self, event):
+            self.clicked.emit()
+            super().mousePressEvent(event)
+            if self.program != None: self.program.run(self.pc)
 
     #############################################################################
     # Keyword handlers
@@ -297,6 +328,7 @@ class Graphics(Handler):
 
     def k_createLabel(self, command):
         text = self.compileConstant('')
+        size = self.compileConstant(20)
         while True:
             token = self.peek()
             if token == 'text':
@@ -304,7 +336,7 @@ class Graphics(Handler):
                 text = self.nextValue()
             elif token == 'size':
                 self.nextToken()
-                command['size'] = self.nextValue()
+                size = self.nextValue()
             elif token == 'align':
                 self.nextToken()
                 token = self.nextToken()
@@ -312,6 +344,7 @@ class Graphics(Handler):
                     command['align'] = token
             else: break
         command['text'] = text
+        command['size'] = size
         self.add(command)
         return True
 
@@ -340,11 +373,19 @@ class Graphics(Handler):
         return True
 
     def k_createLineEdit(self, command):
-        if self.peek() == 'size':
-            self.nextToken()
-            size = self.nextValue()
-        else: size = self.compileConstant(10)
+        text = self.compileConstant('')
+        size = self.compileConstant(40)
+        while True:
+            token = self.peek()
+            if token == 'text':
+                self.nextToken()
+                text = self.nextValue()
+            elif token == 'size':
+                self.nextToken()
+                size = self.nextValue()
+            else: break;
         command['size'] = size
+        command['text'] = text
         self.add(command)
         return True
 
@@ -479,6 +520,10 @@ class Graphics(Handler):
     
     def r_createLabel(self, command, record):
         label = QLabel(str(self.getRuntimeValue(command['text'])))
+        label.setStyleSheet("""
+            background-color: transparent;
+            border: none;
+        """)
         if 'size' in command:
             fm = label.fontMetrics()
             c = label.contentsMargins()
@@ -500,7 +545,7 @@ class Graphics(Handler):
         if 'size' in command:
             fm = pushbutton.fontMetrics()
             c = pushbutton.contentsMargins()
-            w = fm.horizontalAdvance('m') * self.getRuntimeValue(command['size']) +c.left()+c.right()
+            w = fm.horizontalAdvance('m') * self.getRuntimeValue(command['size']) + c.left()+c.right()
             pushbutton.setMaximumWidth(w)
         record['widget'] = pushbutton
         return self.nextPC()
@@ -511,7 +556,8 @@ class Graphics(Handler):
         return self.nextPC()
     
     def r_createLineEdit(self, command, record):
-        lineinput = QLineEdit()
+        lineinput = self.ClickableLineEdit()
+        lineinput.setText(self.getRuntimeValue(command['text']))
         fm = lineinput.fontMetrics()
         m = lineinput.textMargins()
         c = lineinput.contentsMargins()
@@ -521,7 +567,7 @@ class Graphics(Handler):
         return self.nextPC()
     
     def r_createMultiLineEdit(self, command, record):
-        textinput = QPlainTextEdit()
+        textinput = self.ClickablePlainTextEdit()
         fontMetrics = textinput.fontMetrics()
         charWidth = fontMetrics.horizontalAdvance('x')
         charHeight = fontMetrics.height()
@@ -552,13 +598,13 @@ class Graphics(Handler):
             mainLayout.addWidget(QLabel(prompt))
         elif dialogType == 'lineedit':
             mainLayout.addWidget(QLabel(prompt))
-            dialog.lineEdit = QLineEdit(dialog)
+            dialog.lineEdit = self.ClickableLineEdit(dialog)
             dialog.value = self.getRuntimeValue(command['value'])
             dialog.lineEdit.setText(dialog.value)
             mainLayout.addWidget(dialog.lineEdit)
         elif dialogType == 'multiline':
             mainLayout.addWidget(QLabel(prompt))
-            dialog.textEdit = QPlainTextEdit(self)
+            dialog.textEdit = self.ClickablePlainTextEdit(self)
             dialog.textEdit.setText(dialog.value)
             mainLayout.addWidget(dialog.textEdit)
         buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -690,7 +736,7 @@ class Graphics(Handler):
     def r_multiline(self, command):
         return self.nextPC()
 
-    # on click {pushbutton}
+    # on click {pushbutton}/{lineinput}/{multiline}
     # on select {combobox}/{listbox}
     # on tick
     def k_on(self, command):
@@ -723,7 +769,7 @@ class Graphics(Handler):
         if token == 'click':
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                if record['keyword'] == 'pushbutton':
+                if record['keyword'] in ['pushbutton', 'lineinput', 'multiline']:
                     command['name'] = record['name']
                     setupOn()
                     return True
@@ -770,6 +816,8 @@ class Graphics(Handler):
             keyword = record['keyword']
             if keyword == 'pushbutton':
                 widget.clicked.connect(lambda: self.run(command['goto']))
+            if keyword in ['lineinput', 'multiline']:
+                widget.setCallback(self.program, command['goto'])
             elif keyword == 'combobox':
                 widget.currentIndexChanged.connect(lambda: self.run(command['goto']))
             elif keyword == 'listbox':
@@ -895,7 +943,7 @@ class Graphics(Handler):
             self.skip('of')
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                if record['keyword'] in ['label', 'pushbutton', 'lineinput', 'multiline']:
+                if record['keyword'] in ['label', 'pushbutton', 'lineinput', 'multiline', 'element']:
                     command['name'] = record['name']
                     self.skip('to')
                     command['value'] = self.nextValue()
@@ -968,7 +1016,8 @@ class Graphics(Handler):
             widget = self.getVariable(command['name'])['widget']
             text = self.getRuntimeValue(command['value'])
             keyword = record['keyword']
-            if keyword in ['label', 'pushbutton', 'lineinput']:
+            setText = getattr(widget, "setText", None)
+            if callable(setText):
                 widget.setText(text)
             elif keyword == 'multiline':
                 widget.setPlainText(text)

@@ -3,5 +3,5 @@
 import os
 from easycoder import Program
 
-os.chdir('../../rbr/')
-Program('rbrconf.ecs')
+os.chdir('../../rbr/roombyroom/Controller/ui')
+Program('rbrconf.ecs').start()

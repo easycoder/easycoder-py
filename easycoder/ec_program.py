@@ -48,7 +48,7 @@ class Program:
 		self.externalControl = False
 		self.ticker = 0
 		self.running = True
-		self.start()
+#		self.start()
 
 	# This is called at 10msec intervals by the GUI code
 	def flushCB(self):

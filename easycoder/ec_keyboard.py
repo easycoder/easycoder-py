@@ -1,4 +1,3 @@
-
 import os
 from .ec_handler import Handler
 from PySide6.QtWidgets import (
@@ -14,7 +13,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QGraphicsDropShadowEffect
 )
-from PySide6.QtGui import QFont, QIcon, QPixmap, QPainter, QColor
+from PySide6.QtGui import QFont, QIcon, QPixmap, QPainter
 from PySide6.QtCore import Qt, QTimer, Signal, QRect
 
 class Keyboard(Handler):
@@ -65,12 +64,13 @@ class Keyboard(Handler):
             self._drag_active = False
             super().mouseReleaseEvent(event)
     
-    def __init__(self, program, keyboardType, receiver, caller = None, parent=None):
+    def __init__(self, program, keyboardType, receiverLayout, receivers, caller = None, parent=None):
         super().__init__(program.compiler)
 
         self.program = program
         self.keyboardType = keyboardType
-        self.receiver = receiver
+        self.receivers = receivers
+        self.selectedReceiver = receivers[0]
 
         dialog = QDialog(caller)
         self.dialog = dialog
@@ -78,9 +78,9 @@ class Keyboard(Handler):
 #        dialog.setWindowTitle('')
         dialog.setWindowFlags(Qt.FramelessWindowHint)
         dialog.setModal(True)
-        dialog.setFixedSize(500, 250)
+        dialog.setFixedWidth(500)
         dialog.setStyleSheet('background-color: white;border:1px solid black;')
-        self.originalText = receiver.getContent()
+        self.originalText = self.selectedReceiver.getContent()
 
         # Add drop shadow
         shadow = QGraphicsDropShadowEffect(dialog)
@@ -95,7 +95,8 @@ class Keyboard(Handler):
         border = self.Border()
         border.iconClicked.connect(self.reject)
         layout.addWidget(border)
-        layout.addWidget(VirtualKeyboard(keyboardType, 42, receiver, dialog.accept))
+        layout.addLayout(receiverLayout)
+        layout.addWidget(VirtualKeyboard(keyboardType, 42, self.selectedReceiver, dialog.accept))
         
         # Position at bottom of parent window
         dialog.show()  # Ensure geometry is calculated
@@ -108,7 +109,7 @@ class Keyboard(Handler):
         dialog.exec()
 
     def reject(self):
-        self.receiver.setContent(self.originalText)
+        self.selectedReceiver.setContent(self.originalText)
         self.dialog.reject()
 
 class TextReceiver():
