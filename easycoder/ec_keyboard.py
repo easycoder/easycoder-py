@@ -70,7 +70,6 @@ class Keyboard(Handler):
         self.program = program
         self.keyboardType = keyboardType
         self.receivers = receivers
-        self.selectedReceiver = receivers[0]
 
         dialog = QDialog(caller)
         self.dialog = dialog
@@ -80,7 +79,6 @@ class Keyboard(Handler):
         dialog.setModal(True)
         dialog.setFixedWidth(500)
         dialog.setStyleSheet('background-color: white;border:1px solid black;')
-        self.originalText = self.selectedReceiver.getContent()
 
         # Add drop shadow
         shadow = QGraphicsDropShadowEffect(dialog)
@@ -96,7 +94,18 @@ class Keyboard(Handler):
         border.iconClicked.connect(self.reject)
         layout.addWidget(border)
         layout.addLayout(receiverLayout)
-        layout.addWidget(VirtualKeyboard(keyboardType, 42, self.selectedReceiver, dialog.accept))
+        self.vk = VirtualKeyboard(keyboardType, 42, receivers[0], dialog.accept)
+        layout.addWidget(self.vk)
+
+        restore = []
+        index = 0
+        for receiver in receivers:
+            receiver.field.setContainer(self)
+            receiver.index = index
+            restore.append(receiver.getContent())
+            index += 1
+        self.restore = restore
+        self.selectedReceiver = receivers[0]
         
         # Position at bottom of parent window
         dialog.show()  # Ensure geometry is calculated
@@ -108,8 +117,24 @@ class Keyboard(Handler):
 
         dialog.exec()
 
+    def setClickSource(self, field):
+        receivers = self.receivers
+        index = 0
+        for receiver in receivers:
+            if receiver.field == field:
+                self.selectedReceiver = receiver
+                break
+            index += 1
+
     def reject(self):
-        self.selectedReceiver.setContent(self.originalText)
+        selectedReceiver = self.selectedReceiver
+        receivers = self.receivers
+        index = 0
+        for receiver in receivers:
+            if receiver == selectedReceiver:
+                break
+            index += 1
+        receiver.setContent(self.restore[index])
         self.dialog.reject()
 
 class TextReceiver():
@@ -185,11 +210,11 @@ class KeyboardView(QVBoxLayout):
             self.addLayout(row)
 
 class VirtualKeyboard(QStackedWidget):
-    def __init__(self, keyboardType, buttonHeight, textField, onFinished):
+    def __init__(self, keyboardType, buttonHeight, receiver, onFinished):
         super().__init__()
         self.keyboardType = keyboardType
         self.buttonHeight = buttonHeight
-        self.textField = textField
+        self.receiver = receiver
         self.onFinished = onFinished
         self.setStyleSheet('background-color: #ccc;border:none;')
 
@@ -410,11 +435,14 @@ class VirtualKeyboard(QStackedWidget):
         container = QWidget()
         container.setLayout(keyboardView)
         self.addWidget(container)
+    
+    def setClickSource(self, receiver):
+        self.receiver = receiver
 
     # Callback functions
     def onClickChar(self,keycode):
         # print(f"Key pressed: {keycode}")
-        self.textField.addCharacter(keycode)
+        self.receiver.addCharacter(keycode)
 
     def onClickShift(self,keycode):
         # print("Shift pressed")
@@ -437,13 +465,13 @@ class VirtualKeyboard(QStackedWidget):
 
     def onClickBack(self,keycode):
         # print("Backspace pressed")
-        self.textField.backspace()
+        self.receiver.backspace()
 
     def onClickSpace(self,keycode):
         # print("Space pressed")
-        self.textField.addCharacter(' ')
+        self.receiver.addCharacter(' ')
 
     def onClickEnter(self,keycode):
         # print("Enter pressed")
-        if self.keyboardType == 'multiline': self.textField.addCharacter('\n')
+        if self.keyboardType == 'multiline': self.receiver.addCharacter('\n')
         else: self.onFinished()

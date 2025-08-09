@@ -84,32 +84,28 @@ class Graphics(Handler):
 
         def __init__(self):
             super().__init__()
-            self.program = None
         
-        def setCallback(self, program, pc):
-            self.program = program
-            self.pc = pc
+        def setContainer(self, container):
+            self.container = container
 
         def mousePressEvent(self, event):
             self.clicked.emit()
             super().mousePressEvent(event)
-            if self.program != None: self.program.run(self.pc)
+            if self.container != None: self.container.setClickSource(self)
 
     class ClickablePlainTextEdit(QPlainTextEdit):
         clicked = Signal()
 
         def __init__(self):
             super().__init__()
-            self.program = None
         
-        def setCallback(self, program, pc):
-            self.program = program
-            self.pc = pc
+        def setContainer(self, container):
+            self.container = container
 
         def mousePressEvent(self, event):
             self.clicked.emit()
             super().mousePressEvent(event)
-            if self.program != None: self.program.run(self.pc)
+            if self.container != None: self.container.setClickSource(self)
 
     #############################################################################
     # Keyword handlers
@@ -816,8 +812,6 @@ class Graphics(Handler):
             keyword = record['keyword']
             if keyword == 'pushbutton':
                 widget.clicked.connect(lambda: self.run(command['goto']))
-            if keyword in ['lineinput', 'multiline']:
-                widget.setCallback(self.program, command['goto'])
             elif keyword == 'combobox':
                 widget.currentIndexChanged.connect(lambda: self.run(command['goto']))
             elif keyword == 'listbox':
