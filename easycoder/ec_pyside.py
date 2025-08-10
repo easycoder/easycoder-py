@@ -54,7 +54,7 @@ class Graphics(Handler):
     def isWidget(self, keyword):
         return keyword in [
             'layout',
-            'groupbox',
+            'group',
             'label',
             'pushbutton',
             'checkbox',
@@ -115,11 +115,12 @@ class Graphics(Handler):
     # (3) add stretch {widget} to {layout}
     # (4) add stretch to {layout}
     # (5) add spacer {size} to {layout}
+    # (6) add {widget} at {col} {row} in {grid layout}
     def k_add(self, command):
         def addToLayout():
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                if record['keyword'] in ['layout', 'groupbox', 'element']:
+                if record['keyword'] in ['layout', 'group', 'element']:
                     command['layout'] = record['name']
                     self.add(command)
                     return True
@@ -155,12 +156,20 @@ class Graphics(Handler):
             record = self.getSymbolRecord()
             if record['extra'] == 'gui':
                 if self.isWidget(record['keyword']):
+                    command['widget'] = record['name']
                     if self.peek() == 'to':
                         # (2)
                         record = self.getSymbolRecord()
-                        command['widget'] = record['name']
                         self.nextToken()
                         return addToLayout()
+                    elif self.peek() == 'at':
+                        # (6)
+                        self.nextToken()
+                        command['row'] = self.nextValue()
+                        command['col'] = self.nextValue()
+                        self.skip('in')
+                        return addToLayout()
+
                 else: return False
         # (1)
         value = self.getValue()
@@ -180,6 +189,12 @@ class Graphics(Handler):
             widget = self.getVariable(command['widget'])
             if widget['keyword'] in ['listbox', 'combobox']:
                 widget['widget'].addItem(value)
+        elif 'row' in command and 'col' in command:
+            layout = self.getVariable(command['layout'])['widget']
+            widget = self.getVariable(command['widget'])['widget']
+            row = self.getRuntimeValue(command['row'])
+            col = self.getRuntimeValue(command['col'])
+            layout.addWidget(widget, row, col)
         else:
             layoutRecord = self.getVariable(command['layout'])
             widget = command['widget']
@@ -194,11 +209,11 @@ class Graphics(Handler):
                 layout = layoutRecord['widget']
                 stretch = 'stretch' in command
                 if widgetRecord['keyword'] == 'layout':
-                    if layoutRecord['keyword'] == 'groupbox':
+                    if layoutRecord['keyword'] == 'group':
                         if widgetRecord['keyword'] == 'layout':
                             layout.setLayout(widget)
                         else:
-                            RuntimeError(self.program, 'Can only add a layout to a groupbox')
+                            RuntimeError(self.program, 'Can only add a layout to a group')
                     else:
                         if stretch: layout.addLayout(widget, stretch=1)
                         else: layout.addLayout(widget)
@@ -363,7 +378,7 @@ class Graphics(Handler):
         if self.peek() == 'text':
             self.nextToken()
             text = self.nextValue()
-        else: text = ''
+        else: text = self.compileConstant('')
         command['text'] = text
         self.add(command)
         return True
@@ -471,7 +486,7 @@ class Graphics(Handler):
             keyword = record['keyword']
             if keyword == 'window': return self.k_createWindow(command)
             elif keyword == 'layout': return self.k_createLayout(command)
-            elif keyword == 'groupbox': return self.k_createGroupBox(command)
+            elif keyword == 'group': return self.k_createGroupBox(command)
             elif keyword == 'label': return self.k_createLabel(command)
             elif keyword == 'pushbutton': return self.k_createPushbutton(command)
             elif keyword == 'checkbox': return self.k_createCheckBox(command)
@@ -499,19 +514,19 @@ class Graphics(Handler):
         return self.nextPC()
     
     def r_createLayout(self, command, record):
-        type = command['type']
-        if type == 'QHBoxLayout': layout = QHBoxLayout()
-        elif type == 'QGridLayout': layout = QGridLayout()
-        elif type == 'QStackedLayout': layout = QStackedLayout()
+        layoutType = command['type']
+        if layoutType == 'QHBoxLayout': layout = QHBoxLayout()
+        elif layoutType == 'QGridLayout': layout = QGridLayout()
+        elif layoutType == 'QStackedLayout': layout = QStackedLayout()
         else: layout = QVBoxLayout()
-        layout.setContentsMargins(5,0,5,0)
+        layout.setContentsMargins(5,5,5,5)
         record['widget'] = layout
         return self.nextPC()
     
     def r_createGroupBox(self, command, record):
-        groupbox = QGroupBox(self.getRuntimeValue(command['title']))
-        groupbox.setAlignment(Qt.AlignLeft)
-        record['widget'] = groupbox
+        group = QGroupBox(self.getRuntimeValue(command['title']))
+        group.setAlignment(Qt.AlignLeft)
+        record['widget'] = group
         return self.nextPC()
     
     def r_createLabel(self, command, record):
@@ -548,6 +563,7 @@ class Graphics(Handler):
     
     def r_createCheckBox(self, command, record):
         checkbox = QCheckBox(self.getRuntimeValue(command['text']))
+        checkbox.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
         record['widget'] = checkbox
         return self.nextPC()
     
@@ -625,7 +641,7 @@ class Graphics(Handler):
         keyword = record['keyword']
         if keyword == 'window': return self.r_createWindow(command, record)
         elif keyword == 'layout': return self.r_createLayout(command, record)
-        elif keyword == 'groupbox': return self.r_createGroupBox(command, record)
+        elif keyword == 'group': return self.r_createGroupBox(command, record)
         elif keyword == 'label': return self.r_createLabel(command, record)
         elif keyword == 'pushbutton': return self.r_createPushbutton(command, record)
         elif keyword == 'checkbox': return self.r_createCheckBox(command, record)
@@ -669,10 +685,10 @@ class Graphics(Handler):
         return self.nextPC()
 
     # Create a group box
-    def k_groupbox(self, command):
+    def k_group(self, command):
         return self.compileVariable(command, 'gui')
 
-    def r_groupbox(self, command):
+    def r_group(self, command):
         return self.nextPC()
 
     # Initialize the graphics environment
@@ -953,6 +969,29 @@ class Graphics(Handler):
                     command['value'] = self.nextValue()
                     self.add(command)
                     return True
+        elif token == 'alignment':
+            self.skip('of')
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                if record['extra'] == 'gui':
+                    command['name'] = record['name']
+                    self.skip('to')
+                    flags = []
+                    while self.peek() in ['left', 'hcenter', 'right', 'top', 'vcenter', 'bottom', 'center']:
+                        flags.append(self.nextToken())
+                    command['value'] = flags
+                    self.add(command)
+                    return True
+        elif token == 'style':
+            self.skip('of')
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                if record['keyword'] == 'label':
+                    command['name'] = record['name']
+                    self.skip('to')
+                    command['value'] = self.nextValue()
+                    self.add(command)
+                    return True
         elif token == 'color':
             self.skip('of')
             if self.nextIsSymbol():
@@ -1021,6 +1060,23 @@ class Graphics(Handler):
             widget = self.getVariable(command['name'])['widget']
             state = self.getRuntimeValue(command['value'])
             widget.setChecked(state)
+        elif what == 'alignment':
+            widget = self.getVariable(command['name'])['widget']
+            flags = command['value']
+            alignment = 0
+            for flag in flags:
+                if flag == 'left': alignment |= Qt.AlignLeft
+                elif flag == 'hcenter': alignment |= Qt.AlignHCenter
+                elif flag == 'right': alignment |= Qt.AlignRight
+                elif flag == 'top': alignment |= Qt.AlignTop
+                elif flag == 'vcenter': alignment |= Qt.AlignVCenter
+                elif flag == 'bottom': alignment |= Qt.AlignBottom
+                elif flag == 'center': alignment |= Qt.AlignCenter
+            widget.setAlignment(alignment)
+        elif what == 'style':
+            widget = self.getVariable(command['name'])['widget']
+            styles = self.getRuntimeValue(command['value'])
+            widget.setStyleSheet(styles)
         elif what == 'color':
             widget = self.getVariable(command['name'])['widget']
             color = self.getRuntimeValue(command['value'])
