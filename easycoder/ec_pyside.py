@@ -519,7 +519,7 @@ class Graphics(Handler):
         elif layoutType == 'QGridLayout': layout = QGridLayout()
         elif layoutType == 'QStackedLayout': layout = QStackedLayout()
         else: layout = QVBoxLayout()
-        layout.setContentsMargins(5,5,5,5)
+        layout.setContentsMargins(5,0,5,0)
         record['widget'] = layout
         return self.nextPC()
     
