@@ -105,7 +105,6 @@ class Keyboard(Handler):
             restore.append(receiver.getContent())
             index += 1
         self.restore = restore
-        self.selectedReceiver = receivers[0]
         
         # Position at bottom of parent window
         dialog.show()  # Ensure geometry is calculated
@@ -119,22 +118,18 @@ class Keyboard(Handler):
 
     def setClickSource(self, field):
         receivers = self.receivers
-        index = 0
         for receiver in receivers:
             if receiver.field == field:
-                self.selectedReceiver = receiver
-                break
-            index += 1
+                self.vk.setReceiver(receiver)
+                return
 
     def reject(self):
-        selectedReceiver = self.selectedReceiver
+        selectedReceiver = self.vk.getReceiver()
         receivers = self.receivers
         index = 0
         for receiver in receivers:
-            if receiver == selectedReceiver:
-                break
-            index += 1
-        receiver.setContent(self.restore[index])
+            receiver.setContent(self.restore[index])
+            index += 1      
         self.dialog.reject()
 
 class TextReceiver():
@@ -144,7 +139,7 @@ class TextReceiver():
     def addCharacter(self, char):
         char = char.replace('&&', '&')
         if len(char) == 1:
-            self.field.setText(self.field.text() + char)
+            self.setContent(self.getContent() + char)
         else:
             raise ValueError("Only single characters are allowed.")
 
@@ -436,8 +431,11 @@ class VirtualKeyboard(QStackedWidget):
         container.setLayout(keyboardView)
         self.addWidget(container)
     
-    def setClickSource(self, receiver):
+    def setReceiver(self, receiver):
         self.receiver = receiver
+    
+    def getReceiver(self):
+        return self.receiver
 
     # Callback functions
     def onClickChar(self,keycode):
