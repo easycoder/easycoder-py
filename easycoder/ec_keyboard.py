@@ -20,29 +20,42 @@ class Keyboard(Handler):
     iconClicked = Signal()
 
     class Border(QWidget):
-        iconClicked = Signal()
+        tickClicked = Signal()
+        closeClicked = Signal()
 
         def __init__(self):
             super().__init__()
-            self.setFixedHeight(25)
+            self.setFixedHeight(30)
             self._drag_active = False
             self._drag_start_pos = None
 
         def paintEvent(self, event):
             painter = QPainter(self)
             painter.setRenderHint(QPainter.Antialiasing)
-            # Draw the close icon
-            self.pixmap = QPixmap(f'{os.path.dirname(os.path.abspath(__file__))}/close.png').scaled(25, 25, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            x = self.width() - self.pixmap.width()
+            # Draw the tick icon
+            self.tick = QPixmap(f'{os.path.dirname(os.path.abspath(__file__))}/tick.png').scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            x = 0
             y = 0
-            painter.drawPixmap(x, y, self.pixmap)
+            painter.drawPixmap(x, y, self.tick)
+            # Draw the close icon
+            self.close = QPixmap(f'{os.path.dirname(os.path.abspath(__file__))}/close.png').scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            x = self.width() - self.close.width()
+            y = 0
+            painter.drawPixmap(x, y, self.close)
 
         def mousePressEvent(self, event):
-            x = self.width() - self.pixmap.width()
+            # Tick icon
+            x = 0
             y = 0
-            iconRect = self.pixmap.rect().translated(x, y)
-            if iconRect.contains(event.pos()):
-                self.iconClicked.emit()
+            tickRect = self.tick.rect().translated(x, y)
+            # Close icon
+            x = self.width() - self.close.width()
+            y = 0
+            closeRect = self.close.rect().translated(x, y)
+            if tickRect.contains(event.pos()):
+                self.tickClicked.emit()
+            if closeRect.contains(event.pos()):
+                self.closeClicked.emit()
             elif QRect(0, 0, self.width(), self.height()).contains(event.pos()):
                 if hasattr(self.window().windowHandle(), 'startSystemMove'):
                     self.window().windowHandle().startSystemMove()
@@ -91,7 +104,8 @@ class Keyboard(Handler):
         layout = QVBoxLayout(dialog)
 
         border = self.Border()
-        border.iconClicked.connect(self.reject)
+        border.tickClicked.connect(self.dialog.accept)
+        border.closeClicked.connect(self.reject)
         layout.addWidget(border)
         layout.addLayout(receiverLayout)
         self.vk = VirtualKeyboard(keyboardType, 42, receivers[0], dialog.accept)
@@ -124,7 +138,6 @@ class Keyboard(Handler):
                 return
 
     def reject(self):
-        selectedReceiver = self.vk.getReceiver()
         receivers = self.receivers
         index = 0
         for receiver in receivers:
