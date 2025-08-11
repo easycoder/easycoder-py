@@ -187,14 +187,21 @@ class Graphics(Handler):
         if 'value' in command:
             value = self.getRuntimeValue(command['value'])
             widget = self.getVariable(command['widget'])
-            if widget['keyword'] in ['listbox', 'combobox']:
+            if widget['keyword'] == 'listbox':
                 widget['widget'].addItem(value)
+            elif widget['keyword'] == 'combobox':
+                if isinstance(value, list): widget['widget'].addItems(value)
+                else: widget['widget'].addItem(value)
         elif 'row' in command and 'col' in command:
             layout = self.getVariable(command['layout'])['widget']
-            widget = self.getVariable(command['widget'])['widget']
+            widgetVar = self.getVariable(command['widget'])
+            widget = widgetVar['widget']
             row = self.getRuntimeValue(command['row'])
             col = self.getRuntimeValue(command['col'])
-            layout.addWidget(widget, row, col)
+            if widgetVar['keyword'] == 'layout':
+                layout.addLayout(widget, row, col)
+            else:
+                layout.addWidget(widget, row, col)
         else:
             layoutRecord = self.getVariable(command['layout'])
             widget = command['widget']
@@ -563,6 +570,22 @@ class Graphics(Handler):
     
     def r_createCheckBox(self, command, record):
         checkbox = QCheckBox(self.getRuntimeValue(command['text']))
+        checkbox.setStyleSheet("""
+            QCheckBox::indicator {
+                border: 1px solid black;
+                border-radius: 3px;
+                background: white;
+                width: 16px;
+                height: 16px;
+            }
+            QCheckBox::indicator:checked {
+                background: #0078d7;
+            }
+            QCheckBox {
+                border: none;
+                background: transparent;
+            }
+        """)
         checkbox.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
         record['widget'] = checkbox
         return self.nextPC()
@@ -910,7 +933,7 @@ class Graphics(Handler):
     # set [the] spacing of {layout} to {value}
     # set [the] text [of] {label}/{button}/{lineinput}/{multiline} [to] {text}
     # set [the] color [of] {label}/{button}/{lineinput}/{multiline} [to] {color}
-    # set [the] state [of] {checkbox} [to] {color}
+    # set [the] state [of] {checkbox} [to] {state}
     # set {listbox} to {list}
     # set blocked true/false
     def k_set(self, command):
@@ -966,7 +989,7 @@ class Graphics(Handler):
                 if record['keyword'] == 'checkbox':
                     command['name'] = record['name']
                     self.skip('to')
-                    command['value'] = self.nextValue()
+                    command['value'] = self.nextToken()
                     self.add(command)
                     return True
         elif token == 'alignment':
@@ -1057,9 +1080,10 @@ class Graphics(Handler):
             if record['keyword'] == 'pushbutton':
                 widget.setAccessibleName(text)
         elif what == 'state':
-            widget = self.getVariable(command['name'])['widget']
-            state = self.getRuntimeValue(command['value'])
-            widget.setChecked(state)
+            record = self.getVariable(command['name'])
+            if record['keyword'] == 'checkbox':
+                state = True if command['value'] == 'checked' else False
+                record['widget'].setChecked(state)
         elif what == 'alignment':
             widget = self.getVariable(command['name'])['widget']
             flags = command['value']

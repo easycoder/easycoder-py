@@ -144,9 +144,9 @@ class TextReceiver():
             raise ValueError("Only single characters are allowed.")
 
     def backspace(self):
-        current_text = self.field.text()
+        current_text = self.getContent()
         if current_text:
-            self.field.setText(current_text[:-1])
+            self.setContent(current_text[:-1])
 
     def setContent(self, text):
         if isinstance(self.field, QLineEdit):
