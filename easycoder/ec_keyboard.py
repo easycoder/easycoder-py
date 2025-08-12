@@ -25,7 +25,8 @@ class Keyboard(Handler):
 
         def __init__(self):
             super().__init__()
-            self.setFixedHeight(30)
+            self.size = 40
+            self.setFixedHeight(self.size)
             self._drag_active = False
             self._drag_start_pos = None
 
@@ -33,12 +34,12 @@ class Keyboard(Handler):
             painter = QPainter(self)
             painter.setRenderHint(QPainter.Antialiasing)
             # Draw the tick icon
-            self.tick = QPixmap(f'{os.path.dirname(os.path.abspath(__file__))}/tick.png').scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.tick = QPixmap(f'{os.path.dirname(os.path.abspath(__file__))}/tick.png').scaled(self.size, self.size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             x = 0
             y = 0
             painter.drawPixmap(x, y, self.tick)
             # Draw the close icon
-            self.close = QPixmap(f'{os.path.dirname(os.path.abspath(__file__))}/close.png').scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.close = QPixmap(f'{os.path.dirname(os.path.abspath(__file__))}/close.png').scaled(self.size, self.size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             x = self.width() - self.close.width()
             y = 0
             painter.drawPixmap(x, y, self.close)
@@ -81,7 +82,6 @@ class Keyboard(Handler):
         super().__init__(program.compiler)
 
         self.program = program
-        self.keyboardType = keyboardType
         self.receivers = receivers
 
         dialog = QDialog(caller)
@@ -484,5 +484,5 @@ class VirtualKeyboard(QStackedWidget):
 
     def onClickEnter(self,keycode):
         # print("Enter pressed")
-        if self.keyboardType == 'multiline': self.receiver.addCharacter('\n')
+        if self.receiver.field.multiline: self.receiver.addCharacter('\n')
         else: self.onFinished()

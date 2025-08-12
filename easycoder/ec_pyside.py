@@ -84,6 +84,7 @@ class Graphics(Handler):
 
         def __init__(self):
             super().__init__()
+            self.multiline = False
         
         def setContainer(self, container):
             self.container = container
@@ -98,6 +99,7 @@ class Graphics(Handler):
 
         def __init__(self):
             super().__init__()
+            self.multiline = True
         
         def setContainer(self, container):
             self.container = container
