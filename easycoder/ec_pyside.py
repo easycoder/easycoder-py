@@ -645,8 +645,8 @@ class Graphics(Handler):
             dialog.textEdit.setText(dialog.value)
             mainLayout.addWidget(dialog.textEdit)
         buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        buttonBox.accepted.connect(self.accept)
-        buttonBox.rejected.connect(self.reject)
+        buttonBox.accepted.connect(dialog.accept)
+        buttonBox.rejected.connect(dialog.reject)
         mainLayout.addWidget(buttonBox, alignment=Qt.AlignHCenter)
         record['dialog'] = dialog
         return self.nextPC()
