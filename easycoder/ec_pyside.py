@@ -1087,7 +1087,7 @@ class Graphics(Handler):
         elif what == 'state':
             record = self.getVariable(command['name'])
             if record['keyword'] == 'checkbox':
-                state = True if command['value'] == 'checked' else False
+                state = self.getRuntimeValue(command['value'])
                 record['widget'].setChecked(state)
         elif what == 'alignment':
             widget = self.getVariable(command['name'])['widget']
