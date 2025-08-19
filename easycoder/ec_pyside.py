@@ -348,7 +348,6 @@ class Graphics(Handler):
 
     def k_createLabel(self, command):
         text = self.compileConstant('')
-        size = self.compileConstant(20)
         while True:
             token = self.peek()
             if token == 'text':
@@ -356,7 +355,10 @@ class Graphics(Handler):
                 text = self.nextValue()
             elif token == 'size':
                 self.nextToken()
-                size = self.nextValue()
+                command['size'] = self.nextValue()
+            elif token == 'expand':
+                self.nextToken()
+                command['expand'] = True
             elif token == 'align':
                 self.nextToken()
                 token = self.nextToken()
@@ -364,7 +366,6 @@ class Graphics(Handler):
                     command['align'] = token
             else: break
         command['text'] = text
-        command['size'] = size
         self.add(command)
         return True
 
@@ -555,6 +556,8 @@ class Graphics(Handler):
             elif alignment == 'right': label.setAlignment(Qt.AlignRight)
             elif alignment in ['center', 'centre']: label.setAlignment(Qt.AlignHCenter)
             elif alignment == 'justify': label.setAlignment(Qt.AlignJustify)
+        if 'expand' in command:
+            label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         record['widget'] = label
         return self.nextPC()
     
