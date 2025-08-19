@@ -991,7 +991,7 @@ class Graphics(Handler):
                 if record['keyword'] == 'checkbox':
                     command['name'] = record['name']
                     self.skip('to')
-                    command['value'] = self.nextToken()
+                    command['value'] = self.nextValue()
                     self.add(command)
                     return True
         elif token == 'alignment':
