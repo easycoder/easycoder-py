@@ -515,9 +515,13 @@ class Graphics(Handler):
         h = self.getRuntimeValue(command['h'])
         x = command['x']
         y = command['y']
-        if x == None: x = (self.program.screenWidth - w) / 2
+        if hasattr(self.program, 'screenWidth'): screenWidth = self.program.screenWidth
+        else: screenWidth = self.program.parent.program.screenWidth
+        if hasattr(self.program, 'screenHeight'): screenHeight = self.program.screenHeight
+        else: screenHeight = self.program.parent.program.screenHeight
+        if x == None: x = (screenWidth - w) / 2
         else: x = self.getRuntimeValue(x)
-        if y == None: y = (self.program.screenHeight - h) / 2
+        if y == None: y = (screenHeight - h) / 2
         else: y = self.getRuntimeValue(x)
         window.setGeometry(x, y, w, h)
         record['window'] = window
