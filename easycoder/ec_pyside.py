@@ -1,8 +1,9 @@
-import sys
+import sys, os
 from .ec_handler import Handler
 from .ec_classes import RuntimeError
-from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QPixmap
+from .ec_border import Border
+from PySide6.QtCore import Qt, QTimer, Signal, QRect
+from PySide6.QtGui import QPixmap, QPainter
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -34,7 +35,8 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QDialog,
     QMessageBox,
-    QDialogButtonBox
+    QDialogButtonBox,
+    QGraphicsDropShadowEffect
 )
 
 class Graphics(Handler):
@@ -65,19 +67,7 @@ class Graphics(Handler):
             ]
 
     def dialogTypes(self):
-        return ['confirm', 'lineedit', 'multiline']
-
-    class ECDialog(QDialog):
-        def __init__(self, parent, record):
-            super().__init__(parent)
-            self.record = record
-        
-        def showEvent(self, event):
-            super().showEvent(event)
-            QTimer.singleShot(100, self.afterShown)
-        
-        def afterShown(self):
-            if 'action' in self.record: self.record['action']()
+        return ['confirm', 'lineedit', 'multiline', 'generic']
 
     class ClickableLineEdit(QLineEdit):
         clicked = Signal()
@@ -300,7 +290,7 @@ class Graphics(Handler):
 
     # Create a window
     def k_createWindow(self, command):
-        command['title'] = 'Default'
+        title = None
         x = None
         y = None
         w = self.compileConstant(640)
@@ -309,7 +299,7 @@ class Graphics(Handler):
             token = self.peek()
             if token in ['title', 'at', 'size', 'layout']:
                 self.nextToken()
-                if token == 'title': command['title'] = self.nextValue()
+                if token == 'title': title = self.nextValue()
                 elif token == 'at':
                     x = self.nextValue()
                     y = self.nextValue()
@@ -323,6 +313,7 @@ class Graphics(Handler):
                             command['layout'] = record['name']
                 else: return False
             else: break
+        command['title'] = title
         command['x'] = x
         command['y'] = y
         command['w'] = w
@@ -456,6 +447,9 @@ class Graphics(Handler):
             elif self.peek() == 'value':
                 self.nextToken()
                 command['value'] =  self.nextValue()
+            elif self.peek() == 'with':
+                self.nextToken()
+                command['layout'] =  self.nextToken()
             else: break
         if not 'title' in command: command['title'] = self.compileConstant('')
         if not 'value' in command: command['value'] = self.compileConstant('')
@@ -510,7 +504,9 @@ class Graphics(Handler):
     
     def r_createWindow(self, command, record):
         window = QMainWindow()
-        window.setWindowTitle(self.getRuntimeValue(command['title']))
+        title = self.getRuntimeValue(command['title'])
+        if title == None: title = 'EasyCoder Main Window'
+        window.setWindowTitle(title)
         w = self.getRuntimeValue(command['w'])
         h = self.getRuntimeValue(command['h'])
         x = command['x']
@@ -629,32 +625,61 @@ class Graphics(Handler):
         return self.nextPC()
     
     def r_createDialog(self, command, record):
+
+        class ECDialog(QDialog):
+            def __init__(self, parent, record):
+                super().__init__(parent)
+                self.record = record
+            
+            def showEvent(self, event):
+                super().showEvent(event)
+                QTimer.singleShot(100, self.afterShown)
+            
+            def afterShown(self):
+                if 'action' in self.record: self.record['action']()
+
         win = command['window']
         if win != None:
             win = self.getVariable(win)['window']
-        dialog = self.ECDialog(win, record)
-        mainLayout = QVBoxLayout(dialog)
-        dialog.setWindowTitle(self.getRuntimeValue(command['title']))
+        dialog = ECDialog(win, record)
         dialogType = command['type'].lower()
         dialog.dialogType = dialogType
-        prompt = self.getRuntimeValue(command['prompt'])
-        if dialogType == 'confirm':
-            mainLayout.addWidget(QLabel(prompt))
-        elif dialogType == 'lineedit':
-            mainLayout.addWidget(QLabel(prompt))
-            dialog.lineEdit = self.ClickableLineEdit(dialog)
-            dialog.value = self.getRuntimeValue(command['value'])
-            dialog.lineEdit.setText(dialog.value)
-            mainLayout.addWidget(dialog.lineEdit)
-        elif dialogType == 'multiline':
-            mainLayout.addWidget(QLabel(prompt))
-            dialog.textEdit = self.ClickablePlainTextEdit(self)
-            dialog.textEdit.setText(dialog.value)
-            mainLayout.addWidget(dialog.textEdit)
-        buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        buttonBox.accepted.connect(dialog.accept)
-        buttonBox.rejected.connect(dialog.reject)
-        mainLayout.addWidget(buttonBox, alignment=Qt.AlignHCenter)
+        mainLayout = QVBoxLayout(dialog)
+        if dialogType == 'generic':
+            dialog.setFixedWidth(500)
+            dialog.setFixedHeight(500)
+            dialog.setWindowFlags(Qt.FramelessWindowHint)
+            dialog.setModal(True)
+            dialog.setStyleSheet('background-color: white;border:1px solid black;')
+
+            border = Border()
+            border.tickClicked.connect(dialog.accept)
+            border.closeClicked.connect(dialog.reject)
+            mainLayout.addWidget(border)
+            if 'layout' in command:
+                layout = self.getVariable(command['layout'])['widget']
+                mainLayout.addLayout(layout)
+            dialog.setLayout(mainLayout)
+        else:
+            dialog.setWindowTitle(self.getRuntimeValue(command['title']))
+            prompt = self.getRuntimeValue(command['prompt'])
+            if dialogType == 'confirm':
+                mainLayout.addWidget(QLabel(prompt))
+            elif dialogType == 'lineedit':
+                mainLayout.addWidget(QLabel(prompt))
+                dialog.lineEdit = self.ClickableLineEdit(dialog)
+                dialog.value = self.getRuntimeValue(command['value'])
+                dialog.lineEdit.setText(dialog.value)
+                mainLayout.addWidget(dialog.lineEdit)
+            elif dialogType == 'multiline':
+                mainLayout.addWidget(QLabel(prompt))
+                dialog.textEdit = self.ClickablePlainTextEdit(self)
+                dialog.textEdit.setText(dialog.value)
+                mainLayout.addWidget(dialog.textEdit)
+            buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+            buttonBox.accepted.connect(dialog.accept)
+            buttonBox.rejected.connect(dialog.reject)
+            mainLayout.addWidget(buttonBox, alignment=Qt.AlignHCenter)
         record['dialog'] = dialog
         return self.nextPC()
     
@@ -938,11 +963,12 @@ class Graphics(Handler):
         return self.nextPC()
 
     # set [the] width/height [of] {widget} [to] {value}
-    # set [the] layout of {window} to {layout}
+    # set [the] layout of {window}/{widget} to {layout}
     # set [the] spacing of {layout} to {value}
     # set [the] text [of] {label}/{button}/{lineinput}/{multiline} [to] {text}
     # set [the] color [of] {label}/{button}/{lineinput}/{multiline} [to] {color}
     # set [the] state [of] {checkbox} [to] {state}
+    # set [the] style of {widget} to {style}
     # set {listbox} to {list}
     # set blocked true/false
     def k_set(self, command):
@@ -963,7 +989,8 @@ class Graphics(Handler):
             self.skip('of')
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                if record['keyword'] == 'window':
+                keyword = record['keyword']
+                if keyword in ['window', 'widget']:
                     command['name'] = record['name']
                     self.skip('to')
                     if self.nextIsSymbol():
@@ -996,6 +1023,22 @@ class Graphics(Handler):
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
                 if record['keyword'] == 'checkbox':
+                    command['name'] = record['name']
+                    self.skip('to')
+                    if self.peek() == 'checked':
+                        command['value'] = self.compileConstant(True)
+                        self.nextToken()
+                    elif self.peek() == 'unchecked':
+                        command['value'] = self.compileConstant(False)
+                        self.nextToken()
+                    else: command['value'] = self.nextValue()
+                    self.add(command)
+                    return True
+        elif token == 'style':
+            self.skip('of')
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                if record['extra'] == 'gui':
                     command['name'] = record['name']
                     self.skip('to')
                     command['value'] = self.nextValue()
@@ -1068,11 +1111,17 @@ class Graphics(Handler):
             widget = self.getVariable(command['name'])['widget']
             widget.setFixedWidth(self.getRuntimeValue(command['value']))
         elif what == 'layout':
-            window = self.getVariable(command['name'])['window']
             content = self.getVariable(command['layout'])['widget']
-            container = QWidget()
-            container.setLayout(content)
-            window.setCentralWidget(container)
+            record = self.getVariable(command['name'])
+            keyword = record['keyword']
+            if keyword == 'window':
+                window = record['widget']
+                container = QWidget()
+                container.setLayout(content)
+                window.setCentralWidget(container)
+            elif keyword == 'widget':
+                widget = record['widget']
+                widget.setLayout(content)
         elif what == 'spacing':
             layout = self.getVariable(command['name'])['widget']
             layout.setSpacing(self.getRuntimeValue(command['value']))
@@ -1188,7 +1237,9 @@ class Graphics(Handler):
         elif 'dialog' in command:
             record = self.getVariable(command['dialog'])
             dialog = record['dialog']
-            if dialog.dialogType == 'confirm':
+            if dialog.dialogType == 'generic':
+                record['result'] =  dialog.exec()
+            elif dialog.dialogType == 'confirm':
                 record['result'] = True if dialog.exec() == QDialog.Accepted else False
             elif dialog.dialogType == 'lineedit':
                 if dialog.exec() == QDialog.Accepted:
@@ -1223,6 +1274,13 @@ class Graphics(Handler):
         QTimer.singleShot(500, init)
         self.app.lastWindowClosed.connect(on_last_window_closed)
         self.app.exec()
+
+    # Declare a widget variable
+    def k_widget(self, command):
+        return self.compileVariable(command, 'gui')
+
+    def r_widget(self, command):
+        return self.nextPC()
 
     # Declare a window variable
     def k_window(self, command):
