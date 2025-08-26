@@ -733,7 +733,7 @@ class Graphics(Handler):
         return False
     
     def r_disable(self, command):
-        self.getVariable(command['name'])['widget'].setEnabled(False)
+        self.getWidget(self.getVariable(command['name'])).setEnabled(False)
         return self.nextPC()
 
     # Enable a widget
@@ -745,7 +745,7 @@ class Graphics(Handler):
         return False
     
     def r_enable(self, command):
-        self.getVariable(command['name'])['widget'].setEnabled(True)
+        self.getWidget(self.getVariable(command['name'])).setEnabled(True)
         return self.nextPC()
 
     # Create a group box
@@ -1130,7 +1130,7 @@ class Graphics(Handler):
             record = self.getVariable(command['name'])
             keyword = record['keyword']
             if keyword == 'window':
-                window = record['widget']
+                window = record['window']
                 container = QWidget()
                 container.setLayout(content)
                 window.setCentralWidget(container)
@@ -1141,7 +1141,8 @@ class Graphics(Handler):
             layout = self.getVariable(command['name'])['widget']
             layout.setSpacing(self.getRuntimeValue(command['value']))
         elif what == 'text':
-            widget = self.getVariable(command['name'])['widget']
+            record = self.getVariable(command['name'])
+            widget = self.getWidget(record)
             text = self.getRuntimeValue(command['value'])
             keyword = record['keyword']
             setText = getattr(widget, "setText", None)
@@ -1361,7 +1362,7 @@ class Graphics(Handler):
         symbolRecord = self.getVariable(symbolRecord['name'])
         keyword = symbolRecord['keyword']
         if keyword == 'pushbutton':
-            pushbutton = self.getSymbolContent() # symbolRecord['widget']
+            pushbutton = self.getSymbolContent(symbolRecord) # symbolRecord['widget']
             v = {}
             v['type'] = 'text'
             v['content'] = pushbutton.accessibleName()
