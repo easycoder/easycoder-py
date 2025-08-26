@@ -36,6 +36,7 @@ class Handler:
 		self.testCondition = self.program.condition.testCondition
 		self.symbols = self.program.symbols
 		self.stack = self.program.stack
+		self.getSymbolContent = self.program.getSymbolContent
 		self.getSymbolValue = self.program.getSymbolValue
 		self.putSymbolValue = self.program.putSymbolValue
 		self.run = self.program.run

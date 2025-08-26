@@ -5,7 +5,7 @@ class FatalError:
 		compiler.showWarnings()
 		lino = compiler.tokens[compiler.index].lino
 		script = compiler.script.lines[lino].strip()
-		print(f'Compile error in {compiler.program.name} at line {lino + 1} ({script}): {message}')
+		print(f'Compile error in {compiler.program.name} at line {lino + 1} ({script}):\n-> {message}')
 		sys.exit()
 
 class NoValueError(FatalError):
@@ -31,7 +31,7 @@ class RuntimeError:
 			code = program.code[program.pc]
 			lino = code['lino']
 			script = program.script.lines[lino].strip()
-			print(f'Runtime Error in {program.name} at line {lino + 1} ({script}): {message}')
+			print(f'Runtime Error in {program.name} at line {lino + 1} ({script}):\n-> {message}')
 			sys.exit()
 
 class NoValueRuntimeError(RuntimeError):

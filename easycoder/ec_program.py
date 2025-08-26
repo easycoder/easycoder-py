@@ -197,6 +197,11 @@ class Program:
 			return ''
 		return None
 
+	def getSymbolContent(self, symbolRecord):
+		if len(symbolRecord['value']) == 0:
+			return None
+		return symbolRecord['value'][symbolRecord['index']]
+
 	def getSymbolValue(self, symbolRecord):
 		if len(symbolRecord['value']) == 0:
 			return None

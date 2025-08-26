@@ -1,4 +1,5 @@
-import sys, os
+import sys
+from functools import partial
 from .ec_handler import Handler
 from .ec_classes import RuntimeError
 from .ec_border import Border
@@ -63,11 +64,16 @@ class Graphics(Handler):
             'lineinput',
             'multiline',
             'listbox',
-            'combobox'
+            'combobox',
+            'widget'
             ]
 
     def dialogTypes(self):
         return ['confirm', 'lineedit', 'multiline', 'generic']
+    
+    def getWidget(self, record):
+        if record['keyword'] in ['pushbutton']: return self.getSymbolContent(record)
+        else: return record['widget']
 
     class ClickableLineEdit(QLineEdit):
         clicked = Signal()
@@ -198,13 +204,13 @@ class Graphics(Handler):
             layoutRecord = self.getVariable(command['layout'])
             widget = command['widget']
             if widget == 'stretch':
-                layoutRecord['widget'].addStretch()
+                self.getWidget(layoutRecord).addStretch()
             elif widget == 'spacer':
-                layoutRecord['widget'].addSpacing(self.getRuntimeValue(command['size']))
+                self.getWidget(layoutRecord).addSpacing(self.getRuntimeValue(command['size']))
             else:
                 widgetRecord = self.getVariable(widget)
                 layoutRecord = self.getVariable(command['layout'])
-                widget = widgetRecord['widget']
+                widget = self.getWidget(widgetRecord)
                 layout = layoutRecord['widget']
                 stretch = 'stretch' in command
                 if widgetRecord['keyword'] == 'layout':
@@ -264,7 +270,8 @@ class Graphics(Handler):
         return False
     
     def r_clear(self, command):
-        self.getVariable(command['name'])['widget'].clear()
+        widget = self.getVariable(command['name'])['widget']
+        widget.clear()
         return self.nextPC()
 
     # close {window}
@@ -418,11 +425,7 @@ class Graphics(Handler):
         self.add(command)
         return True
 
-    def k_createListWidget(self, command):
-        self.add(command)
-        return True
-
-    def k_createComboBox(self, command):
+    def k_createWidget(self, command):
         self.add(command)
         return True
 
@@ -489,6 +492,7 @@ class Graphics(Handler):
             command['name'] = record['name']
             keyword = record['keyword']
             if keyword == 'window': return self.k_createWindow(command)
+            elif keyword in ['listbox', 'combobox', 'widget']: return self.k_createWidget(command)
             elif keyword == 'layout': return self.k_createLayout(command)
             elif keyword == 'group': return self.k_createGroupBox(command)
             elif keyword == 'label': return self.k_createLabel(command)
@@ -496,8 +500,6 @@ class Graphics(Handler):
             elif keyword == 'checkbox': return self.k_createCheckBox(command)
             elif keyword == 'lineinput': return self.k_createLineEdit(command)
             elif keyword == 'multiline': return self.k_createMultiLineEdit(command)
-            elif keyword == 'listbox': return self.k_createListWidget(command)
-            elif keyword == 'combobox': return self.k_createComboBox(command)
             elif keyword == 'dialog': return self.k_createDialog(command)
             elif keyword == 'messagebox': return self.k_createMessageBox(command)
         return False
@@ -570,7 +572,7 @@ class Graphics(Handler):
             c = pushbutton.contentsMargins()
             w = fm.horizontalAdvance('m') * self.getRuntimeValue(command['size']) + c.left()+c.right()
             pushbutton.setMaximumWidth(w)
-        record['widget'] = pushbutton
+        self.putSymbolValue(record, pushbutton)
         return self.nextPC()
     
     def r_createCheckBox(self, command, record):
@@ -622,6 +624,10 @@ class Graphics(Handler):
     
     def r_createComboBox(self, command, record):
         record['widget'] = QComboBox()
+        return self.nextPC()
+    
+    def r_createWidget(self, command, record):
+        record['widget'] = QWidget()
         return self.nextPC()
     
     def r_createDialog(self, command, record):
@@ -706,6 +712,7 @@ class Graphics(Handler):
         elif keyword == 'multiline': return self.r_createMultiLineEdit(command, record)
         elif keyword == 'listbox': return self.r_createListWidget(command, record)
         elif keyword == 'combobox': return self.r_createComboBox(command, record)
+        elif keyword == 'widget': return self.r_createWidget(command, record)
         elif keyword == 'dialog': return self.r_createDialog(command, record)
         elif keyword == 'messagebox': return self.r_createMessageBox(command, record)
         return None
@@ -877,14 +884,22 @@ class Graphics(Handler):
         return False
     
     def r_on(self, command):
+        def run(widget, record):
+            for i, w in enumerate(record['value']):
+                if w == widget:
+                    record['index'] = i
+                    self.run(command['goto'])
+                    return
+
         if command['type'] == 'tick':
             self.runOnTick = command['runOnTick']
         else:
             record = self.getVariable(command['name'])
-            widget = record['widget']
+            widget = self.getWidget(record)
             keyword = record['keyword']
             if keyword == 'pushbutton':
-                widget.clicked.connect(lambda: self.run(command['goto']))
+                handler = partial(run, widget, record)
+                widget.clicked.connect(handler)
             elif keyword == 'combobox':
                 widget.currentIndexChanged.connect(lambda: self.run(command['goto']))
             elif keyword == 'listbox':
@@ -1126,7 +1141,6 @@ class Graphics(Handler):
             layout = self.getVariable(command['name'])['widget']
             layout.setSpacing(self.getRuntimeValue(command['value']))
         elif what == 'text':
-            record = self.getVariable(command['name'])
             widget = self.getVariable(command['name'])['widget']
             text = self.getRuntimeValue(command['value'])
             keyword = record['keyword']
@@ -1156,19 +1170,23 @@ class Graphics(Handler):
                 elif flag == 'center': alignment |= Qt.AlignCenter
             widget.setAlignment(alignment)
         elif what == 'style':
-            widget = self.getVariable(command['name'])['widget']
+            record = self.getVariable(command['name'])
+            widget = self.getWidget(record)
             styles = self.getRuntimeValue(command['value'])
             widget.setStyleSheet(styles)
         elif what == 'color':
-            widget = self.getVariable(command['name'])['widget']
+            record = self.getVariable(command['name'])
+            widget = self.getWidget(record)
             color = self.getRuntimeValue(command['value'])
             widget.setStyleSheet(f"color: {color};")
         elif what == 'background-color':
-            widget = self.getVariable(command['name'])['widget']
+            record = self.getVariable(command['name'])
+            widget = self.getWidget(record)
             bg_color = self.getRuntimeValue(command['value'])
             widget.setStyleSheet(f"background-color: {bg_color};")
         elif what == 'listbox':
-            widget = self.getVariable(command['name'])['widget']
+            record = self.getVariable(command['name'])
+            widget = self.getWidget(record)
             value = self.getRuntimeValue(command['value'])
             widget.clear()
             widget.addItems(value)
@@ -1343,7 +1361,7 @@ class Graphics(Handler):
         symbolRecord = self.getVariable(symbolRecord['name'])
         keyword = symbolRecord['keyword']
         if keyword == 'pushbutton':
-            pushbutton = symbolRecord['widget']
+            pushbutton = self.getSymbolContent() # symbolRecord['widget']
             v = {}
             v['type'] = 'text'
             v['content'] = pushbutton.accessibleName()

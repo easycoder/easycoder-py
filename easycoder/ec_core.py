@@ -540,11 +540,11 @@ class Core(Handler):
 
     def r_gosub(self, command):
         label = command['gosub'] + ':'
-        address = self.symbols[label]
-        if address != None:
+        if label in self.symbols:
+            address = self.symbols[label]
             self.stack.append(self.nextPC())
             return address
-        RuntimeError(self.program, f'There is no label "{label + ":"}"')
+        RuntimeError(self.program, f'There is no label "{label}"')
         return None
 
     # if <condition> <action> [else <action>]

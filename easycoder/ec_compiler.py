@@ -119,6 +119,9 @@ class Compiler:
 
 	def getSymbolRecord(self):
 		token = self.getToken()
+		if not token in self.symbols:
+			FatalError(self, f'Undefined symbol name "{token}"')
+			return None
 		symbol = self.symbols[token]
 		if symbol == None: return None
 		symbolRecord = self.code[symbol]
