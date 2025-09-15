@@ -1,5 +1,6 @@
 import json, math, hashlib, threading, os, subprocess, time
 import numbers, base64, binascii, random, requests, paramiko
+from copy import deepcopy
 from psutil import Process
 from datetime import datetime
 from .ec_classes import FatalError, RuntimeWarning, RuntimeError, AssertionError, NoValueError, NoValueRuntimeError, Condition, Object
@@ -1076,7 +1077,7 @@ class Core(Handler):
         return False
 
     def r_push(self, command):
-        value = self.getRuntimeValue(command['value'])
+        value = deepcopy(self.getRuntimeValue(command['value']))
         stackRecord = self.getVariable(command['to'])
         if stackRecord['keyword'] != 'stack':
             RuntimeError(self.program, f'{stackRecord["name"]} is not a stack')
@@ -2430,7 +2431,7 @@ class Core(Handler):
     def v_now(self, v):
         value = {}
         value['type'] = 'int'
-        value['content'] = getTimestamp(time.time())
+        value['content'] = int(time.time())
         return value
 
     def v_position(self, v):

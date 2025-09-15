@@ -1,3 +1,11 @@
-variable X
-print X
+! test.ecs
+
+    script Test
+    
+    variable TS
+    variable Now
+    
+    put the timestamp of `17:00` format `%H:%M` into TS
+    put now into Now
+    print TS cat ` ` cat Now
 
