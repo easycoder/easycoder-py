@@ -211,7 +211,6 @@ class Compiler:
 			token = self.tokens[self.index]
 			keyword = token.token
 			if self.debugCompile: print(self.script.lines[token.lino])
-#			print(f'{keyword} - {line}')
 #			if keyword != 'else':
 			if self.compileOne() == True:
 				if self.index == len(self.tokens) - 1:

@@ -160,23 +160,25 @@ class Core(Handler):
         else:
             return self.compileFromHere(['end'])
 
-    # Clear (set false)
     # clear {variable}
     def k_clear(self, command):
         if self.nextIsSymbol():
             target = self.getSymbolRecord()
-            if target['hasValue']:
-                command['target'] = target['name']
+            command['target'] = target['name']
+            if target['hasValue'] or target['keyword'] == 'ssh':
                 self.add(command)
                 return True
         return False
 
     def r_clear(self, command):
         target = self.getVariable(command['target'])
-        val = {}
-        val['type'] = 'boolean'
-        val['content'] = False
-        self.putSymbolValue(target, val)
+        if target['keyword'] == 'ssh':
+            target['ssh'] = None
+        else:
+            val = {}
+            val['type'] = 'boolean'
+            val['content'] = False
+            self.putSymbolValue(target, val)
         return self.nextPC()
 
     # Close a file
@@ -277,7 +279,7 @@ class Core(Handler):
         return self.incdec(command, '-')
 
     # Delete a file or a property
-    # delete {filename}
+    # delete file {filename}
     # delete property {value} of {variable}
     # delete element {name} of {variable}
     def k_delete(self, command):
@@ -306,8 +308,8 @@ class Core(Handler):
         type = command['type']
         if type == 'file':
             filename = self.getRuntimeValue(command['filename'])
-            if os.path.isfile(filename):
-                os.remove(filename)
+            if filename != None:
+                if os.path.isfile(filename): os.remove(filename)
         elif type == 'property':
             key = self.getRuntimeValue(command['key'])
             symbolRecord = self.getVariable(command['var'])
@@ -1504,8 +1506,11 @@ class Core(Handler):
             ssh = paramiko.SSHClient()
             target['ssh'] = ssh
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(host, username=user, password=password)
-            target['sftp'] = ssh.open_sftp()
+            try:
+                ssh.connect(host, username=user, password=password, timeout=10)
+                target['sftp'] = ssh.open_sftp()
+            except:
+                target['error'] = f'Unable to connect to {host} (timeout)'
             return self.nextPC()
 
     # Shuffle a list
@@ -2109,14 +2114,24 @@ class Core(Handler):
             return value
 
         if token == 'error':
-            if self.peek() == 'code':
+            token = self.peek()
+            if token == 'code':
                 self.nextToken()
                 value['item'] = 'errorCode'
                 return value
-            if self.peek() == 'reason':
+            elif token == 'reason':
                 self.nextToken()
                 value['item'] = 'errorReason'
                 return value
+            elif token in ['in', 'of']:
+                self.nextToken()
+                if self.nextIsSymbol():
+                    record = self.getSymbolRecord()
+                    if record['keyword'] == 'ssh':
+                        value['item'] = 'sshError'
+                        value['name'] = record['name']
+                        return value
+            return None
 
         if token == 'type':
             if self.nextIs('of'):
@@ -2280,6 +2295,10 @@ class Core(Handler):
         elif v['item'] == 'errorReason':
             value['type'] = 'text'
             value['content'] = errorReason
+        elif v['item'] == 'sshError':
+            record = self.getVariable(v['name'])
+            value['type'] = 'text'
+            value['content'] = record['error'] if 'error' in record else ''
         return value
 
     def v_files(self, v):
@@ -2511,7 +2530,7 @@ class Core(Handler):
         elif keyword == 'ssh':
             v = {}
             v['type'] = 'boolean'
-            v['content']  = True if 'ssh' in symbolRecord else False
+            v['content']  = True if 'ssh' in symbolRecord and symbolRecord['ssh'] != None else False
             return v
         else:
             return None
@@ -2614,12 +2633,25 @@ class Core(Handler):
     def compileCondition(self):
         condition = Condition()
 
-        if self.getToken() == 'not':
+        token = self.getToken()
+
+        if token == 'not':
             condition.type = 'not'
             condition.value = self.nextValue()
             return condition
 
-        if self.getToken() == 'file':
+        elif token == 'error':
+            self.nextToken()
+            self.skip('in')
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                if record['keyword'] == 'ssh':
+                    condition.type = 'sshError'
+                    condition.target = record['name']
+                    return condition
+            return None
+
+        elif token == 'file':
             path = self.nextValue()
             condition.path = path
             condition.type = 'exists'
@@ -2799,6 +2831,13 @@ class Core(Handler):
 
     def c_odd(self, condition):
         return self.getRuntimeValue(condition.value1) % 2 == 1
+    
+    def c_sshError(self, condition):
+        target = self.getVariable(condition.target)
+        errormsg = target['error'] if 'error' in target else None
+        condition.errormsg = errormsg
+        test = errormsg != None
+        return not test if condition.negate else test
 
     def c_starts(self, condition):
         value1 = self.getRuntimeValue(condition.value1)
