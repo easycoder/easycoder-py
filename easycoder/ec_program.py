@@ -200,12 +200,14 @@ class Program:
 	def getSymbolContent(self, symbolRecord):
 		if len(symbolRecord['value']) == 0:
 			return None
-		return symbolRecord['value'][symbolRecord['index']]
+		try: return symbolRecord['value'][symbolRecord['index']]
+		except:  RuntimeError(self, f'Cannot get content of symbol "{symbolRecord["name"]}"')
 
 	def getSymbolValue(self, symbolRecord):
 		if len(symbolRecord['value']) == 0:
 			return None
-		value = symbolRecord['value'][symbolRecord['index']]
+		try: value = symbolRecord['value'][symbolRecord['index']]
+		except:  RuntimeError(self, f'Cannot get value of symbol "{symbolRecord["name"]}"')
 		copy = deepcopy(value)
 		return copy
 

@@ -370,17 +370,18 @@ class Graphics(Handler):
         return True
 
     def k_createPushbutton(self, command):
-        text = ''
         while True:
             token = self.peek()
             if token == 'text':
                 self.nextToken()
-                text = self.nextValue()
+                command['text'] = self.nextValue()
+            if token == 'icon':
+                self.nextToken()
+                command['icon'] = self.nextValue()
             elif token == 'size':
                 self.nextToken()
                 command['size'] = self.nextValue()
             else: break
-        command['text'] = text
         self.add(command)
         return True
 
@@ -566,15 +567,29 @@ class Graphics(Handler):
         return self.nextPC()
     
     def r_createPushbutton(self, command, record):
-        text = self.getRuntimeValue(command['text'])
-        pushbutton = QPushButton(text)
-        pushbutton.setAccessibleName(text)
         if 'size' in command:
-            fm = pushbutton.fontMetrics()
-            c = pushbutton.contentsMargins()
-            w = fm.horizontalAdvance('m') * self.getRuntimeValue(command['size']) + c.left()+c.right()
-            pushbutton.setMaximumWidth(w)
+            size = self.getRuntimeValue(command['size'])
+        else: size = None
+        if 'icon' in command:
+            iconPath = self.getRuntimeValue(command['icon'])
+            pixmap = QPixmap(iconPath)
+            if pixmap.isNull():
+                RuntimeError(self.program, f'Icon not found: {iconPath}')
+            icon = pixmap.scaledToHeight(size if size != None else 24, Qt.SmoothTransformation)
+            pushbutton = QPushButton()
+            pushbutton.setIcon(icon)
+            pushbutton.setIconSize(icon.size())
+        elif 'text' in command:
+            text = self.getRuntimeValue(command['text'])
+            pushbutton = QPushButton(text)
+            pushbutton.setAccessibleName(text)
+            if size != None:
+                fm = pushbutton.fontMetrics()
+                c = pushbutton.contentsMargins()
+                w = fm.horizontalAdvance('m') * self.getRuntimeValue(command['size']) + c.left()+c.right()
+                pushbutton.setMaximumWidth(w)
         self.putSymbolValue(record, pushbutton)
+        record['widget'] = pushbutton
         return self.nextPC()
     
     def r_createCheckBox(self, command, record):
@@ -755,6 +770,21 @@ class Graphics(Handler):
         return self.compileVariable(command, 'gui')
 
     def r_group(self, command):
+        return self.nextPC()
+
+    # hide {widget}
+    def k_hide(self, command):
+        if self.nextIsSymbol():
+            record = self.getSymbolRecord()
+            if self.isWidget(record['keyword']):
+                command['widget'] = record['name']
+                self.add(command)
+                return True
+        return False
+        
+    def r_hide(self, command):
+        widget = self.getVariable(command['widget'])['widget']
+        widget.hide()
         return self.nextPC()
 
     # Initialize the graphics environment
@@ -1217,6 +1247,10 @@ class Graphics(Handler):
                     command['result'] = self.getSymbolRecord()['name']
                     self.add(command)
                     return True
+            elif self.isWidget(keyword):
+                command['name'] = record['name']
+                self.add(command)
+                return True
         return False
         
     def r_show(self, command):
@@ -1270,6 +1304,9 @@ class Graphics(Handler):
                 if dialog.exec() == QDialog.Accepted:
                     record['result'] = dialog.textEdit.toPlainText()
                 else: record['result'] = dialog.value
+        elif 'name' in command:
+            record = self.getVariable(command['name'])
+            if 'widget' in record: record['widget'].show()
         return self.nextPC()
 
     # Start the graphics

@@ -158,6 +158,8 @@ class KeyboardView(QVBoxLayout):
         for row in rows:
             self.addLayout(row)
 
+###############################################################################
+# VirtualKeyboard Class
 class VirtualKeyboard(QStackedWidget):
     def __init__(self, keyboardType, buttonHeight, receiver, onFinished):
         super().__init__()
@@ -173,6 +175,8 @@ class VirtualKeyboard(QStackedWidget):
         self.addKeyboardLayout2()
         self.addKeyboardLayout3()
 
+    ###########################################################################
+    # Add the first keyboard layout (lowercase letters)
     def addKeyboardLayout0(self):
         rowList = []
 
@@ -214,7 +218,7 @@ class VirtualKeyboard(QStackedWidget):
             KeyboardButton(self.buttonHeight * 1.5, self.buttonHeight, self.onClickNumbers, None, 'img/numbers.png'),
             QSpacerItem(self.buttonHeight * 0.05, 0, QSizePolicy.Fixed, QSizePolicy.Minimum),
             KeyboardButton(self.buttonHeight, self.buttonHeight, self.onClickChar, ","),
-            KeyboardButton(self.buttonHeight * 5, self.buttonHeight, self.onClickSpace, None, 'skeyboard/pace.png'),
+            KeyboardButton(self.buttonHeight * 5, self.buttonHeight, self.onClickSpace, None, 'keyboard/space.png'),
             KeyboardButton(self.buttonHeight, self.buttonHeight, self.onClickChar, "."),
             QSpacerItem(self.buttonHeight * 0.05, 0, QSizePolicy.Fixed, QSizePolicy.Minimum),
             KeyboardButton(self.buttonHeight * 1.5, self.buttonHeight, self.onClickEnter, None, 'img/enter.png'),
@@ -228,6 +232,8 @@ class VirtualKeyboard(QStackedWidget):
         container.setLayout(keyboardView)
         self.addWidget(container)
 
+    ###########################################################################
+    # Add the second keyboard layout (uppercase letters)
     def addKeyboardLayout1(self):
         rowList = []
 
@@ -283,6 +289,8 @@ class VirtualKeyboard(QStackedWidget):
         container.setLayout(keyboardView)
         self.addWidget(container)
 
+    ###########################################################################
+    # Add the third keyboard layout (numbers and symbols)
     def addKeyboardLayout2(self):
         rowList = []
 
@@ -320,11 +328,11 @@ class VirtualKeyboard(QStackedWidget):
             KeyboardButton(self.buttonHeight * 1.5, self.buttonHeight, self.onClickLetters, None, 'img/letters.png'),
             QSpacerItem(self.buttonHeight * 0.05, 0, QSizePolicy.Fixed, QSizePolicy.Minimum),
             KeyboardButton(self.buttonHeight, self.buttonHeight, self.onClickChar, ","),
-            KeyboardButton(self.buttonHeight * 6, self.buttonHeight, self.onClickSpace, None, 'img/space.png'),
+            KeyboardButton(self.buttonHeight * 5.2, self.buttonHeight, self.onClickSpace, None, 'keyboard/space.png'),
             KeyboardButton(self.buttonHeight, self.buttonHeight, self.onClickChar, "."),
             QSpacerItem(self.buttonHeight * 0.05, 0, QSizePolicy.Fixed, QSizePolicy.Minimum),
             KeyboardButton(self.buttonHeight * 1.5, self.buttonHeight, self.onClickEnter, None, 'img/enter.png'),
-            QSpacerItem(20, 40, QSizePolicy.Expanding, QSizePolicy.Minimum)
+            QSpacerItem(10, 40, QSizePolicy.Expanding, QSizePolicy.Minimum)
         ])
         rowList.append(row4)
 
@@ -334,6 +342,8 @@ class VirtualKeyboard(QStackedWidget):
         container.setLayout(keyboardView)
         self.addWidget(container)
 
+    ###########################################################################
+    # Add the fourth keyboard layout (additional symbols)
     def addKeyboardLayout3(self):
         rowList = []
 
