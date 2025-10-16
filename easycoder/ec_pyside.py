@@ -114,7 +114,7 @@ class Graphics(Handler):
     # (2) add {widget} to {layout}
     # (3) add stretch {widget} to {layout}
     # (4) add stretch to {layout}
-    # (5) add spacer {size} to {layout}
+    # (5) add spacer [size] {size} to {layout}
     # (6) add {widget} at {col} {row} in {grid layout}
     def k_add(self, command):
         def addToLayout():
@@ -146,6 +146,7 @@ class Graphics(Handler):
         
         elif token == 'spacer':
             self.nextToken()
+            self.skip('size')
             command['widget'] = 'spacer'
             command['size'] = self.nextValue()
             self.skip('to')
@@ -375,7 +376,7 @@ class Graphics(Handler):
             if token == 'text':
                 self.nextToken()
                 command['text'] = self.nextValue()
-            if token == 'icon':
+            elif token == 'icon':
                 self.nextToken()
                 command['icon'] = self.nextValue()
             elif token == 'size':
@@ -783,8 +784,8 @@ class Graphics(Handler):
         return False
         
     def r_hide(self, command):
-        widget = self.getVariable(command['widget'])['widget']
-        widget.hide()
+        record = self.getVariable(command['widget'])
+        if 'widget' in record: record['widget'].hide()
         return self.nextPC()
 
     # Initialize the graphics environment
