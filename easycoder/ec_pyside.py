@@ -67,13 +67,21 @@ class Graphics(Handler):
             'combobox',
             'widget'
             ]
+    
+    def setWidget(self, record, widget):
+        if not 'widget' in record:
+            record['widget'] = [None] * record['elements']
+        record['widget'][record['index']] = widget
+    
+    def getWidget(self, record):
+        if 'widget' in record and record['widget'] != None:
+            if record['keyword'] in ['layout', 'group']: return record['widget'] 
+            return record['widget'][record['index']]
+        else:
+            return None
 
     def dialogTypes(self):
         return ['confirm', 'lineedit', 'multiline', 'generic']
-    
-    def getWidget(self, record):
-        if record['keyword'] in ['pushbutton']: return self.getSymbolContent(record)
-        else: return record['widget']
 
     class ClickableLineEdit(QLineEdit):
         clicked = Signal()
@@ -187,19 +195,19 @@ class Graphics(Handler):
     def r_add(self, command):
         if 'value' in command:
             value = self.getRuntimeValue(command['value'])
-            widget = self.getVariable(command['widget'])
-            if widget['keyword'] == 'listbox':
-                widget['widget'].addItem(value)
-            elif widget['keyword'] == 'combobox':
-                if isinstance(value, list): widget['widget'].addItems(value)
-                else: widget['widget'].addItem(value)
+            record = self.getVariable(command['widget'])
+            if record['keyword'] == 'listbox':
+                self.getWidget(record).addItem(value)
+            elif record['keyword'] == 'combobox':
+                if isinstance(value, list): record['widget'].addItems(value)
+                else: self.getWidget(record).addItem(value)
         elif 'row' in command and 'col' in command:
             layout = self.getVariable(command['layout'])['widget']
-            widgetVar = self.getVariable(command['widget'])
-            widget = widgetVar['widget']
+            record = self.getVariable(command['widget'])
+            widget = self.getWidget(record)
             row = self.getRuntimeValue(command['row'])
             col = self.getRuntimeValue(command['col'])
-            if widgetVar['keyword'] == 'layout':
+            if record['keyword'] == 'layout':
                 layout.addLayout(widget, row, col)
             else:
                 layout.addWidget(widget, row, col)
@@ -273,7 +281,7 @@ class Graphics(Handler):
         return False
     
     def r_clear(self, command):
-        widget = self.getVariable(command['name'])['widget']
+        widget = self.getWidget(self.getVariable(command['name']))
         widget.clear()
         return self.nextPC()
 
@@ -564,7 +572,7 @@ class Graphics(Handler):
             elif alignment == 'justify': label.setAlignment(Qt.AlignJustify)
         if 'expand' in command:
             label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        record['widget'] = label
+        self.setWidget(record, label)
         return self.nextPC()
     
     def r_createPushbutton(self, command, record):
@@ -590,7 +598,7 @@ class Graphics(Handler):
                 w = fm.horizontalAdvance('m') * self.getRuntimeValue(command['size']) + c.left()+c.right()
                 pushbutton.setMaximumWidth(w)
         self.putSymbolValue(record, pushbutton)
-        record['widget'] = pushbutton
+        self.setWidget(record, pushbutton)
         return self.nextPC()
     
     def r_createCheckBox(self, command, record):
@@ -612,7 +620,7 @@ class Graphics(Handler):
             }
         """)
         checkbox.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
-        record['widget'] = checkbox
+        self.setWidget(record, checkbox)
         return self.nextPC()
     
     def r_createLineEdit(self, command, record):
@@ -623,7 +631,7 @@ class Graphics(Handler):
         c = lineinput.contentsMargins()
         w = fm.horizontalAdvance('x') * self.getRuntimeValue(command['size']) +m.left()+m.right()+c.left()+c.right()
         lineinput.setMaximumWidth(w)
-        record['widget'] = lineinput
+        self.setWidget(record, lineinput)
         return self.nextPC()
     
     def r_createMultiLineEdit(self, command, record):
@@ -633,19 +641,19 @@ class Graphics(Handler):
         charHeight = fontMetrics.height()
         textinput.setFixedWidth(charWidth * self.getRuntimeValue(command['cols']))
         textinput.setFixedHeight(charHeight * self.getRuntimeValue(command['rows']))
-        record['widget'] = textinput
+        self.setWidget(record, textinput)
         return self.nextPC()
     
     def r_createListWidget(self, command, record):
-        record['widget'] = QListWidget()
+        self.setWidget(record, QListWidget())
         return self.nextPC()
     
     def r_createComboBox(self, command, record):
-        record['widget'] = QComboBox()
+        self.setWidget(record, QComboBox())
         return self.nextPC()
     
     def r_createWidget(self, command, record):
-        record['widget'] = QWidget()
+        self.setWidget(record, QWidget())
         return self.nextPC()
     
     def r_createDialog(self, command, record):
@@ -785,7 +793,7 @@ class Graphics(Handler):
         
     def r_hide(self, command):
         record = self.getVariable(command['widget'])
-        if 'widget' in record: record['widget'].hide()
+        if 'widget' in record: self.getWidget(record).hide()
         return self.nextPC()
 
     # Initialize the graphics environment
@@ -918,7 +926,7 @@ class Graphics(Handler):
     
     def r_on(self, command):
         def run(widget, record):
-            for i, w in enumerate(record['value']):
+            for i, w in enumerate(record['widget']):
                 if w == widget:
                     record['index'] = i
                     self.run(command['goto'])
@@ -972,10 +980,10 @@ class Graphics(Handler):
         record = self.getVariable(command['name'])
         if variant == 'current':
             if record['keyword'] == 'combobox':
-                widget = record['widget']
+                widget = self.getWidget(record)
                 widget.removeItem(widget.currentIndex())
             if record['keyword'] == 'listbox':
-                widget = record['widget']
+                widget = self.getWidget(record)
                 selectedItem = widget.currentItem()
                 if selectedItem:
                     row = widget.row(selectedItem)
@@ -1000,7 +1008,7 @@ class Graphics(Handler):
         return False
     
     def r_select(self, command):
-        widget = self.getVariable(command['widget'])['widget']
+        widget = self.getWidget(self.getVariable(command['widget']))
         if 'index' in command:
             index = self.getRuntimeValue(command['index'])
         else:
@@ -1043,9 +1051,10 @@ class Graphics(Handler):
                     self.skip('to')
                     if self.nextIsSymbol():
                         record = self.getSymbolRecord()
-                        command['layout'] = record['name']
-                        self.add(command)
-                        return True
+                        if record['keyword'] == 'layout':
+                            command['layout'] = record['name']
+                            self.add(command)
+                            return True
         elif token == 'spacing':
             self.skip('of')
             if self.nextIsSymbol():
@@ -1153,25 +1162,26 @@ class Graphics(Handler):
     def r_set(self, command):
         what = command['what']
         if what == 'height':
-            widget = self.getVariable(command['name'])['widget']
+            widget = self.getWidget(self.getVariable(command['name']))
             widget.setFixedHeight(self.getRuntimeValue(command['value']))
         elif what == 'width':
-            widget = self.getVariable(command['name'])['widget']
+            widget = self.getWidget(self.getVariable(command['name']))
             widget.setFixedWidth(self.getRuntimeValue(command['value']))
         elif what == 'layout':
-            content = self.getVariable(command['layout'])['widget']
+            record = self.getVariable(command['layout'])
+            layout = record['widget']
             record = self.getVariable(command['name'])
             keyword = record['keyword']
             if keyword == 'window':
                 window = record['window']
                 container = QWidget()
-                container.setLayout(content)
+                container.setLayout(layout)
                 window.setCentralWidget(container)
             elif keyword == 'widget':
-                widget = record['widget']
-                widget.setLayout(content)
+                widget = self.getWidget(record)
+                widget.setLayout(layout)
         elif what == 'spacing':
-            layout = self.getVariable(command['name'])['widget']
+            layout = self.getWidget(self.getVariable(command['name']))
             layout.setSpacing(self.getRuntimeValue(command['value']))
         elif what == 'text':
             record = self.getVariable(command['name'])
@@ -1189,7 +1199,7 @@ class Graphics(Handler):
             record = self.getVariable(command['name'])
             if record['keyword'] == 'checkbox':
                 state = self.getRuntimeValue(command['value'])
-                record['widget'].setChecked(state)
+                self.getWidget(record).setChecked(state)
         elif what == 'alignment':
             widget = self.getVariable(command['name'])['widget']
             flags = command['value']
@@ -1228,6 +1238,7 @@ class Graphics(Handler):
 
     # show {window}
     # show {dialog}
+    # show {widget}
     # show {messagebox} giving {result}}
     def k_show(self, command):
         if self.nextIsSymbol():
@@ -1241,6 +1252,10 @@ class Graphics(Handler):
                 command['dialog'] = record['name']
                 self.add(command)
                 return True
+            elif self.isWidget(keyword):
+                command['name'] = record['name']
+                self.add(command)
+                return True
             elif keyword == 'messagebox':
                 command['messagebox'] = record['name']
                 self.skip('giving')
@@ -1248,10 +1263,6 @@ class Graphics(Handler):
                     command['result'] = self.getSymbolRecord()['name']
                     self.add(command)
                     return True
-            elif self.isWidget(keyword):
-                command['name'] = record['name']
-                self.add(command)
-                return True
         return False
         
     def r_show(self, command):
@@ -1307,7 +1318,7 @@ class Graphics(Handler):
                 else: record['result'] = dialog.value
         elif 'name' in command:
             record = self.getVariable(command['name'])
-            if 'widget' in record: record['widget'].show()
+            if 'widget' in record: self.getWidget(record).show()
         return self.nextPC()
 
     # Start the graphics
@@ -1402,38 +1413,38 @@ class Graphics(Handler):
         symbolRecord = self.getVariable(symbolRecord['name'])
         keyword = symbolRecord['keyword']
         if keyword == 'pushbutton':
-            pushbutton = self.getSymbolContent(symbolRecord) # symbolRecord['widget']
+            pushbutton = self.getWidget(symbolRecord)
             v = {}
             v['type'] = 'text'
             v['content'] = pushbutton.accessibleName()
             return v
         elif keyword == 'lineinput':
-            lineinput = symbolRecord['widget']
+            lineinput = self.getWidget(symbolRecord)
             v = {}
             v['type'] = 'text'
             v['content'] = lineinput.displayText()
             return v
         elif keyword == 'multiline':
-            multiline = symbolRecord['widget']
+            multiline = self.getWidget(symbolRecord)
             v = {}
             v['type'] = 'text'
             v['content'] = multiline.toPlainText()
             return v
         elif keyword == 'combobox':
-            combobox = symbolRecord['widget']
+            combobox = self.getWidget(symbolRecord)
             v = {}
             v['type'] = 'text'
             v['content'] = combobox.currentText()
             return v
         elif keyword == 'listbox':
-            listbox = symbolRecord['widget']
+            listbox = self.getWidget(symbolRecord)
             content = listbox.currentItem().text()
             v = {}
             v['type'] = 'text'
             v['content'] = content
             return v
         elif keyword == 'checkbox':
-            checkbox = symbolRecord['widget']
+            checkbox =self.getWidget(symbolRecord)
             content = checkbox.isChecked()
             v = {}
             v['type'] = 'boolean'
@@ -1450,7 +1461,7 @@ class Graphics(Handler):
     def v_count(self, v):
         record = self.getVariable(v['name'])
         keyword = record['keyword']
-        widget = record['widget']
+        widget = self.getWidget(record)
         if keyword in ['combobox', 'listbox']: content = widget.count()
         value = {}
         value['type'] = 'int'
@@ -1460,7 +1471,7 @@ class Graphics(Handler):
     def v_current(self, v):
         record = self.getVariable(v['name'])
         keyword = record['keyword']
-        widget = record['widget']
+        widget = self.getWidget(record)
         if keyword == 'listbox': content = widget.currentItem().text()
         value = {}
         value['type'] = 'text'
