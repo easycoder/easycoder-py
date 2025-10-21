@@ -323,7 +323,8 @@ class Core(Handler):
             symbolRecord = self.getVariable(command['var'])
             value = self.getSymbolValue(symbolRecord)
             content = value['content']
-            content.remove(key)
+            if key >= 0 and key < len(content): del(content[key])
+            else: RuntimeError(self.program, f'Index {key} out of range')
             value['content'] = content
             self.putSymbolValue(symbolRecord, value)
         return self.nextPC()

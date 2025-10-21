@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QSlider,
     QSpinBox,
     QTimeEdit,
+    QLayout,
     QVBoxLayout,
     QHBoxLayout,
     QGridLayout,
@@ -281,8 +282,41 @@ class Graphics(Handler):
         return False
     
     def r_clear(self, command):
+
+        def clearLayout(layout: QLayout) -> None:
+            if layout is None:
+                return
+            while layout.count() > 0:
+                item = layout.takeAt(0)
+                if item is None:
+                    continue
+                widget = item.widget()
+                if widget is not None:
+                    # Delete the widget
+                    widget.deleteLater()
+                elif item.layout() is not None:
+                    # Recursively clear sub-layout
+                    clearLayout(item.layout())
+                    item.layout().deleteLater()
+                # The QLayoutItem will be automatically cleaned up by Qt
+
+        def clearWidget(widget: QWidget) -> None:
+            if widget is None:
+                return
+            # Clear the layout first
+            layout = widget.layout()
+            if layout is not None:
+                clearLayout(layout)
+                layout.deleteLater()
+            # Clear any remaining child widgets
+            child_widgets = widget.findChildren(QWidget, "", Qt.FindDirectChildrenOnly)
+            for child in child_widgets:
+                child.deleteLater()
+
         widget = self.getWidget(self.getVariable(command['name']))
-        widget.clear()
+        clearWidget(widget)
+        return self.nextPC()
+
         return self.nextPC()
 
     # close {window}
