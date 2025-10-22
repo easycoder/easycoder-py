@@ -19,7 +19,7 @@ class Condition:
 				condition.domain= domain.getName()
 				return condition
 			self.rewindTo(mark)
-			return None
+		return None
 
 	def testCondition(self, condition):
 		handler = self.program.domainIndex[condition.domain]

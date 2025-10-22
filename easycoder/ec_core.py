@@ -3,7 +3,7 @@ import numbers, base64, binascii, random, requests, paramiko
 from copy import deepcopy
 from psutil import Process
 from datetime import datetime
-from .ec_classes import FatalError, RuntimeWarning, RuntimeError, AssertionError, NoValueError, NoValueRuntimeError, Condition, Object
+from .ec_classes import FatalError, RuntimeWarning, RuntimeError, AssertionError, NoValueError, NoValueRuntimeError, Object
 from .ec_handler import Handler
 from .ec_timestamp import getTimestamp
 
@@ -2632,7 +2632,8 @@ class Core(Handler):
     #############################################################################
     # Compile a condition
     def compileCondition(self):
-        condition = Condition()
+        condition = Object()
+        condition.negate = False
 
         token = self.getToken()
 

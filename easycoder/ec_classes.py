@@ -16,7 +16,6 @@ class AssertionError:
 	def __init__(self, program, msg=None):
 		code = program.code[program.pc]
 		lino = code['lino']
-		script = program.script.lines[lino].strip()
 		message = f'Assertion Error in {program.name} at line {lino + 1}'
 		if msg != None:
 			message += f': {msg}'
@@ -58,8 +57,5 @@ class Token:
 		self.lino = lino
 		self.token = token
 	
-class Condition():
-	negate = False
-
 class Object():
     pass

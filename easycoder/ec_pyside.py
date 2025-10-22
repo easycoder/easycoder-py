@@ -1,7 +1,7 @@
 import sys
 from functools import partial
 from .ec_handler import Handler
-from .ec_classes import RuntimeError
+from .ec_classes import RuntimeError, Object
 from .ec_border import Border
 from PySide6.QtCore import Qt, QTimer, Signal, QRect
 from PySide6.QtGui import QPixmap, QPainter
@@ -1515,8 +1515,9 @@ class Graphics(Handler):
     #############################################################################
     # Compile a condition
     def compileCondition(self):
-        condition = {}
-        return condition
+        condition = Object()
+        condition.negate = False
+        return None
 
     #############################################################################
     # Condition handlers
