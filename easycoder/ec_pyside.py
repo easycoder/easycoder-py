@@ -70,8 +70,12 @@ class Graphics(Handler):
             ]
     
     def setWidget(self, record, widget):
+        if record['index'] >= record['elements']:
+            RuntimeError(self.program, f'Index out of range for widget {record["name"]}')
         if not 'widget' in record:
             record['widget'] = [None] * record['elements']
+        while len(record['widget']) < record['elements']:
+            record['widget'].append(None)
         record['widget'][record['index']] = widget
     
     def getWidget(self, record):
