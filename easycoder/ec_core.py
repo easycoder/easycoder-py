@@ -2657,7 +2657,14 @@ class Core(Handler):
             path = self.nextValue()
             condition.path = path
             condition.type = 'exists'
-            token = self.nextToken()
+            self.skip('on')
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                if record['keyword'] == 'ssh':
+                    condition.type = 'sshExists'
+                    condition.target = record['name']
+                    token = self.nextToken()
+            else: token = self.getToken()
             if token == 'exists':
                 return condition
             elif token == 'does':
@@ -2840,6 +2847,17 @@ class Core(Handler):
         condition.errormsg = errormsg
         test = errormsg != None
         return not test if condition.negate else test
+
+    def c_sshExists(self, condition):
+        path = self.getRuntimeValue(condition.path)
+        ssh = self.getVariable(condition.target)
+        sftp = ssh['sftp']
+        try:
+            with sftp.open(path, 'r') as remote_file: remote_file.read().decode()
+            comparison = True
+        except:
+            comparison = False
+        return not comparison if condition.negate else comparison
 
     def c_starts(self, condition):
         value1 = self.getRuntimeValue(condition.value1)
