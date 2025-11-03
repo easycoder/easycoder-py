@@ -1,4 +1,4 @@
-from .ec_classes import Token, FatalError
+from .ec_classes import FatalError
 from .ec_value import Value
 from .ec_condition import Condition
 
@@ -78,7 +78,7 @@ class Compiler:
 		return self.program.code[pc]
 
 	# Add a command to the code list
-	def add(self, command):
+	def addCommand(self, command):
 		self.code.append(command)
 
 	def isSymbol(self):
@@ -161,7 +161,7 @@ class Compiler:
 		command['locked'] = False
 		command['extra'] = extra
 		if 'keyword' in command: command['hasValue'] = self.hasValue(command['keyword'])
-		self.add(command)
+		self.addCommand(command)
 		return True
 
 	# Compile the current token
@@ -171,6 +171,10 @@ class Compiler:
 #		print(f'Compile {token}')
 		if not token:
 			return False
+		if len(self.code) == 0:
+			if self.program.parent == None and hasattr(self.program, 'usingGraphics'):
+				cmd = {'domain': 'graphics', 'keyword': 'init', 'debug': False}
+				self.code.append(cmd)
 		mark = self.getIndex()
 		for domain in self.program.getDomains():
 			handler = domain.keywordHandler(token)
@@ -195,7 +199,7 @@ class Compiler:
 		keyword = self.getToken()
 		if not keyword:
 			return False
-		# print(f'Compile keyword "{keyword}"')
+		print(f'Compile keyword "{keyword}"')
 		if keyword.endswith(':'):
 			command = {}
 			command['domain'] = None
@@ -209,7 +213,7 @@ class Compiler:
 		self.index = index
 		while True:
 			token = self.tokens[self.index]
-			keyword = token.token
+#			keyword = token.token
 			if self.debugCompile: print(self.script.lines[token.lino])
 #			if keyword != 'else':
 			if self.compileOne() == True:
@@ -223,3 +227,6 @@ class Compiler:
 
 	def compileFromHere(self, stopOn):
 		return self.compileFrom(self.getIndex(), stopOn)
+
+	def compileFromStart(self):
+		return self.compileFrom(0, [])

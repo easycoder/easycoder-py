@@ -1769,12 +1769,17 @@ class Core(Handler):
                 self.program.importPlugin(f'{source}:{clazz}')
                 return True
             return False
-        elif self.nextIs('graphics'):
-            print('Loading graphics module')
-            from .ec_pyside import Graphics
-            self.program.graphics = Graphics
-            self.program.useClass(Graphics)
-            return True
+        else:
+            token = self.nextToken()
+            if token in ['graphics', 'debugger']:
+                if not hasattr(self.program, 'usingGraphics'):
+                    print('Loading graphics module')
+                    from .ec_pyside import Graphics
+                    self.program.graphics = Graphics
+                    self.program.useClass(Graphics)
+                    self.program.usingGraphics = True
+                if token == 'debugger': self.program.debugging = True
+                return True
         return False
 
     # Declare a general-purpose variable

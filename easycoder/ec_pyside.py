@@ -835,11 +835,7 @@ class Graphics(Handler):
         return self.nextPC()
 
     # Initialize the graphics environment
-    def k_init(self, command):
-        if self.nextIs('graphics'):
-            self.add(command)
-            return True
-        return False
+    # Unused: def k_init(self, command):
     
     def r_init(self, command):
         self.app = QApplication(sys.argv)
@@ -847,7 +843,22 @@ class Graphics(Handler):
         self.program.screenWidth = screen[0]
         self.program.screenHeight = screen[1]
         print(f'Screen: {self.program.screenWidth}x{self.program.screenHeight}')
-        return self.nextPC()
+        # return self.nextPC()
+        def on_last_window_closed():
+            self.program.kill()
+        def init():
+            self.program.flush(self.nextPC())
+        def flush():
+            if not self.blocked:
+                if self.runOnTick != 0:
+                    self.program.run(self.runOnTick)
+                self.program.flushCB()
+        timer = QTimer()
+        timer.timeout.connect(flush)
+        timer.start(10)
+        QTimer.singleShot(500, init)
+        self.app.lastWindowClosed.connect(on_last_window_closed)
+        self.app.exec()
 
     # Declare a label variable
     def k_label(self, command):
@@ -1367,21 +1378,22 @@ class Graphics(Handler):
         return False
         
     def r_start(self, command):
-        def on_last_window_closed():
-            self.program.kill()
-        def init():
-            self.program.flush(self.nextPC())
-        def flush():
-            if not self.blocked:
-                if self.runOnTick != 0:
-                    self.program.run(self.runOnTick)
-                self.program.flushCB()
-        timer = QTimer()
-        timer.timeout.connect(flush)
-        timer.start(10)
-        QTimer.singleShot(500, init)
-        self.app.lastWindowClosed.connect(on_last_window_closed)
-        self.app.exec()
+        return self.nextPC()
+        # def on_last_window_closed():
+        #     self.program.kill()
+        # def init():
+        #     self.program.flush(self.nextPC())
+        # def flush():
+        #     if not self.blocked:
+        #         if self.runOnTick != 0:
+        #             self.program.run(self.runOnTick)
+        #         self.program.flushCB()
+        # timer = QTimer()
+        # timer.timeout.connect(flush)
+        # timer.start(10)
+        # QTimer.singleShot(500, init)
+        # self.app.lastWindowClosed.connect(on_last_window_closed)
+        # self.app.exec()
 
     # Declare a widget variable
     def k_widget(self, command):

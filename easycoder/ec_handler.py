@@ -23,7 +23,7 @@ class Handler:
 		self.rewindTo = compiler.rewindTo
 		self.warning = compiler.warning
 		self.getPC = compiler.getPC
-		self.add = compiler.add
+		self.add = compiler.addCommand
 		self.getCommandAt = compiler.getCommandAt
 		self.compileOne = compiler.compileOne
 		self.compileFromHere = compiler.compileFromHere

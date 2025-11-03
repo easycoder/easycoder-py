@@ -34,9 +34,9 @@ class Program:
 		self.domainIndex = {}
 		self.name = '<anon>'
 		self.code = []
+		self.pc = 0
 		self.symbols = {}
 		self.onError = 0
-		self.pc = 0
 		self.debugStep = False
 		self.stack = []
 		self.script = Script(source)
@@ -48,7 +48,6 @@ class Program:
 		self.externalControl = False
 		self.ticker = 0
 		self.running = True
-#		self.start()
 
 	# This is called at 10msec intervals by the GUI code
 	def flushCB(self):
@@ -62,7 +61,7 @@ class Program:
 			module['child'] = self
 		startCompile = time.time()
 		self.tokenise(self.script)
-		if self.compiler.compileFrom(0, []):
+		if self.compiler.compileFromStart():
 			finishCompile = time.time()
 			s = len(self.script.lines)
 			t = len(self.script.tokens)
