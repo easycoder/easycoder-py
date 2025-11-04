@@ -3,6 +3,7 @@ from functools import partial
 from .ec_handler import Handler
 from .ec_classes import RuntimeError, Object
 from .ec_border import Border
+from .ec_debug import Debugger
 from PySide6.QtCore import Qt, QTimer, Signal, QRect
 from PySide6.QtGui import QPixmap, QPainter
 from PySide6.QtWidgets import (
@@ -857,6 +858,7 @@ class Graphics(Handler):
         timer.timeout.connect(flush)
         timer.start(10)
         QTimer.singleShot(500, init)
+        if self.program.debugging: self.program.debugger = Debugger(self.program)
         self.app.lastWindowClosed.connect(on_last_window_closed)
         self.app.exec()
 

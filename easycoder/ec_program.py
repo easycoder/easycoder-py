@@ -47,6 +47,9 @@ class Program:
 		self.useClass(Core)
 		self.externalControl = False
 		self.ticker = 0
+		self.usingGraphics = False
+		self.debugging = False
+		self.debugger = None
 		self.running = True
 
 	# This is called at 10msec intervals by the GUI code
@@ -147,8 +150,9 @@ class Program:
 			name = value['name']
 			symbolRecord = self.getSymbolRecord(name)
 			# if symbolRecord['hasValue']:
-			handler = self.domainIndex[symbolRecord['domain']].valueHandler('symbol')
-			result = handler(symbolRecord)
+			if symbolRecord:
+				handler = self.domainIndex[symbolRecord['domain']].valueHandler('symbol')
+				result = handler(symbolRecord)
 		# 	else:
 		# 		# Call the given domain to handle a value
 		# 		# domain = self.domainIndex[value['domain']]
@@ -181,7 +185,10 @@ class Program:
 		return None
 
 	def getValue(self, value):
-		return self.evaluate(value).content
+		result = self.evaluate(value)
+		if result:
+			return result.get('content')  # type: ignore[union-attr]
+		return None
 
 	def getRuntimeValue(self, value):
 		if value is None:
@@ -287,9 +294,9 @@ class Program:
 		return
 
 	def releaseParent(self):
-		if self.parent.waiting and self.parent.program.running:
-			self.parent.waiting = False
-			self.parent.program.run(self.parent.pc)
+		if self.parent and self.parent.waiting and self.parent.program.running:  # type: ignore[union-attr]
+			self.parent.waiting = False  # type: ignore[union-attr]
+			self.parent.program.run(self.parent.pc)  # type: ignore[union-attr]
 
 	# Flush the queue
 	def flush(self, pc):
@@ -306,6 +313,8 @@ class Program:
 					lino = command['lino'] + 1
 					line = self.script.lines[command['lino']].strip()
 					print(f'{self.name}: Line {lino}: {domainName}:{keyword}:  {line}')
+				if self.debugger != None:
+					self.debugger.step()
 				domain = self.domainIndex[domainName]
 				handler = domain.runHandler(keyword)
 				if handler:
@@ -378,9 +387,9 @@ class Program:
 		if type(v2) == int:
 			if type(v1) != int:
 				v2 = f'{v2}'
-		if v1 > v2:
+		if v1 > v2:  # type: ignore[operator]
 			return 1
-		if v1 < v2:
+		if v1 < v2:  # type: ignore[operator]
 			return -1
 		return 0
 

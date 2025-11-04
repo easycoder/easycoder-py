@@ -85,6 +85,7 @@ class Compiler:
 
 	# Add a command to the code list
 	def addCommand(self, command):
+		command['bp'] = False
 		self.code.append(command)
 
 	# Test if the current token is a symbol
@@ -191,7 +192,7 @@ class Compiler:
 		if not token:
 			return False
 		if len(self.code) == 0:
-			if self.program.parent == None and hasattr(self.program, 'usingGraphics'):
+			if self.program.parent == None and self.program.usingGraphics:
 				cmd = {'domain': 'graphics', 'keyword': 'init', 'debug': False}
 				self.code.append(cmd)
 		mark = self.getIndex()

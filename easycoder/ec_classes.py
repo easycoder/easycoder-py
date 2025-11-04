@@ -1,6 +1,6 @@
 import sys
 
-class FatalError:
+class FatalError(BaseException):
 	def __init__(self, compiler, message):
 		compiler.showWarnings()
 		lino = compiler.tokens[compiler.index].lino
@@ -58,4 +58,9 @@ class Token:
 		self.token = token
 	
 class Object():
-    pass
+    """Dynamic object that allows arbitrary attribute assignment"""
+    def __setattr__(self, name: str, value) -> None:
+        self.__dict__[name] = value
+    
+    def __getattr__(self, name: str):
+        return self.__dict__.get(name)

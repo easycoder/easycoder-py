@@ -1772,7 +1772,7 @@ class Core(Handler):
         else:
             token = self.nextToken()
             if token in ['graphics', 'debugger']:
-                if not hasattr(self.program, 'usingGraphics'):
+                if not self.program.usingGraphics:
                     print('Loading graphics module')
                     from .ec_pyside import Graphics
                     self.program.graphics = Graphics
