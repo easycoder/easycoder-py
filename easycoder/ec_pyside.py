@@ -203,10 +203,10 @@ class Graphics(Handler):
             value = self.getRuntimeValue(command['value'])
             record = self.getVariable(command['widget'])
             if record['keyword'] == 'listbox':
-                self.getWidget(record).addItem(value)
+                self.getWidget(record).addItem(value)  # type: ignore
             elif record['keyword'] == 'combobox':
                 if isinstance(value, list): record['widget'].addItems(value)
-                else: self.getWidget(record).addItem(value)
+                else: self.getWidget(record).addItem(value)  # type: ignore
         elif 'row' in command and 'col' in command:
             layout = self.getVariable(command['layout'])['widget']
             record = self.getVariable(command['widget'])
@@ -221,9 +221,9 @@ class Graphics(Handler):
             layoutRecord = self.getVariable(command['layout'])
             widget = command['widget']
             if widget == 'stretch':
-                self.getWidget(layoutRecord).addStretch()
+                self.getWidget(layoutRecord).addStretch()  # type: ignore
             elif widget == 'spacer':
-                self.getWidget(layoutRecord).addSpacing(self.getRuntimeValue(command['size']))
+                self.getWidget(layoutRecord).addSpacing(self.getRuntimeValue(command['size']))  # type: ignore
             else:
                 widgetRecord = self.getVariable(widget)
                 layoutRecord = self.getVariable(command['layout'])
@@ -314,12 +314,12 @@ class Graphics(Handler):
                 clearLayout(layout)
                 layout.deleteLater()
             # Clear any remaining child widgets
-            child_widgets = widget.findChildren(QWidget, "", Qt.FindDirectChildrenOnly)
+            child_widgets = widget.findChildren(QWidget, "", Qt.FindChildOption.FindDirectChildrenOnly)
             for child in child_widgets:
                 child.deleteLater()
 
         widget = self.getWidget(self.getVariable(command['name']))
-        clearWidget(widget)
+        clearWidget(widget)  # type: ignore
         return self.nextPC()
 
         return self.nextPC()
@@ -588,7 +588,7 @@ class Graphics(Handler):
     
     def r_createGroupBox(self, command, record):
         group = QGroupBox(self.getRuntimeValue(command['title']))
-        group.setAlignment(Qt.AlignLeft)
+        group.setAlignment(Qt.AlignmentFlag.AlignLeft)
         record['widget'] = group
         return self.nextPC()
     
@@ -605,12 +605,12 @@ class Graphics(Handler):
             label.setMaximumWidth(w)
         if 'align' in command:
             alignment = command['align']
-            if alignment == 'left': label.setAlignment(Qt.AlignLeft)
-            elif alignment == 'right': label.setAlignment(Qt.AlignRight)
-            elif alignment in ['center', 'centre']: label.setAlignment(Qt.AlignHCenter)
-            elif alignment == 'justify': label.setAlignment(Qt.AlignJustify)
+            if alignment == 'left': label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+            elif alignment == 'right': label.setAlignment(Qt.AlignmentFlag.AlignRight)
+            elif alignment in ['center', 'centre']: label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+            elif alignment == 'justify': label.setAlignment(Qt.AlignmentFlag.AlignJustify)
         if 'expand' in command:
-            label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+            label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.setWidget(record, label)
         return self.nextPC()
     
@@ -623,7 +623,7 @@ class Graphics(Handler):
             pixmap = QPixmap(iconPath)
             if pixmap.isNull():
                 RuntimeError(self.program, f'Icon not found: {iconPath}')
-            icon = pixmap.scaledToHeight(size if size != None else 24, Qt.SmoothTransformation)
+            icon = pixmap.scaledToHeight(size if size != None else 24, Qt.TransformationMode.SmoothTransformation)
             pushbutton = QPushButton()
             pushbutton.setIcon(icon)
             pushbutton.setIconSize(icon.size())
@@ -658,7 +658,7 @@ class Graphics(Handler):
                 background: transparent;
             }
         """)
-        checkbox.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
+        checkbox.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
         self.setWidget(record, checkbox)
         return self.nextPC()
     
@@ -714,12 +714,12 @@ class Graphics(Handler):
             win = self.getVariable(win)['window']
         dialog = ECDialog(win, record)
         dialogType = command['type'].lower()
-        dialog.dialogType = dialogType
+        dialog.dialogType = dialogType  # type: ignore
         mainLayout = QVBoxLayout(dialog)
         if dialogType == 'generic':
             dialog.setFixedWidth(500)
             dialog.setFixedHeight(500)
-            dialog.setWindowFlags(Qt.FramelessWindowHint)
+            dialog.setWindowFlags(Qt.WindowType.FramelessWindowHint)
             dialog.setModal(True)
             dialog.setStyleSheet('background-color: white;border:1px solid black;')
 
@@ -738,19 +738,19 @@ class Graphics(Handler):
                 mainLayout.addWidget(QLabel(prompt))
             elif dialogType == 'lineedit':
                 mainLayout.addWidget(QLabel(prompt))
-                dialog.lineEdit = self.ClickableLineEdit(dialog)
-                dialog.value = self.getRuntimeValue(command['value'])
-                dialog.lineEdit.setText(dialog.value)
-                mainLayout.addWidget(dialog.lineEdit)
+                dialog.lineEdit = self.ClickableLineEdit(dialog)  # type: ignore
+                dialog.value = self.getRuntimeValue(command['value'])  # type: ignore
+                dialog.lineEdit.setText(dialog.value)  # type: ignore
+                mainLayout.addWidget(dialog.lineEdit)  # type: ignore
             elif dialogType == 'multiline':
                 mainLayout.addWidget(QLabel(prompt))
-                dialog.textEdit = self.ClickablePlainTextEdit(self)
-                dialog.textEdit.setText(dialog.value)
-                mainLayout.addWidget(dialog.textEdit)
-            buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+                dialog.textEdit = self.ClickablePlainTextEdit(self)  # type: ignore
+                dialog.textEdit.setText(dialog.value)  # type: ignore
+                mainLayout.addWidget(dialog.textEdit)  # type: ignore
+            buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
             buttonBox.accepted.connect(dialog.accept)
             buttonBox.rejected.connect(dialog.reject)
-            mainLayout.addWidget(buttonBox, alignment=Qt.AlignHCenter)
+            mainLayout.addWidget(buttonBox, alignment=Qt.AlignmentFlag.AlignHCenter)
         record['dialog'] = dialog
         return self.nextPC()
     
@@ -798,7 +798,7 @@ class Graphics(Handler):
         return False
     
     def r_disable(self, command):
-        self.getWidget(self.getVariable(command['name'])).setEnabled(False)
+        self.getWidget(self.getVariable(command['name'])).setEnabled(False)  # type: ignore
         return self.nextPC()
 
     # Enable a widget
@@ -810,7 +810,7 @@ class Graphics(Handler):
         return False
     
     def r_enable(self, command):
-        self.getWidget(self.getVariable(command['name'])).setEnabled(True)
+        self.getWidget(self.getVariable(command['name'])).setEnabled(True)  # type: ignore
         return self.nextPC()
 
     # Create a group box
@@ -832,7 +832,7 @@ class Graphics(Handler):
         
     def r_hide(self, command):
         record = self.getVariable(command['widget'])
-        if 'widget' in record: self.getWidget(record).hide()
+        if 'widget' in record: self.getWidget(record).hide()  # type: ignore
         return self.nextPC()
 
     # Initialize the graphics environment
@@ -841,8 +841,8 @@ class Graphics(Handler):
     def r_init(self, command):
         self.app = QApplication(sys.argv)
         screen = QApplication.screens()[0].size().toTuple()
-        self.program.screenWidth = screen[0]
-        self.program.screenHeight = screen[1]
+        self.program.screenWidth = screen[0]  # type: ignore
+        self.program.screenHeight = screen[1]  # type: ignore
         print(f'Screen: {self.program.screenWidth}x{self.program.screenHeight}')
         # return self.nextPC()
         def on_last_window_closed():
@@ -991,11 +991,11 @@ class Graphics(Handler):
             keyword = record['keyword']
             if keyword == 'pushbutton':
                 handler = partial(run, widget, record)
-                widget.clicked.connect(handler)
+                widget.clicked.connect(handler)  # type: ignore
             elif keyword == 'combobox':
-                widget.currentIndexChanged.connect(lambda: self.run(command['goto']))
+                widget.currentIndexChanged.connect(lambda: self.run(command['goto']))  # type: ignore
             elif keyword == 'listbox':
-                widget.itemClicked.connect(lambda: self.run(command['goto']))
+                widget.itemClicked.connect(lambda: self.run(command['goto']))  # type: ignore
         return self.nextPC()
 
     # Declare a pushbutton variable
@@ -1032,13 +1032,13 @@ class Graphics(Handler):
         if variant == 'current':
             if record['keyword'] == 'combobox':
                 widget = self.getWidget(record)
-                widget.removeItem(widget.currentIndex())
+                widget.removeItem(widget.currentIndex())  # type: ignore
             if record['keyword'] == 'listbox':
                 widget = self.getWidget(record)
-                selectedItem = widget.currentItem()
+                selectedItem = widget.currentItem()  # type: ignore
                 if selectedItem:
-                    row = widget.row(selectedItem)
-                    widget.takeItem(row)
+                    row = widget.row(selectedItem)  # type: ignore
+                    widget.takeItem(row)  # type: ignore
         return self.nextPC()
 
     # select index {n} [of] {combobox]}
@@ -1064,9 +1064,9 @@ class Graphics(Handler):
             index = self.getRuntimeValue(command['index'])
         else:
             name = self.getRuntimeValue(command['name'])
-            index = widget.findText(name, Qt.MatchFixedString)
+            index = widget.findText(name, Qt.MatchFlag.MatchFixedString)  # type: ignore
         if index >= 0:
-            widget.setCurrentIndex(index)
+            widget.setCurrentIndex(index)  # type: ignore
         return self.nextPC()
 
     # set [the] width/height [of] {widget} [to] {value}
@@ -1214,10 +1214,10 @@ class Graphics(Handler):
         what = command['what']
         if what == 'height':
             widget = self.getWidget(self.getVariable(command['name']))
-            widget.setFixedHeight(self.getRuntimeValue(command['value']))
+            widget.setFixedHeight(self.getRuntimeValue(command['value']))  # type: ignore
         elif what == 'width':
             widget = self.getWidget(self.getVariable(command['name']))
-            widget.setFixedWidth(self.getRuntimeValue(command['value']))
+            widget.setFixedWidth(self.getRuntimeValue(command['value']))  # type: ignore
         elif what == 'layout':
             record = self.getVariable(command['layout'])
             layout = record['widget']
@@ -1230,10 +1230,10 @@ class Graphics(Handler):
                 window.setCentralWidget(container)
             elif keyword == 'widget':
                 widget = self.getWidget(record)
-                widget.setLayout(layout)
+                widget.setLayout(layout)  # type: ignore
         elif what == 'spacing':
             layout = self.getWidget(self.getVariable(command['name']))
-            layout.setSpacing(self.getRuntimeValue(command['value']))
+            layout.setSpacing(self.getRuntimeValue(command['value']))  # type: ignore
         elif what == 'text':
             record = self.getVariable(command['name'])
             widget = self.getWidget(record)
@@ -1241,50 +1241,50 @@ class Graphics(Handler):
             keyword = record['keyword']
             setText = getattr(widget, "setText", None)
             if callable(setText):
-                widget.setText(text)
+                widget.setText(text)  # type: ignore
             elif keyword == 'multiline':
-                widget.setPlainText(text)
+                widget.setPlainText(text)  # type: ignore
             if record['keyword'] == 'pushbutton':
-                widget.setAccessibleName(text)
+                widget.setAccessibleName(text)  # type: ignore
         elif what == 'state':
             record = self.getVariable(command['name'])
             if record['keyword'] == 'checkbox':
                 state = self.getRuntimeValue(command['value'])
-                self.getWidget(record).setChecked(state)
+                self.getWidget(record).setChecked(state)  # type: ignore
         elif what == 'alignment':
             widget = self.getVariable(command['name'])['widget']
             flags = command['value']
             alignment = 0
             for flag in flags:
-                if flag == 'left': alignment |= Qt.AlignLeft
-                elif flag == 'hcenter': alignment |= Qt.AlignHCenter
-                elif flag == 'right': alignment |= Qt.AlignRight
-                elif flag == 'top': alignment |= Qt.AlignTop
-                elif flag == 'vcenter': alignment |= Qt.AlignVCenter
-                elif flag == 'bottom': alignment |= Qt.AlignBottom
-                elif flag == 'center': alignment |= Qt.AlignCenter
+                if flag == 'left': alignment |= Qt.AlignmentFlag.AlignLeft
+                elif flag == 'hcenter': alignment |= Qt.AlignmentFlag.AlignHCenter
+                elif flag == 'right': alignment |= Qt.AlignmentFlag.AlignRight
+                elif flag == 'top': alignment |= Qt.AlignmentFlag.AlignTop
+                elif flag == 'vcenter': alignment |= Qt.AlignmentFlag.AlignVCenter
+                elif flag == 'bottom': alignment |= Qt.AlignmentFlag.AlignBottom
+                elif flag == 'center': alignment |= Qt.AlignmentFlag.AlignCenter
             widget.setAlignment(alignment)
         elif what == 'style':
             record = self.getVariable(command['name'])
             widget = self.getWidget(record)
             styles = self.getRuntimeValue(command['value'])
-            widget.setStyleSheet(styles)
+            widget.setStyleSheet(styles)  # type: ignore
         elif what == 'color':
             record = self.getVariable(command['name'])
             widget = self.getWidget(record)
             color = self.getRuntimeValue(command['value'])
-            widget.setStyleSheet(f"color: {color};")
+            widget.setStyleSheet(f"color: {color};")  # type: ignore
         elif what == 'background-color':
             record = self.getVariable(command['name'])
             widget = self.getWidget(record)
             bg_color = self.getRuntimeValue(command['value'])
-            widget.setStyleSheet(f"background-color: {bg_color};")
+            widget.setStyleSheet(f"background-color: {bg_color};")  # type: ignore
         elif what == 'listbox':
             record = self.getVariable(command['name'])
             widget = self.getWidget(record)
             value = self.getRuntimeValue(command['value'])
-            widget.clear()
-            widget.addItems(value)
+            widget.clear()  # type: ignore
+            widget.addItems(value)  # type: ignore
         return self.nextPC()
 
     # show {window}
@@ -1326,23 +1326,23 @@ class Graphics(Handler):
             message = data['message']
             if style == 'question':
                 choice = QMessageBox.question(window, title, message)
-                result = 'Yes' if choice == QMessageBox.Yes else 'No'
+                result = 'Yes' if choice == QMessageBox.StandardButton.Yes else 'No'
             elif style == 'yesnocancel':
                 choice = QMessageBox.question(
                     window, 
                     title, 
                     message,
-                    QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
                 )
-                if choice == QMessageBox.Yes: 
+                if choice == QMessageBox.StandardButton.Yes: 
                     result = 'Yes'
-                elif choice == QMessageBox.No:
+                elif choice == QMessageBox.StandardButton.No:
                     result = 'No'
                 else:
                     result = 'Cancel'
             elif style == 'warning':
                 choice = QMessageBox.warning(window, title, message)
-                if choice == QMessageBox.Ok: result = 'OK'
+                if choice == QMessageBox.StandardButton.Ok: result = 'OK'
                 else: result = ''
             else: result = 'Cancel'
             v = {}
@@ -1358,18 +1358,18 @@ class Graphics(Handler):
             if dialog.dialogType == 'generic':
                 record['result'] =  dialog.exec()
             elif dialog.dialogType == 'confirm':
-                record['result'] = True if dialog.exec() == QDialog.Accepted else False
+                record['result'] = True if dialog.exec() == QDialog.DialogCode.Accepted else False
             elif dialog.dialogType == 'lineedit':
-                if dialog.exec() == QDialog.Accepted:
-                    record['result'] = dialog.lineEdit.text()
-                else: record['result'] = dialog.value
+                if dialog.exec() == QDialog.DialogCode.Accepted:
+                    record['result'] = dialog.lineEdit.text()  # type: ignore
+                else: record['result'] = dialog.value  # type: ignore
             elif dialog.dialogType == 'multiline':
-                if dialog.exec() == QDialog.Accepted:
-                    record['result'] = dialog.textEdit.toPlainText()
-                else: record['result'] = dialog.value
+                if dialog.exec() == QDialog.DialogCode.Accepted:
+                    record['result'] = dialog.textEdit.toPlainText()  # type: ignore
+                else: record['result'] = dialog.value  # type: ignore
         elif 'name' in command:
             record = self.getVariable(command['name'])
-            if 'widget' in record: self.getWidget(record).show()
+            if 'widget' in record: self.getWidget(record).show()  # type: ignore
         return self.nextPC()
 
     # Start the graphics
@@ -1381,21 +1381,6 @@ class Graphics(Handler):
         
     def r_start(self, command):
         return self.nextPC()
-        # def on_last_window_closed():
-        #     self.program.kill()
-        # def init():
-        #     self.program.flush(self.nextPC())
-        # def flush():
-        #     if not self.blocked:
-        #         if self.runOnTick != 0:
-        #             self.program.run(self.runOnTick)
-        #         self.program.flushCB()
-        # timer = QTimer()
-        # timer.timeout.connect(flush)
-        # timer.start(10)
-        # QTimer.singleShot(500, init)
-        # self.app.lastWindowClosed.connect(on_last_window_closed)
-        # self.app.exec()
 
     # Declare a widget variable
     def k_widget(self, command):
@@ -1468,36 +1453,36 @@ class Graphics(Handler):
             pushbutton = self.getWidget(symbolRecord)
             v = {}
             v['type'] = 'text'
-            v['content'] = pushbutton.accessibleName()
+            v['content'] = pushbutton.accessibleName()  # type: ignore
             return v
         elif keyword == 'lineinput':
             lineinput = self.getWidget(symbolRecord)
             v = {}
             v['type'] = 'text'
-            v['content'] = lineinput.displayText()
+            v['content'] = lineinput.displayText()  # type: ignore
             return v
         elif keyword == 'multiline':
             multiline = self.getWidget(symbolRecord)
             v = {}
             v['type'] = 'text'
-            v['content'] = multiline.toPlainText()
+            v['content'] = multiline.toPlainText()  # type: ignore
             return v
         elif keyword == 'combobox':
             combobox = self.getWidget(symbolRecord)
             v = {}
             v['type'] = 'text'
-            v['content'] = combobox.currentText()
+            v['content'] = combobox.currentText()  # type: ignore
             return v
         elif keyword == 'listbox':
             listbox = self.getWidget(symbolRecord)
-            content = listbox.currentItem().text()
+            content = listbox.currentItem().text()  # type: ignore
             v = {}
             v['type'] = 'text'
             v['content'] = content
             return v
         elif keyword == 'checkbox':
             checkbox =self.getWidget(symbolRecord)
-            content = checkbox.isChecked()
+            content = checkbox.isChecked()  # type: ignore
             v = {}
             v['type'] = 'boolean'
             v['content'] = content
@@ -1514,7 +1499,7 @@ class Graphics(Handler):
         record = self.getVariable(v['name'])
         keyword = record['keyword']
         widget = self.getWidget(record)
-        if keyword in ['combobox', 'listbox']: content = widget.count()
+        if keyword in ['combobox', 'listbox']: content = widget.count()  # type: ignore
         value = {}
         value['type'] = 'int'
         value['content'] = content
@@ -1524,7 +1509,7 @@ class Graphics(Handler):
         record = self.getVariable(v['name'])
         keyword = record['keyword']
         widget = self.getWidget(record)
-        if keyword == 'listbox': content = widget.currentItem().text()
+        if keyword == 'listbox': content = widget.currentItem().text()  # type: ignore
         value = {}
         value['type'] = 'text'
         value['content'] = content

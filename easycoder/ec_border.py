@@ -9,34 +9,38 @@ class Border(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.size = 40
-        self.setFixedHeight(self.size)
+        self._size = 40
+        self.setFixedHeight(self._size)
         self._drag_active = False
         self._drag_start_pos = None
+        self._tick: QPixmap = QPixmap()
+        self._close_icon: QPixmap = QPixmap()
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         # Draw the tick icon
-        self.tick = QPixmap(f'{os.path.dirname(os.path.abspath(__file__))}/tick.png').scaled(self.size, self.size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self._tick = QPixmap(f'{os.path.dirname(os.path.abspath(__file__))}/icons/tick.png').scaled(
+            self._size, self._size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
         x = 0
         y = 0
-        painter.drawPixmap(x, y, self.tick)
+        painter.drawPixmap(x, y, self._tick)
         # Draw the close icon
-        self.close = QPixmap(f'{os.path.dirname(os.path.abspath(__file__))}/close.png').scaled(self.size, self.size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        x = self.width() - self.close.width()
+        self._close_icon = QPixmap(f'{os.path.dirname(os.path.abspath(__file__))}/icons/close.png').scaled(
+            self._size, self._size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        x = self.width() - self._close_icon.width()
         y = 0
-        painter.drawPixmap(x, y, self.close)
+        painter.drawPixmap(x, y, self._close_icon)
 
     def mousePressEvent(self, event):
         # Tick icon
         x = 0
         y = 0
-        tickRect = self.tick.rect().translated(x, y)
+        tickRect = self._tick.rect().translated(x, y)
         # Close icon
-        x = self.width() - self.close.width()
+        x = self.width() - self._close_icon.width()
         y = 0
-        closeRect = self.close.rect().translated(x, y)
+        closeRect = self._close_icon.rect().translated(x, y)
         if tickRect.contains(event.pos()):
             self.tickClicked.emit()
         if closeRect.contains(event.pos()):

@@ -1,8 +1,8 @@
-from ec_classes import Object, RuntimeError
-from ec_handler import Handler
-from ec_value import getConstant
-from ec_screenspec import ScreenSpec
-from ec_renderer import getActual, getUI
+from easycoder import Object, FatalError, RuntimeError
+from easycoder import Handler
+from easycoder import getConstant
+from ec_screenspec import ScreenSpec  # type: ignore
+from ec_renderer import getActual, getUI  # type: ignore
 import json
 
 class Keyboard(Handler):
@@ -24,26 +24,26 @@ class Keyboard(Handler):
         token = self.nextToken()
         if token in ['click', 'tap']:
             if self.nextIs('keyboard'):
-                command['goto'] = self.getPC() + 2
+                command['goto'] = self.getPC() + 2  # type: ignore
                 self.add(command)
                 self.nextToken()
-                pcNext = self.getPC()
+                pcNext = self.getPC()  # type: ignore
                 cmd = {}
                 cmd['domain'] = 'core'
                 cmd['lino'] = command['lino']
                 cmd['keyword'] = 'gotoPC'
                 cmd['goto'] = 0
                 cmd['debug'] = False
-                self.addCommand(cmd)
+                self.addCommand(cmd)  # type: ignore
                 self.compileOne()
                 cmd = {}
                 cmd['domain'] = 'core'
                 cmd['lino'] = command['lino']
                 cmd['keyword'] = 'stop'
                 cmd['debug'] = False
-                self.addCommand(cmd)
+                self.addCommand(cmd)  # type: ignore
                 # Fixup the link
-                self.getCommandAt(pcNext)['goto'] = self.getPC()
+                self.getCommandAt(pcNext)['goto'] = self.getPC()  # type: ignore
                 return True
         return False
 

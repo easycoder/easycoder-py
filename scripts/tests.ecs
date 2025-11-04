@@ -17,21 +17,25 @@
 
 !	debug step
 
-	print `FOR loop counting to 1000`
+	log `FOR loop counting to 10`
 	put 0 into N
-	while N is less than 1000 increment N
+	while N is less than 10
+	begin
+		log N
+		increment N
+	end
 
-	print `Compare 1000 integers for equality`
+	log `Compare 10 integers for equality`
 	put 0 into N
-	while N is less than 1000
+	while N is less than 10
 	begin
 		if N is 1234567890 begin end
 		increment N
 	end
 
-	print `Allocate and initialize a 1000 element array`
+	log `Allocate and initialize a 10 element array`
 	put 0 into N
-	while N is less than 1000
+	while N is less than 10
 	begin
 		add 1 to N giving M
 		set the elements of Array to M
@@ -40,10 +44,10 @@
 		increment N
 	end
 
-	print `Allocate and initialize a 1000 element JSON dictionary`
+	log `Allocate and initialize a 10 element JSON dictionary`
 	put json `{}` into Dictionary
 	put 0 into N
-	while N is less than 100
+	while N is less than 10
 	begin
 		put 0 into M
 		while M is less than 10
@@ -151,33 +155,33 @@ Loop1:
 
     put now into N
     multiply N by 1000
-    print N
-    print datime N
-    print datime 1735689600000 format `%b %d %Y %H:%M:%S`
+    log N
+    log datime N
+    log datime 1735689600000 format `%b %d %Y %H:%M:%S`
 
     put `"Goodbye,\n cruel world!"` into D
     put encode D into E
-    print E
+    log E
     put decode E into D
-    print D
+    log D
 
     set the encoding to `base64`
 
     put `"Goodbye, cruel world!"` into D
     put encode D into E
-    print E
+    log E
     put decode E into D
-    print D
+    log D
 
-    print from 8 to 12 of `This is some text`
+    log from 8 to 12 of `This is some text`
 
-    print hash `Graham`
+    log hash `Graham`
 
-    print the timestamp cat ` ` cat now
+    log the timestamp cat ` ` cat now
 
-    print the files in `.`
+    log the files in `.`
 
-    print the memory
+    log the memory
 
     put json `[]` into Data
     put 0 into N
@@ -187,21 +191,21 @@ Loop1:
         increment N
     end
 
-    print Data
-    print the index of 5 in Data
+    log Data
+    log the index of 5 in Data
 
 	wait 2
-	print `All done!`
+	log `All done!`
 	exit
 
 Print:
-	print `N = ` cat N
+	log `N = ` cat N
 	return
 
 Concurrent:
 	put 0 into M
 Loop2:
-	print `         M = ` cat M
+	log `         M = ` cat M
 	wait 20 ticks
 	add 1 to M
 	if M is less than 10 go to Loop2

@@ -66,6 +66,7 @@ class Handler:
 	def conditionHandler(self, name):
 		return getattr(self, f'c_{name}')
 
+	@staticmethod
 	def isJson(value):
 		try:
 			json.loads(value)

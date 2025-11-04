@@ -55,6 +55,7 @@ class Program:
 	# This is called at 10msec intervals by the GUI code
 	def flushCB(self):
 		self.ticker += 1
+		# if self.ticker % 1000 == 0: print(f'GUI Tick {self.ticker}')
 		flush()
 
 	def start(self, parent=None, module = None, exports=[]):
@@ -313,8 +314,6 @@ class Program:
 					lino = command['lino'] + 1
 					line = self.script.lines[command['lino']].strip()
 					print(f'{self.name}: Line {lino}: {domainName}:{keyword}:  {line}')
-				if self.debugger != None:
-					self.debugger.step()
 				domain = self.domainIndex[domainName]
 				handler = domain.runHandler(keyword)
 				if handler:
@@ -329,6 +328,8 @@ class Program:
 						self.running = False
 						break
 					elif self.pc == None or self.pc == 0 or self.pc >= len(self.code):
+						break
+					elif self.debugger != None and not self.debugger.continueExecution():
 						break
 
 	# Run the script at a given PC value
