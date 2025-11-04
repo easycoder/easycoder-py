@@ -22,7 +22,7 @@ class Handler:
 		self.compileVariable = compiler.compileVariable
 		self.rewindTo = compiler.rewindTo
 		self.warning = compiler.warning
-		self.getPC = compiler.getPC
+		self.getCodeSize = compiler.getCodeSize
 		self.add = compiler.addCommand
 		self.getCommandAt = compiler.getCommandAt
 		self.compileOne = compiler.compileOne

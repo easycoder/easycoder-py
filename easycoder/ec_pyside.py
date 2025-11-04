@@ -907,11 +907,11 @@ class Graphics(Handler):
     # on tick
     def k_on(self, command):
         def setupOn():
-            command['goto'] = self.getPC() + 2
+            command['goto'] = self.getCodeSize() + 2
             self.add(command)
             self.nextToken()
             # Step over the click handler
-            pcNext = self.getPC()
+            pcNext = self.getCodeSize()
             cmd = {}
             cmd['domain'] = 'core'
             cmd['lino'] = command['lino']
@@ -928,7 +928,7 @@ class Graphics(Handler):
             cmd['debug'] = False
             self.add(cmd)
             # Fixup the goto
-            self.getCommandAt(pcNext)['goto'] = self.getPC()
+            self.getCommandAt(pcNext)['goto'] = self.getCodeSize()
 
         token = self.nextToken()
         command['type'] = token
@@ -948,11 +948,11 @@ class Graphics(Handler):
                     return True
         elif token == 'tick':
             command['tick'] = True
-            command['runOnTick'] = self.getPC() + 2
+            command['runOnTick'] = self.getCodeSize() + 2
             self.add(command)
             self.nextToken()
             # Step over the on tick action
-            pcNext = self.getPC()
+            pcNext = self.getCodeSize()
             cmd = {}
             cmd['domain'] = 'core'
             cmd['lino'] = command['lino']
@@ -969,7 +969,7 @@ class Graphics(Handler):
             cmd['debug'] = False
             self.add(cmd)
             # Fixup the goto
-            self.getCommandAt(pcNext)['goto'] = self.getPC()
+            self.getCommandAt(pcNext)['goto'] = self.getCodeSize()
             return True
         return False
     

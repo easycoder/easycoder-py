@@ -31,13 +31,13 @@ class Core(Handler):
             cmd['keyword'] = 'gotoPC'
             cmd['goto'] = 0
             cmd['debug'] = False
-            skip = self.getPC()
+            skip = self.getCodeSize()
             self.add(cmd)
             # Process the 'or'
-            self.getCommandAt(orHere)['or'] = self.getPC()
+            self.getCommandAt(orHere)['or'] = self.getCodeSize()
             self.compileOne()
             # Fixup the skip
-            self.getCommandAt(skip)['goto'] = self.getPC()
+            self.getCommandAt(skip)['goto'] = self.getCodeSize()
 
     #############################################################################
     # Keyword handlers
@@ -468,7 +468,7 @@ class Core(Handler):
                 if url != None:
                     command['url'] = url
                     command['or'] = None
-                    get = self.getPC()
+                    get = self.getCodeSize()
                     if self.peek() == 'timeout':
                         self.nextToken()
                         command['timeout'] = self.nextValue()
@@ -556,7 +556,7 @@ class Core(Handler):
         command['condition'] = self.nextCondition()
         self.add(command)
         self.nextToken()
-        pcElse = self.getPC()
+        pcElse = self.getCodeSize()
         cmd = {}
         cmd['lino'] = command['lino']
         cmd['domain'] = 'core'
@@ -569,7 +569,7 @@ class Core(Handler):
         if self.peek() == 'else':
             self.nextToken()
             # Add a 'goto' to skip the 'else'
-            pcNext = self.getPC()
+            pcNext = self.getCodeSize()
             cmd = {}
             cmd['lino'] = command['lino']
             cmd['domain'] = 'core'
@@ -578,15 +578,15 @@ class Core(Handler):
             cmd['debug'] = False
             self.add(cmd)
             # Fixup the link to the 'else' branch
-            self.getCommandAt(pcElse)['goto'] = self.getPC()
+            self.getCommandAt(pcElse)['goto'] = self.getCodeSize()
             # Process the 'else' branch
             self.nextToken()
             self.compileOne()
             # Fixup the pcNext 'goto'
-            self.getCommandAt(pcNext)['goto'] = self.getPC()
+            self.getCommandAt(pcNext)['goto'] = self.getCodeSize()
         else:
             # We're already at the next command
-            self.getCommandAt(pcElse)['goto'] = self.getPC()
+            self.getCommandAt(pcElse)['goto'] = self.getCodeSize()
         return True
 
     def r_if(self, command):
@@ -605,7 +605,7 @@ class Core(Handler):
             name = self.nextToken()
             item = [keyword, name]
             imports.append(item)
-            self.symbols[name] = self.getPC()
+            self.symbols[name] = self.getCodeSize()
             variable = {}
             variable['domain'] = None
             variable['name'] = name
@@ -747,7 +747,7 @@ class Core(Handler):
                     else:
                         command['file'] = self.getValue()
                     command['or'] = None
-                    load = self.getPC()
+                    load = self.getCodeSize()
                     self.processOr(command, load)
                     return True
         else:
@@ -916,7 +916,7 @@ class Core(Handler):
             cmd['debug'] = False
             self.add(cmd)
             # Fixup the link
-            command['goto'] = self.getPC()
+            command['goto'] = self.getCodeSize()
             return True
         return False
 
@@ -1007,7 +1007,7 @@ class Core(Handler):
         else:
             command['result'] = None
         command['or'] = None
-        post = self.getPC()
+        post = self.getCodeSize()
         self.processOr(command, post)
         return True
 
@@ -1106,7 +1106,7 @@ class Core(Handler):
                         FatalError(self.compiler, f'Symbol {symbolRecord["name"]} is not a value holder')
                     else:
                         command['or'] = None
-                        self.processOr(command, self.getPC())
+                        self.processOr(command, self.getCodeSize())
                         return True
                 else:
                     FatalError(self.compiler, f'Symbol {self.getToken()} is not a variable')
@@ -1274,7 +1274,7 @@ class Core(Handler):
         else:
             command['file'] = self.getValue()
         command['or'] = None
-        save = self.getPC()
+        save = self.getCodeSize()
         self.processOr(command, save)
         return True
 
@@ -1823,10 +1823,10 @@ class Core(Handler):
             return None
         # token = self.getToken()
         command['condition'] = code
-        test = self.getPC()
+        test = self.getCodeSize()
         self.add(command)
         # Set up a goto for when the test fails
-        fail = self.getPC()
+        fail = self.getCodeSize()
         cmd = {}
         cmd['lino'] = command['lino']
         cmd['domain'] = 'core'
@@ -1847,7 +1847,7 @@ class Core(Handler):
         cmd['debug'] = False
         self.add(cmd)
         # Fixup the 'goto' on completion
-        self.getCommandAt(fail)['goto'] = self.getPC()
+        self.getCommandAt(fail)['goto'] = self.getCodeSize()
         return True
 
     def r_while(self, command):
