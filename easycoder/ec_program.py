@@ -19,17 +19,22 @@ class Program:
 	def __init__(self, argv):
 		global queue
 		print(f'EasyCoder version {version("easycoder")}')
+		print(argv)
 		if len(argv) == 0:
 			print('No script supplied')
 			exit()
 		if argv in ['-v', '--version']: return
-		scriptName = argv
+		if argv[0:6] == 'debug ':
+			self.scriptName = argv[6:]
+			self.debugging = True
+		else:
+			self.scriptName = argv
+			self.debugging = False
 
-		f = open(scriptName, 'r')
+		f = open(self.scriptName, 'r')
 		source = f.read()
 		f.close()
 		queue = deque()
-		self.argv = argv
 		self.domains = []
 		self.domainIndex = {}
 		self.name = '<anon>'
@@ -48,7 +53,6 @@ class Program:
 		self.externalControl = False
 		self.ticker = 0
 		self.usingGraphics = False
-		self.debugging = False
 		self.debugger = None
 		self.running = True
 
@@ -61,6 +65,7 @@ class Program:
 	def start(self, parent=None, module = None, exports=[]):
 		self.parent = parent
 		self.exports = exports
+		if self.debugging: self.useGraphics()
 		if module != None:
 			module['child'] = self
 		startCompile = time.time()
@@ -89,6 +94,16 @@ class Program:
 					time.sleep(0.01)
 				else:
 					break
+	
+	# Use the graphics module
+	def useGraphics(self):
+		if not self.usingGraphics:
+			print('Loading graphics module')
+			from .ec_pyside import Graphics
+			self.graphics = Graphics
+			self.useClass(Graphics)
+			self.usingGraphics = True
+		return True
 
 	# Import a plugin
 	def importPlugin(self, source):
@@ -305,6 +320,15 @@ class Program:
 		self.pc = pc
 		while self.running:
 			command = self.code[self.pc]
+			
+			# Check if debugger wants to halt before executing this command
+			if self.debugger != None:
+				# pc==1 is the first real command (pc==0 is the debug loader)
+				is_first = (self.pc == 1)
+				if self.debugger.checkIfHalt(is_first):
+					# Debugger says halt - break out and wait for user
+					break
+			
 			domainName = command['domain']
 			if domainName == None:
 				self.pc += 1
@@ -328,8 +352,6 @@ class Program:
 						self.running = False
 						break
 					elif self.pc == None or self.pc == 0 or self.pc >= len(self.code):
-						break
-					elif self.debugger != None and not self.debugger.continueExecution():
 						break
 
 	# Run the script at a given PC value
@@ -405,8 +427,16 @@ class Program:
 
 # This is the program launcher
 def Main():
+	print(sys.argv)
 	if (len(sys.argv) > 1):
-		Program(sys.argv[1]).start()
+		# Check if 'debug' is the first argument
+		if sys.argv[1] == 'debug' and len(sys.argv) > 2:
+			# Create program with debug flag
+			program = Program(sys.argv[2])
+			program.debugging = True
+			program.start()
+		else:
+			Program(sys.argv[1]).start()
 	else:
 		Program('-v')
 

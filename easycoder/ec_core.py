@@ -1771,15 +1771,8 @@ class Core(Handler):
             return False
         else:
             token = self.nextToken()
-            if token in ['graphics', 'debugger']:
-                if not self.program.usingGraphics:
-                    print('Loading graphics module')
-                    from .ec_pyside import Graphics
-                    self.program.graphics = Graphics
-                    self.program.useClass(Graphics)
-                    self.program.usingGraphics = True
-                if token == 'debugger': self.program.debugging = True
-                return True
+            if token == 'graphics':
+                return self.program.useGraphics()
         return False
 
     # Declare a general-purpose variable

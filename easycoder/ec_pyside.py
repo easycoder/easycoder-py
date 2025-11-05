@@ -858,7 +858,9 @@ class Graphics(Handler):
         timer.timeout.connect(flush)
         timer.start(10)
         QTimer.singleShot(500, init)
-        if self.program.debugging: self.program.debugger = Debugger(self.program)
+        if self.program.debugging:
+            self.program.debugger = Debugger(self.program)
+            self.program.debugger.enableBreakpoints()
         self.app.lastWindowClosed.connect(on_last_window_closed)
         self.app.exec()
 

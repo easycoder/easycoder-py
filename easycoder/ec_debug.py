@@ -12,11 +12,11 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QToolBar,
     QPushButton,
-    QInputDialog
+    QInputDialog,
+    QTabWidget
 )
 from PySide6.QtGui import QTextCursor, QIcon
 from PySide6.QtCore import Qt, QTimer
-from typing import Any
 from typing import Any, Optional
 
 class Object():
@@ -54,55 +54,14 @@ class Debugger(QMainWindow):
             super().__init__(parent)
             self.debugger = parent
             layout = QVBoxLayout(self)
-            
-            # Create toolbar with icon buttons
-            toolbar = QToolBar()
-            toolbar.setMovable(False)
-            
-            # Get the icons directory path
-            icons_dir = os.path.join(os.path.dirname(__file__), 'icons')
-            
-            # Run button
-            run_btn = QPushButton()
-            run_icon_path = os.path.join(icons_dir, 'run.png')
-            run_btn.setIcon(QIcon(run_icon_path))
-            run_btn.setToolTip("Run")
-            run_btn.clicked.connect(self.on_run_clicked)
-            toolbar.addWidget(run_btn)
-            
-            # Step button
-            step_btn = QPushButton()
-            step_icon_path = os.path.join(icons_dir, 'step.png')
-            step_btn.setIcon(QIcon(step_icon_path))
-            step_btn.setToolTip("Step")
-            step_btn.clicked.connect(self.on_step_clicked)
-            toolbar.addWidget(step_btn)
-            
-            # Stop button
-            stop_btn = QPushButton()
-            stop_icon_path = os.path.join(icons_dir, 'stop.png')
-            stop_btn.setIcon(QIcon(stop_icon_path))
-            stop_btn.setToolTip("Stop")
-            stop_btn.clicked.connect(self.on_stop_clicked)
-            toolbar.addWidget(stop_btn)
-            
-            # Exit button
-            exit_btn = QPushButton()
-            exit_icon_path = os.path.join(icons_dir, 'exit.png')
-            exit_btn.setIcon(QIcon(exit_icon_path))
-            exit_btn.setToolTip("Exit")
-            exit_btn.clicked.connect(self.on_exit_clicked)
-            toolbar.addWidget(exit_btn)
-            
-
-            layout.addWidget(toolbar)
 
             # --- Watch panel (like VS Code) ---
-            watch_panel = QFrame()
-            watch_panel.setFrameShape(QFrame.Shape.StyledPanel)
+            variable_panel = QFrame()
+            variable_panel.setFrameShape(QFrame.Shape.StyledPanel)
+            variable_panel.setStyleSheet("background-color: white;")
             # Ensure the VARIABLES bar stretches to full available width
-            watch_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-            watch_layout = QHBoxLayout(watch_panel)
+            variable_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            watch_layout = QHBoxLayout(variable_panel)
             watch_layout.setContentsMargins(4, 4, 4, 4)
             watch_layout.setSpacing(4)
 
@@ -124,17 +83,17 @@ class Debugger(QMainWindow):
             add_btn.clicked.connect(self.on_add_clicked)
             watch_layout.addWidget(add_btn)
 
-            layout.addWidget(watch_panel)
+            layout.addWidget(variable_panel)
 
-            # Watch list area (renders selected variables beneath the toolbar)
-            self.watch_list_widget = QWidget()
-            self.watch_list_layout = QVBoxLayout(self.watch_list_widget)
-            self.watch_list_layout.setContentsMargins(6, 2, 6, 2)
-            self.watch_list_layout.setSpacing(2)
-            layout.addWidget(self.watch_list_widget)
+            # Variable list area (renders selected variables beneath the toolbar)
+            self.variable_list_widget = QWidget()
+            self.variable_list_layout = QVBoxLayout(self.variable_list_widget)
+            self.variable_list_layout.setContentsMargins(6, 2, 6, 2)
+            self.variable_list_layout.setSpacing(2)
+            layout.addWidget(self.variable_list_widget)
 
             # Keep a simple set to prevent duplicate labels
-            self._watch_set = set()
+            self._variable_set = set()
 
             layout.addStretch()
 
@@ -166,9 +125,9 @@ class Debugger(QMainWindow):
                     if choice not in self.debugger.watched:  # type: ignore[attr-defined]
                         self.debugger.watched.append(choice)  # type: ignore[attr-defined]
                     # Render as a plain label beneath the toolbar if not already present
-                    if choice not in self._watch_set:
-                        self._add_watch_row(choice)
-                        self._watch_set.add(choice)
+                    if choice not in self._variable_set:
+                        self._add_variable_row(choice)
+                        self._variable_set.add(choice)
                     # Optionally echo to console for now
                     try:
                         self.debugger.console.append(f"Watching: {choice}")  # type: ignore[attr-defined]
@@ -177,7 +136,7 @@ class Debugger(QMainWindow):
             except Exception as exc:
                 QMessageBox.warning(self, "Add Watch", f"Could not list variables: {exc}")
 
-        def _add_watch_row(self, name: str):
+        def _add_variable_row(self, name: str):
             row = QWidget()
             h = QHBoxLayout(row)
             h.setContentsMargins(0, 0, 0, 0)
@@ -196,8 +155,8 @@ class Debugger(QMainWindow):
                     # update internal structures
                     if hasattr(self.debugger, 'watched') and name in self.debugger.watched:  # type: ignore[attr-defined]
                         self.debugger.watched.remove(name)  # type: ignore[attr-defined]
-                    if name in self._watch_set:
-                        self._watch_set.remove(name)
+                    if name in self._variable_set:
+                        self._variable_set.remove(name)
                     # remove row from layout/UI
                     row.setParent(None)
                     row.deleteLater()
@@ -206,7 +165,7 @@ class Debugger(QMainWindow):
 
             btn.clicked.connect(on_remove)
             h.addWidget(btn)
-            self.watch_list_layout.addWidget(row)
+            self.variable_list_layout.addWidget(row)
         
         def on_run_clicked(self):
             self.debugger.doRun()  # type: ignore[attr-defined]
@@ -221,17 +180,25 @@ class Debugger(QMainWindow):
             self.debugger.doClose()  # type: ignore[attr-defined]
     
     ###########################################################################
-    # The right-hand column of the main window
-    class MainRightColumn(QWidget):
+    # A single script panel that displays one script's lines
+    class ScriptPanel(QWidget):
         scroll: QScrollArea
         layout: QHBoxLayout  # type: ignore[assignment]
-        blob: QLabel
         
         def __init__(self, parent=None):
             super().__init__(parent)
+            
+            # Set white background
+            self.setStyleSheet("background-color: white;")
+            
+            # Main layout
+            panel_layout = QVBoxLayout(self)
+            panel_layout.setContentsMargins(0, 0, 0, 0)
+            panel_layout.setSpacing(0)
 
             # Create a scroll area - its content widget holds the lines
-            self.scroll = QScrollArea(self)
+            self.scroll = QScrollArea()
+            self.scroll.setStyleSheet("background-color: white;")
             self.scroll.setWidgetResizable(True)
 
             # Ensure this widget and the scroll area expand to fill available space
@@ -249,21 +216,19 @@ class Debugger(QMainWindow):
 
             self.scroll.setWidget(self.content)
 
-            # outer layout for this widget contains only the scroll area
-            main_layout = QVBoxLayout(self)
-            main_layout.setContentsMargins(0, 0, 0, 0)
-            main_layout.addWidget(self.scroll)
-            # ensure the scroll area gets the stretch so it fills the parent
-            main_layout.setStretch(0, 1)
+            # Add scroll area to the panel layout
+            panel_layout.addWidget(self.scroll)
+            
+            # Store script lines for this panel
+            self.scriptLines = []
 
         #######################################################################
-        # Add a line to the right-hand column
+        # Add a line to this script panel
         def addLine(self, spec):
 
-            # Determine if this line is a command (not empty, not a comment), using the original script line
-            orig_line = getattr(spec, 'orig_line', spec.line) if hasattr(spec, 'orig_line') or 'orig_line' in spec.__dict__ else spec.line
-            line_lstripped = orig_line.lstrip()
-            is_command = bool(line_lstripped and not line_lstripped.startswith('!'))
+            # is_command will be set later by enableBreakpoints() after compilation
+            # Initialize to False for now
+            spec.is_command = False
 
             class Label(QLabel):
                 def __init__(self, text, fixed_width=None, align=Qt.AlignmentFlag.AlignLeft, on_click=None):
@@ -277,7 +242,7 @@ class Debugger(QMainWindow):
                     if fixed_width is not None:
                         self.setFixedWidth(fixed_width)
                     self.setAlignment(align | Qt.AlignmentFlag.AlignVCenter)
-                    self._on_click = on_click if is_command else None
+                    self._on_click = on_click
 
                 def mousePressEvent(self, event):
                     if self._on_click:
@@ -313,7 +278,7 @@ class Debugger(QMainWindow):
             class ClickableBlob(QLabel):
                 def __init__(self, on_click=None):
                     super().__init__()
-                    self._on_click = on_click if is_command else None
+                    self._on_click = on_click
                 def mousePressEvent(self, event):
                     if self._on_click:
                         try:
@@ -323,7 +288,7 @@ class Debugger(QMainWindow):
                     super().mousePressEvent(event)
 
             blob_size = 10
-            blob = ClickableBlob(on_click=(lambda: spec.onClick(spec.lino)) if is_command else None)
+            blob = ClickableBlob(on_click=lambda: spec.onClick(spec.lino))
             blob.setFixedSize(blob_size, blob_size)
 
             def set_blob_visible(widget, visible):
@@ -348,7 +313,7 @@ class Debugger(QMainWindow):
 
             # create the line-number label; clicking it reports back to the caller
             lino_label = Label(str(spec.lino+1), fixed_width=width_4, align=Qt.AlignmentFlag.AlignRight,
-                               on_click=(lambda: spec.onClick(spec.lino)) if is_command else None)
+                               on_click=lambda: spec.onClick(spec.lino))
             lino_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
             # create the text label for the line itself
             text_label = Label(spec.line, fixed_width=None, align=Qt.AlignmentFlag.AlignLeft)
@@ -361,14 +326,119 @@ class Debugger(QMainWindow):
             self.inner_layout.addWidget(panel)
             return panel
         
-        def showBlob(self):
-            self.blob.setStyleSheet("background-color: red; border-radius: 5px; margin:0px; padding:0px;")
-        
-        def hideBlob(self):
-            self.blob.setStyleSheet("background-color: none; border-radius: 5px; margin:0px; padding:0px;")
-        
         def addStretch(self):
-            self.layout.addStretch()
+            self.inner_layout.addStretch()
+
+    ###########################################################################
+    # The right-hand column of the main window
+    class MainRightColumn(QWidget):
+        
+        def __init__(self, parent=None):
+            super().__init__(parent)
+            
+            # Set white background for the entire column
+            self.setStyleSheet("background-color: white;")
+            
+            # Main layout for this column
+            column_layout = QVBoxLayout(self)
+            column_layout.setContentsMargins(0, 0, 0, 0)
+            column_layout.setSpacing(0)
+            
+            # Create toolbar with icon buttons
+            toolbar = QToolBar()
+            toolbar.setMovable(False)
+            
+            # Get the icons directory path
+            icons_dir = os.path.join(os.path.dirname(__file__), 'icons')
+            
+            # Get the parent debugger for callbacks
+            debugger = parent
+            
+            # Run button
+            run_btn = QPushButton()
+            run_icon_path = os.path.join(icons_dir, 'run.png')
+            run_btn.setIcon(QIcon(run_icon_path))
+            run_btn.setToolTip("Run")
+            run_btn.clicked.connect(lambda: debugger.doRun() if debugger else None)  # type: ignore[attr-defined]
+            toolbar.addWidget(run_btn)
+            
+            # Step button
+            step_btn = QPushButton()
+            step_icon_path = os.path.join(icons_dir, 'step.png')
+            step_btn.setIcon(QIcon(step_icon_path))
+            step_btn.setToolTip("Step")
+            step_btn.clicked.connect(lambda: debugger.doStep() if debugger else None)  # type: ignore[attr-defined]
+            toolbar.addWidget(step_btn)
+            
+            # Stop button
+            stop_btn = QPushButton()
+            stop_icon_path = os.path.join(icons_dir, 'stop.png')
+            stop_btn.setIcon(QIcon(stop_icon_path))
+            stop_btn.setToolTip("Stop")
+            stop_btn.clicked.connect(lambda: debugger.doStop() if debugger else None)  # type: ignore[attr-defined]
+            toolbar.addWidget(stop_btn)
+            
+            # Exit button
+            exit_btn = QPushButton()
+            exit_icon_path = os.path.join(icons_dir, 'exit.png')
+            exit_btn.setIcon(QIcon(exit_icon_path))
+            exit_btn.setToolTip("Exit")
+            exit_btn.clicked.connect(lambda: debugger.doClose() if debugger else None)  # type: ignore[attr-defined]
+            toolbar.addWidget(exit_btn)
+            
+            column_layout.addWidget(toolbar)
+
+            # Create a tab widget to hold multiple script panels
+            self.tabWidget = QTabWidget()
+            self.tabWidget.setTabsClosable(False)  # Don't allow closing tabs for now
+            
+            # Ensure tab widget expands
+            self.tabWidget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+            
+            column_layout.addWidget(self.tabWidget)
+            
+            # Dictionary to map program -> script panel
+            self.programPanels = {}
+
+        #######################################################################
+        # Add a new script tab
+        def addScriptTab(self, program, filename):
+            """Add a new tab for a script"""
+            panel = Debugger.ScriptPanel(self)
+            # Extract just the filename from the full path
+            tab_label = os.path.basename(filename)
+            self.tabWidget.addTab(panel, tab_label)
+            self.programPanels[id(program)] = panel
+            return panel
+        
+        #######################################################################
+        # Get the current active script panel
+        def getCurrentPanel(self):
+            """Get the currently active script panel"""
+            return self.tabWidget.currentWidget()
+        
+        #######################################################################
+        # Get the panel for a specific program
+        def getPanelForProgram(self, program):
+            """Get the panel associated with a program"""
+            return self.programPanels.get(id(program))
+
+        #######################################################################
+        # Legacy method - add a line to the current panel
+        def addLine(self, spec):
+            """Delegate to the current panel's addLine method"""
+            panel = self.getCurrentPanel()
+            if panel and isinstance(panel, Debugger.ScriptPanel):
+                return panel.addLine(spec)
+            return None
+        
+        #######################################################################
+        # Add stretch to current panel
+        def addStretch(self):
+            """Delegate to the current panel's addStretch method"""
+            panel = self.getCurrentPanel()
+            if panel and isinstance(panel, Debugger.ScriptPanel):
+                panel.addStretch()
 
     ###########################################################################
     # Main debugger class initializer
@@ -380,6 +450,7 @@ class Debugger(QMainWindow):
         # Disable the window close button
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowCloseButtonHint)
         self.stopped = True
+        self.skip_next_breakpoint = False  # Flag to skip breakpoint check on resume
 
         # try to load saved geometry from ~/.ecdebug.conf
         cfg_path = os.path.join(os.path.expanduser("~"), ".ecdebug.conf")
@@ -489,7 +560,7 @@ class Debugger(QMainWindow):
 
         # Use the vertical splitter as the central widget
         self.setCentralWidget(self.vsplitter)
-        self.parse(program.script.lines)
+        self.parse(program.script.lines, program, program.scriptName)
         self.show()
 
     def _flush_console_buffer(self):
@@ -523,15 +594,41 @@ class Debugger(QMainWindow):
 
     ###########################################################################
     # Parse a script into the right-hand column
-    def parse(self, script):
+    def parse(self, script, program=None, filename=None):
+        """Parse a script and add it as a tab
+        
+        Args:
+            script: List of script lines
+            program: The Program instance this script belongs to
+            filename: The filename to use as the tab label
+        """
         self.scriptLines = []
-        # Clear existing lines from the right column layout
-        layout = self.rightColumn.inner_layout
-        while layout.count():
-            item = layout.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
+        
+        # Get or create the panel for this program
+        panel = None
+        if program:
+            panel = self.rightColumn.getPanelForProgram(program)
+            if not panel:
+                # Create a new tab for this program
+                if not filename:
+                    filename = getattr(program, 'path', 'Untitled')
+                panel = self.rightColumn.addScriptTab(program, filename)
+        
+        # If no program specified or panel creation failed, use current panel
+        if not panel:
+            panel = self.rightColumn.getCurrentPanel()
+            if not panel:
+                # Create a default tab
+                panel = self.rightColumn.addScriptTab(None, filename or 'Untitled')
+        
+        # Clear existing lines from the panel
+        if panel and isinstance(panel, Debugger.ScriptPanel):
+            layout = panel.inner_layout
+            while layout.count():
+                item = layout.takeAt(0)
+                widget = item.widget()
+                if widget:
+                    widget.deleteLater()
 
         # Parse and add new lines
         lino = 0
@@ -632,10 +729,48 @@ class Debugger(QMainWindow):
         return output
     
     ###########################################################################
+    # Enable breakpoints to be set on any line that is classed as a command
+    def enableBreakpoints(self):
+        """
+        Examine each line and set is_command flag based on compiled code.
+        A line is a command if:
+        - It's not empty or a comment
+        - It's not a label (single word ending with colon)
+        - It corresponds to a command in program.code with type != 'symbol'
+        """
+        # First, mark all lines as non-commands by default
+        for lineSpec in self.scriptLines:
+            lineSpec.is_command = False
+        
+        # Now iterate through compiled commands and mark those that are executable
+        for command in self.program.code:
+            if 'lino' not in command:
+                continue
+            
+            lino = command['lino']
+            if lino < 0 or lino >= len(self.scriptLines):
+                continue
+            
+            # Check if this is a symbol declaration (variable/constant definition)
+            if command.get('type') == 'symbol':
+                continue
+            
+            # Check if this is a structural keyword that shouldn't have breakpoints
+            if command.get('keyword') in ['begin', 'end']:
+                continue
+            
+            # This is an executable command
+            self.scriptLines[lino].is_command = True
+    
+    ###########################################################################
     # Here when the user clicks a line number
     def onClickLino(self, lino):
-        # Show or hide the red blob next to this line
+        # Check if this line is a command - if not, take no action
         lineSpec = self.scriptLines[lino]
+        if not getattr(lineSpec, 'is_command', True):
+            return
+        
+        # Show or hide the red blob next to this line
         lineSpec.bp = not lineSpec.bp
         if lineSpec.bp: lineSpec.label.showBlob()
         else: lineSpec.label.hideBlob()
@@ -659,8 +794,13 @@ class Debugger(QMainWindow):
         if not panel:
             return
         
-        # Get the scroll area from the right column
-        scroll_area = self.rightColumn.scroll
+        # Get the current script panel
+        script_panel = self.rightColumn.getCurrentPanel()
+        if not script_panel or not isinstance(script_panel, Debugger.ScriptPanel):
+            return
+            
+        # Get the scroll area from the script panel
+        scroll_area = script_panel.scroll
         
         # Get the vertical position of the panel relative to the content widget
         panel_y = panel.y()
@@ -700,31 +840,81 @@ class Debugger(QMainWindow):
             panel.setStyleSheet(f"background-color: {color};")
     
     ###########################################################################
-    # Here when each instruction is about to run
-    def continueExecution(self):
-        result = True
+    # Here before each instruction is run
+    # Returns True if the program should halt and wait for user interaction
+    def checkIfHalt(self, is_first_command=False):
         self.pc = self.program.pc
         command = self.program.code[self.pc]
-        lino = command['lino'] + 1
-        if self.stopped: result = False
-        elif command['bp']:
-            print(f"Hit breakpoint at line {lino}")
+        lino = command['lino'] if 'lino' in command else 0
+        bp = command.get('bp', False)
+        
+        # Check if we should skip this breakpoint check (resuming from same location)
+        if self.skip_next_breakpoint:
+            self.skip_next_breakpoint = False
+            return False
+        
+        # Labels should never halt execution - they're just markers
+        # A label is a symbol whose name ends with ':'
+        if command.get('type') == 'symbol' and command.get('name', '').endswith(':'):
+            return False
+        
+        # Determine if we should halt
+        should_halt = False
+        
+        # If this is the first real command (pc==1), always halt to initialize display
+        if is_first_command:
+            should_halt = True
             self.stopped = True
-            result = False
-        if not result:
+            print(f"Program ready at line {lino + 1}")
+        # If we're in stopped (step) mode, halt after each command
+        elif self.stopped:
+            should_halt = True
+        # If there's a breakpoint on this line, halt
+        elif bp:
+            print(f"Hit breakpoint at line {lino + 1}")
+            self.stopped = True
+            should_halt = True
+        
+        # If halting, update the UI
+        if should_halt:
             self.scrollTo(lino)
-            self.setBackground(command['lino'], 'LightYellow')
-        return result
+            self.setBackground(lino, 'LightYellow')
+        
+        return should_halt
     
     def doRun(self):
+        """Resume free-running execution from current PC"""
+        command = self.program.code[self.pc]
+        lino = command.get('lino', 0)
+        print(f"Continuing execution at line {lino + 1}")
+        
+        # Clear the highlight on the current line
+        self.setBackground(lino, 'none')
+        
+        # Switch to free-running mode
         self.stopped = False
-        print("Continuing execution at line", self.program.pc + 1)
+        
+        # Skip the breakpoint check for the current instruction (the one we're resuming from)
+        self.skip_next_breakpoint = True
+        
+        # Resume execution at current PC
         self.program.run(self.pc)
     
     def doStep(self):
+        """Execute one instruction and halt again"""
         command = self.program.code[self.pc]
-        # print("Stepping at line", command['lino'] + 1)
-        self.setBackground(command['lino'], 'none')
+        lino = command.get('lino', 0)
+        
+        # Clear the highlight on the current line
+        self.setBackground(lino, 'none')
+        
+        # Stay in stopped mode (will halt after next instruction)
+        self.stopped = True
+        
+        # Skip the breakpoint check for the current instruction (the one we're stepping from)
+        self.skip_next_breakpoint = True
+        
+        # Execute the current instruction
         self.program.run(self.pc)
     
     def doStop(self):

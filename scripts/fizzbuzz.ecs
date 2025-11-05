@@ -1,6 +1,7 @@
 ! FizzBuzz
 
 script FizzBuzz
+use debugger
 
 variable Number
 put 0 into Number

@@ -2,4 +2,4 @@
 
 from easycoder import Program
 
-Program('/home/graham/dev/easycoder/easycoder-py/scripts/tests.ecs').start()
+Program('debug /home/graham/dev/easycoder/easycoder-py/scripts/test.ecs').start()

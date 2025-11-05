@@ -9,15 +9,17 @@
 
 !	debug step
 
-	print `FOR loop counting to 500,000`
+	log `FOR loop counting to 500,000`
+	wait 1 tick
 	put now into Start
 	put 0 into N
 	while N is less than 500000 increment N
 	put now into Finish
 	take Start from Finish giving N
-	print N cat ` seconds`
+	log N cat ` seconds`
 
-	print `Compare 500,000 long integers for equality`
+	log `Compare 500,000 long integers for equality`
+	wait 1 tick
 	put now into Start
 	put 0 into N
 	while N is less than 500000
@@ -27,9 +29,10 @@
 	end
 	put now into Finish
 	take Start from Finish giving N
-	print N cat ` seconds`
+	log N cat ` seconds`
 
-	print `Allocate and initialize a 500,000 element array`
+	log `Allocate and initialize a 500,000 element array`
+	wait 1 tick
 	put now into Start
 	set the elements of Array to 500000
 	put 0 into N
@@ -41,9 +44,10 @@
 	end
 	put now into Finish
 	take Start from Finish giving N
-	print N cat ` seconds`
+	log N cat ` seconds`
 
-	print `Allocate and initialize a 5000 element dictionary`
+	log `Allocate and initialize a 5000 element dictionary`
+	wait 1 tick
 	put json `{}` into Dictionary
 	put now into Start
 	put 0 into N
@@ -59,5 +63,6 @@
 	end
 	put now into Finish
 	take Start from Finish giving N
-	print N cat ` seconds`
+	log N cat ` seconds`
+	wait 1
 	exit

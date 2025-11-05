@@ -1,7 +1,6 @@
 !	A test script
 
 	script Tests
-	use debugger
 
 	variable Data
 	variable D

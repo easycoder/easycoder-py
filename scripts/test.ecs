@@ -2,10 +2,12 @@
 
     script Test
     
-    variable TS
-    variable Now
+    variable N
     
-    put the timestamp of `17:00` format `%H:%M` into TS
-    put now into Now
-    print TS cat ` ` cat Now
-
+    debug step
+    put 1 into N
+    log N
+Label:
+    put 2 into N
+    log N
+    stop
