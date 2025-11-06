@@ -1,13 +1,21 @@
-! test.ecs
+!   test.ecs
 
     script Test
-    
+
     variable N
+    variable M
+    variable Dictionary
     
-    debug step
-    put 1 into N
-    log N
-Label:
-    put 2 into N
-    log N
+	put json `{}` into Dictionary
+	put 0 into N
+	while N is less than 10
+	begin
+		put 0 into M
+		while M is less than 10
+		begin
+			set property N cat `,` cat M of Dictionary to M
+			increment M
+		end
+		increment N
+	end
     stop
