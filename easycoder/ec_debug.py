@@ -176,6 +176,251 @@ class ValueDisplay(QWidget):
         self.is_expanded = not self.is_expanded
         # Caller should call setValue again to refresh display
 
+class WatchListWidget(QWidget):
+    """Encapsulates the variable watch list: grid layout, rows, shared horizontal scrollbar, refresh logic."""
+    
+    class ContentWidget(QWidget):
+        """Custom widget that expands horizontally but sizes to content vertically"""
+        def sizeHint(self):
+            # Use the layout's size hint for natural sizing
+            hint = super().sizeHint()
+            # For height, use the minimum size (natural content height)
+            hint.setHeight(self.minimumSizeHint().height())
+            return hint
+    
+    def __init__(self, debugger):
+        super().__init__(debugger)
+        self.debugger = debugger
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        # Content widget holding the grid - use custom widget for hybrid sizing
+        self._content_widget = self.ContentWidget()
+        self._content_widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        self.grid = QGridLayout(self._content_widget)
+        self.grid.setContentsMargins(6, 2, 6, 2)
+        self.grid.setHorizontalSpacing(8)
+        self.grid.setVerticalSpacing(2)
+        self.grid.setColumnStretch(0, 1)   # main content stretches
+        self.grid.setColumnStretch(1, 0)   # buttons stay compact
+
+        # Tracking structures
+        self._row_count = 0              # number of variable rows (excludes placeholder)
+        self._row_scrollers = []         # scrollers for shared horizontal scrolling
+        self._variable_set = set()       # names of currently watched variables
+        self._placeholder = None         # QLabel shown when no variables watched
+
+        # Scroll area wrapping the grid (vertical only)
+        self.scrollArea = QScrollArea()
+        self.scrollArea.setFrameShape(QFrame.Shape.NoFrame)
+        self.scrollArea.setWidgetResizable(True)  # Allow horizontal resize to fill width
+        self.scrollArea.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.scrollArea.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.scrollArea.setWidget(self._content_widget)
+        outer.addWidget(self.scrollArea, 1)
+
+        # Horizontal scrollbar row (outside the vertical scroll area)
+        hscroll_row = QWidget()
+        hscroll_layout = QHBoxLayout(hscroll_row)
+        hscroll_layout.setContentsMargins(6, 0, 6, 2)
+        hscroll_layout.setSpacing(8)
+        
+        # Shared horizontal scrollbar
+        self.hscroll = QScrollBar(Qt.Orientation.Horizontal)
+        self.hscroll.setRange(0, 0)
+        self.hscroll.valueChanged.connect(self._on_hscroll_value_changed)
+        hscroll_layout.addWidget(self.hscroll, 1)  # stretch to match left column
+        
+        # Spacer to match button column width
+        spacer = QWidget()
+        spacer.setFixedWidth(22 + 6 + 22 + 8)  # match buttons width + spacing
+        hscroll_layout.addWidget(spacer, 0)
+        
+        outer.addWidget(hscroll_row, 0)
+
+        # Show placeholder initially
+        self._show_placeholder()
+
+    # ------------------------------------------------------------------
+    def addVariable(self, name: str):
+        try:
+            if name in self._variable_set:
+                return
+            if not hasattr(self.debugger, 'watched'):
+                self.debugger.watched = []  # type: ignore[attr-defined]
+            if name not in self.debugger.watched:  # type: ignore[attr-defined]
+                self.debugger.watched.append(name)  # type: ignore[attr-defined]
+            self._add_variable_row(name)
+            self._variable_set.add(name)
+            self.refreshVariables(self.debugger.program)
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------------
+    def _on_hscroll_value_changed(self, value: int):
+        try:
+            for sc in self._row_scrollers:
+                try:
+                    sc.horizontalScrollBar().setValue(value)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------------
+    def _show_placeholder(self):
+        try:
+            if self._placeholder is not None:
+                return
+            ph = QLabel("No variables watched. Click + to add.")
+            ph.setStyleSheet("color: #666; font-style: italic; padding: 6px 4px;")
+            ph.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            self.grid.addWidget(ph, 0, 0, 1, 2)
+            self._placeholder = ph
+        except Exception:
+            pass
+
+    def _hide_placeholder(self):
+        try:
+            if self._placeholder is None:
+                return
+            w = self._placeholder
+            self._placeholder = None
+            self.grid.removeWidget(w)
+            w.deleteLater()
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------------
+    def recalc_width_range(self):
+        try:
+            max_content_w = 0
+            view_w = 0
+            for sc in self._row_scrollers:
+                widget = sc.widget() if sc else None
+                if widget:
+                    max_content_w = max(max_content_w, widget.sizeHint().width())
+                if view_w == 0 and sc:
+                    view_w = sc.viewport().width()
+            if view_w <= 0:
+                view_w = max(0, self.scrollArea.viewport().width() - 70)
+            rng = max(0, max_content_w - view_w)
+            self.hscroll.setRange(0, rng)
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------------
+    def _add_variable_row(self, name: str):
+        # Hide placeholder if present
+        self._hide_placeholder()
+
+        content_widget = QWidget()
+        ch = QHBoxLayout(content_widget)
+        ch.setContentsMargins(0, 2, 0, 2)
+        ch.setSpacing(6)
+
+        name_lbl = QLabel(name)
+        name_lbl.setStyleSheet("font-family: mono; padding: 2px 4px; font-weight: bold;")
+        name_lbl.setFixedWidth(110)
+        ch.addWidget(name_lbl)
+
+        value_display = ValueDisplay()
+        value_display.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        ch.addWidget(value_display, 0)
+
+        row_scroller = QScrollArea()
+        row_scroller.setFrameShape(QFrame.Shape.NoFrame)
+        row_scroller.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        row_scroller.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        row_scroller.setWidgetResizable(True)
+        row_scroller.setWidget(content_widget)
+        row_scroller.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+
+        buttons_widget = QWidget()
+        bh = QHBoxLayout(buttons_widget)
+        bh.setContentsMargins(0, 0, 0, 0)
+        bh.setSpacing(6)
+
+        expand_btn = QPushButton("⋮")
+        expand_btn.setToolTip(f"Expand/collapse '{name}'")
+        expand_btn.setFixedSize(22, 22)
+        def on_expand():
+            try:
+                value_display.toggleExpand()
+                self.refreshVariables(self.debugger.program)
+            except Exception:
+                pass
+        expand_btn.clicked.connect(on_expand)
+        bh.addWidget(expand_btn)
+
+        remove_btn = QPushButton("–")
+        remove_btn.setToolTip(f"Remove '{name}' from watch")
+        remove_btn.setFixedSize(22, 22)
+        def on_remove():
+            try:
+                if hasattr(self.debugger, 'watched') and name in self.debugger.watched:  # type: ignore[attr-defined]
+                    self.debugger.watched.remove(name)  # type: ignore[attr-defined]
+                if name in self._variable_set:
+                    self._variable_set.remove(name)
+                row_scroller.setParent(None)
+                buttons_widget.setParent(None)
+                if row_scroller in self._row_scrollers:
+                    self._row_scrollers.remove(row_scroller)
+                self._row_count = max(0, self._row_count - 1)
+                # Update content widget size after removal
+                self._content_widget.adjustSize()
+                self.recalc_width_range()
+                # Show placeholder if no rows left
+                if self._row_count == 0:
+                    self._show_placeholder()
+            except Exception:
+                pass
+        remove_btn.clicked.connect(on_remove)
+        bh.addWidget(remove_btn)
+
+        buttons_widget.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
+        buttons_widget.setFixedWidth(22 + 6 + 22)
+
+        # Attach attributes for refresh
+        row_scroller.name = name  # type: ignore[attr-defined]
+        row_scroller.value_display = value_display  # type: ignore[attr-defined]
+
+        # Place row
+        self.grid.addWidget(row_scroller, self._row_count, 0)
+        self.grid.addWidget(buttons_widget, self._row_count, 1)
+        self._row_scrollers.append(row_scroller)
+        self._row_count += 1
+        
+        # Update content widget size to fit new rows
+        self._content_widget.adjustSize()
+        self.recalc_width_range()
+
+    # ------------------------------------------------------------------
+    def refreshVariables(self, program):
+        try:
+            for sc in self._row_scrollers:
+                if hasattr(sc, 'name') and hasattr(sc, 'value_display'):
+                    var_name = sc.name  # type: ignore[attr-defined]
+                    value_display = sc.value_display  # type: ignore[attr-defined]
+                    try:
+                        symbol_record = program.getSymbolRecord(var_name)
+                        value_display.setValue(symbol_record, program)
+                    except Exception as e:
+                        value_display.value_label.setText(f"<error: {e}>")
+            # Update size in case values expanded/collapsed
+            self._content_widget.adjustSize()
+            self.recalc_width_range()
+            # If nothing to show, ensure placeholder is visible and scrollbar range reset
+            if self._row_count == 0:
+                self._show_placeholder()
+                self.hscroll.setRange(0, 0)
+        except Exception:
+            pass
+
 class Debugger(QMainWindow):
     # Help type-checkers know these attributes exist
     _flush_timer: Optional[QTimer]
@@ -205,148 +450,39 @@ class Debugger(QMainWindow):
             self.debugger = parent
             layout = QVBoxLayout(self)
 
-            # --- Watch panel (like VS Code) ---
+            # Header panel
             variable_panel = QFrame()
             variable_panel.setFrameShape(QFrame.Shape.StyledPanel)
             variable_panel.setStyleSheet("background-color: white;")
-            # Ensure the VARIABLES bar stretches to full available width
             variable_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             watch_layout = QHBoxLayout(variable_panel)
             watch_layout.setContentsMargins(4, 4, 4, 4)
             watch_layout.setSpacing(4)
 
-
-            # Title label
             title_label = QLabel("VARIABLES")
             title_label.setStyleSheet("font-weight: bold; letter-spacing: 1px;")
             watch_layout.addWidget(title_label)
-
-            # Stretch to push buttons right
             watch_layout.addStretch()
 
-            # Placeholder add/remove icons (replace with real icons later)
-            add_btn = QPushButton()
+            add_btn = QPushButton("+")
             add_btn.setToolTip("Add variable to watch")
-            # TODO: set add_btn.setIcon(QIcon(path)) when icon is available
-            add_btn.setText("+")
             add_btn.setFixedSize(24, 24)
             add_btn.clicked.connect(self.on_add_clicked)
             watch_layout.addWidget(add_btn)
 
             layout.addWidget(variable_panel)
 
-            # Variable list area (renders selected variables beneath the toolbar)
-            self.variable_list_widget = QWidget()
-            self.variable_list_layout = QGridLayout(self.variable_list_widget)
-            self.variable_list_layout.setContentsMargins(6, 2, 6, 2)
-            self.variable_list_layout.setHorizontalSpacing(8)
-            self.variable_list_layout.setVerticalSpacing(2)
-            # Grid columns: 0 = content (name+value), 1 = buttons
-            self.variable_list_layout.setColumnStretch(0, 1)
-            self.variable_list_layout.setColumnStretch(1, 0)
-            # Track rows and row scrollers for synchronized horizontal scroll
-            self._row_count = 0
-            self._row_scrollers = []
-            # Shared horizontal scrollbar placed at the bottom-left cell
-            self.hscroll = QScrollBar(Qt.Orientation.Horizontal)
-            self.hscroll.setRange(0, 0)
-            self.hscroll.valueChanged.connect(self._on_hscroll_value_changed)
-
-            # Wrap the variable list in a scroll area to avoid horizontal growth
-            self.variable_scroll = QScrollArea()
-            self.variable_scroll.setFrameShape(QFrame.Shape.NoFrame)
-            # We want horizontal scrolling when content is wider than the viewport
-            # Use widgetResizable(True) and drive horizontal scroll by setting
-            # the inner widget's minimumWidth to its natural sizeHint width.
-            self.variable_scroll.setWidgetResizable(True)
-            # Enable horizontal scroll at the list level as needed
-            self.variable_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-            self.variable_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-            # Let the scroll area expand and take available vertical space
-            self.variable_scroll.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-            # Let the inner widget report its natural width so the scroll area can scroll horizontally
-            self.variable_list_widget.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
-            self.variable_scroll.setWidget(self.variable_list_widget)
-            # Give the scroll area stretch so it fills remaining space under the header
-            layout.addWidget(self.variable_scroll, 1)
-
-            # Keep a simple set to prevent duplicate labels
-            self._variable_set = set()
-
-            # Note: Avoid an extra trailing stretch here so the scroll area can occupy remaining space
-
-        def _remove_bottom_scrollbar_row(self):
-            try:
-                # Remove hscroll and placeholder at the last row if present
-                item0 = self.variable_list_layout.itemAtPosition(self._row_count, 0)
-                if item0:
-                    w = item0.widget()
-                    if w:
-                        self.variable_list_layout.removeWidget(w)
-                        w.setParent(None)
-                    else:
-                        self.variable_list_layout.removeItem(item0)
-                item1 = self.variable_list_layout.itemAtPosition(self._row_count, 1)
-                if item1:
-                    w = item1.widget()
-                    if w:
-                        self.variable_list_layout.removeWidget(w)
-                        w.setParent(None)
-                    else:
-                        self.variable_list_layout.removeItem(item1)
-            except Exception:
-                pass
-
-        def _add_bottom_scrollbar_row(self):
-            try:
-                # Place the shared horizontal scrollbar in the bottom-left cell; blank on right
-                self.variable_list_layout.addWidget(self.hscroll, self._row_count, 0)
-                spacer = QWidget()
-                spacer.setFixedWidth(1)
-                spacer.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-                self.variable_list_layout.addWidget(spacer, self._row_count, 1)
-            except Exception:
-                pass
-
-        def _on_hscroll_value_changed(self, value: int):
-            try:
-                for sc in getattr(self, '_row_scrollers', []):
-                    try:
-                        sc.horizontalScrollBar().setValue(value)
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-
-        def recalc_watch_min_width(self):
-            """Recalculate shared horizontal scrollbar range based on content widths."""
-            try:
-                max_content_w = 0
-                view_w = 0
-                for sc in getattr(self, '_row_scrollers', []):
-                    widget = sc.widget() if sc else None
-                    if widget:
-                        max_content_w = max(max_content_w, widget.sizeHint().width())
-                    if view_w == 0 and sc:
-                        view_w = sc.viewport().width()
-                if view_w <= 0:
-                    # Approximate available width for content column
-                    view_w = max(0, self.variable_scroll.viewport().width() - 70)
-                rng = max(0, max_content_w - view_w)
-                self.hscroll.setRange(0, rng)
-            except Exception:
-                pass
+            # Watch list widget
+            self.watch_list = WatchListWidget(self.debugger)
+            layout.addWidget(self.watch_list, 1)
 
         def on_add_clicked(self):
-            # Build the variable list from the program. Prefer Program.symbols mapping.
             try:
                 program = self.debugger.program  # type: ignore[attr-defined]
-                # Fallback to scanning code if symbols is empty
                 items = []
                 if hasattr(program, 'symbols') and isinstance(program.symbols, dict) and program.symbols:
                     items = sorted([name for name in program.symbols.keys() if name and not name.endswith(':')])
                 else:
-                    # Fallback heuristic: look for commands whose 'type' == 'symbol' (as per requirement)
                     for cmd in getattr(program, 'code', []):
                         try:
                             if cmd.get('type') == 'symbol' and 'name' in cmd:
@@ -359,16 +495,7 @@ class Debugger(QMainWindow):
                     return
                 choice, ok = QInputDialog.getItem(self, "Add Watch", "Select a variable:", items, 0, False)
                 if ok and choice:
-                    # Record the choice for future use (UI for list will be added later)
-                    if not hasattr(self.debugger, 'watched'):
-                        self.debugger.watched = []  # type: ignore[attr-defined]
-                    if choice not in self.debugger.watched:  # type: ignore[attr-defined]
-                        self.debugger.watched.append(choice)  # type: ignore[attr-defined]
-                    # Render as a plain label beneath the toolbar if not already present
-                    if choice not in self._variable_set:
-                        self._add_variable_row(choice)
-                        self._variable_set.add(choice)
-                    # Optionally echo to console for now
+                    self.watch_list.addVariable(choice)
                     try:
                         self.debugger.console.append(f"Watching: {choice}")  # type: ignore[attr-defined]
                     except Exception:
@@ -376,126 +503,6 @@ class Debugger(QMainWindow):
             except Exception as exc:
                 QMessageBox.warning(self, "Add Watch", f"Could not list variables: {exc}")
 
-        def _add_variable_row(self, name: str):
-            # Build left content (name + value)
-            content_widget = QWidget()
-            ch = QHBoxLayout(content_widget)
-            ch.setContentsMargins(0, 2, 0, 2)
-            ch.setSpacing(6)
-
-            name_lbl = QLabel(name)
-            name_lbl.setStyleSheet("font-family: mono; padding: 2px 4px; font-weight: bold;")
-            name_lbl.setFixedWidth(110)
-            ch.addWidget(name_lbl)
-
-            value_display = ValueDisplay()
-            value_display.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
-            ch.addWidget(value_display, 0)
-
-            # Wrap left content in a scroller (no visible bars); we'll control via shared hscroll
-            row_scroller = QScrollArea()
-            row_scroller.setFrameShape(QFrame.Shape.NoFrame)
-            row_scroller.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-            row_scroller.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-            row_scroller.setWidgetResizable(True)
-            row_scroller.setWidget(content_widget)
-            row_scroller.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-
-            # Right-side buttons
-            buttons_widget = QWidget()
-            bh = QHBoxLayout(buttons_widget)
-            bh.setContentsMargins(0, 0, 0, 0)
-            bh.setSpacing(6)
-
-            expand_btn = QPushButton()
-            expand_btn.setText("⋮")
-            expand_btn.setToolTip(f"Expand/collapse '{name}'")
-            expand_btn.setFixedSize(22, 22)
-
-            def on_expand():
-                try:
-                    value_display.toggleExpand()
-                    self.debugger.refreshVariables()  # type: ignore[attr-defined]
-                except Exception:
-                    pass
-
-            expand_btn.clicked.connect(on_expand)
-            bh.addWidget(expand_btn)
-
-            remove_btn = QPushButton()
-            remove_btn.setText("–")
-            remove_btn.setToolTip(f"Remove '{name}' from watch")
-            remove_btn.setFixedSize(22, 22)
-
-            def on_remove():
-                try:
-                    if hasattr(self.debugger, 'watched') and name in self.debugger.watched:  # type: ignore[attr-defined]
-                        self.debugger.watched.remove(name)  # type: ignore[attr-defined]
-                    if name in self._variable_set:
-                        self._variable_set.remove(name)
-                    # Remove the row widgets
-                    row_scroller.setParent(None)
-                    buttons_widget.setParent(None)
-                    # Also remove from trackers
-                    try:
-                        if row_scroller in self._row_scrollers:
-                            self._row_scrollers.remove(row_scroller)
-                            # Rebuild bottom scrollbar row
-                            self._remove_bottom_scrollbar_row()
-                            self._row_count = max(0, self._row_count - 1)
-                            self._add_bottom_scrollbar_row()
-                            self.recalc_watch_min_width()
-                    except Exception:
-                        pass
-                except Exception:
-                    pass
-
-            remove_btn.clicked.connect(on_remove)
-            bh.addWidget(remove_btn)
-            # Fix width based on buttons + spacing
-            buttons_widget.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
-            buttons_widget.setFixedWidth(22 + 6 + 22)
-
-            # Store references on a lightweight holder (attach to scroller for refresh)
-            row_scroller.name = name  # type: ignore[attr-defined]
-            row_scroller.value_display = value_display  # type: ignore[attr-defined]
-
-            # Insert before bottom scrollbar row
-            try:
-                self._remove_bottom_scrollbar_row()
-            except Exception:
-                pass
-
-            self.variable_list_layout.addWidget(row_scroller, self._row_count, 0)
-            self.variable_list_layout.addWidget(buttons_widget, self._row_count, 1)
-            self._row_scrollers.append(row_scroller)
-            self._row_count += 1
-            self._add_bottom_scrollbar_row()
-
-            # Update shared scrollbar range based on content widths
-            try:
-                self.recalc_watch_min_width()
-            except Exception:
-                pass
-
-            # Initial value fetch
-            try:
-                self.debugger.refreshVariables()  # type: ignore[attr-defined]
-            except Exception:
-                pass
-        
-        def on_run_clicked(self):
-            self.debugger.doRun()  # type: ignore[attr-defined]
-        
-        def on_step_clicked(self):
-            self.debugger.doStep()  # type: ignore[attr-defined]
-        
-        def on_stop_clicked(self):
-            self.debugger.doStop()  # type: ignore[attr-defined]
-
-        def on_exit_clicked(self):
-            self.debugger.doClose()  # type: ignore[attr-defined]
-    
     ###########################################################################
     # A single script panel that displays one script's lines
     class ScriptPanel(QWidget):
@@ -1204,32 +1211,8 @@ class Debugger(QMainWindow):
     def refreshVariables(self):
         """Update all watched variable values"""
         try:
-            # Find all variable rows in the left column
-            if not hasattr(self, 'leftColumn'):
-                return
-            
-            layout = self.leftColumn.variable_list_layout
-            for i in range(layout.count()):
-                item = layout.itemAt(i)
-                if item and item.widget():
-                    row = item.widget()
-                    if hasattr(row, 'name') and hasattr(row, 'value_display'):
-                        var_name = row.name  # type: ignore[attr-defined]
-                        value_display = row.value_display  # type: ignore[attr-defined]
-                        
-                        # Get symbol record from program
-                        try:
-                            symbol_record = self.program.getSymbolRecord(var_name)
-                            value_display.setValue(symbol_record, self.program)
-                        except Exception as e:
-                            # Variable not found or error
-                            value_display.value_label.setText(f"<error: {e}>")
-            # After updating values, recompute shared scrollbar range
-            try:
-                if hasattr(self, 'leftColumn'):
-                    self.leftColumn.recalc_watch_min_width()
-            except Exception:
-                pass
+            if hasattr(self, 'leftColumn') and hasattr(self.leftColumn, 'watch_list'):
+                self.leftColumn.watch_list.refreshVariables(self.program)
         except Exception as ex:
             print(f"Error refreshing variables: {ex}")
     
