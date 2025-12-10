@@ -12,17 +12,16 @@
 	variable Y
 	variable Z
 	variable Dictionary
+	stack Stack
 	file File
 
-!	debug step
+	debug compile
+	debug step
 
 	log `FOR loop counting to 10`
 	put 0 into N
 	while N is less than 10
-	begin
-		log N
 		increment N
-	end
 
 	log `Compare 10 integers for equality`
 	put 0 into N
@@ -44,7 +43,6 @@
 	end
 
 	log `Allocate and initialize a 10 element JSON dictionary`
-	put json `{}` into Dictionary
 	put 0 into N
 	while N is less than 10
 	begin
@@ -57,8 +55,12 @@
 		increment N
 	end
 
+	debug step
+
 	put 20 into Y
 	put 6 into X
+	log X
+	log Y
 
 	add X to Y giving Z
 	assert Z is 26
@@ -74,25 +76,33 @@
 	assert Z is 126
 	multiply Y by X
 	assert Y is 126
-
 	divide Y by 3 giving Z
 	assert Z is 42
 	divide Y by 3
 	assert Y is 42
 
+	put 12345 into Y
+	assert Y is 12345
 	put Y modulo 10 into Z
-	assert Z is 2
+	assert Z is 5
 
-	put empty into X
+	reset X
 	set property `name` of X to `Fred`
 	assert property `name` of X is `Fred`
-	put empty into Y
+
+	put `The quick brown fox jumps over the lazy dog` into X
+	assert left 9 of X is `The quick`
+	assert right 3 of X is `dog`
+	assert from 31 of X is `the lazy dog`
+
+	reset Y
 	put 1 into N
 	while N is less than 6
 	begin
 		append N to Y
 		increment N
 	end
+	log Y
 	assert element 2 of Y is 3
 
 	set element 2 of Y to `Some data`
@@ -116,9 +126,17 @@
 	put `hello` into Y
 	assert Y is not boolean
 
+	put 55 into N
+	push N onto Stack
+	put 60 into N
+	pop N from Stack
+	log N
+	assert N is 55
+
 	put 0 into N
 	while N is less than 10
 	begin
+		log N
 		assert N is even
 		add 2 to N
 	end
@@ -162,36 +180,25 @@ Loop1:
     put encode D into E
     log E
     put decode E into D
-    log D
+    assert D is `"Goodbye,\n cruel world!"`
 
     set the encoding to `base64`
-
-    put `"Goodbye, cruel world!"` into D
     put encode D into E
     log E
     put decode E into D
-    log D
+    assert D is `"Goodbye,\n cruel world!"`
 
-    log from 8 to 12 of `This is some text`
+    put from 8 to 12 of `This is some text` into D
+	assert D is `some`
 
-    log hash `Graham`
+    put hash `Graham` into D
+	assert D is `5d422d0acb34b8c10ed55cc2809937c8226538ec1729f5cade99449c597b30e4`
 
     log the timestamp cat ` ` cat now
 
     log the files in `.`
 
     log the memory
-
-    put json `[]` into Data
-    put 0 into N
-    while N is less than 10
-    begin
-        append N to Data
-        increment N
-    end
-
-    log Data
-    log the index of 5 in Data
 
 	wait 2
 	log `All done!`

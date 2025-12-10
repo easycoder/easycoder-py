@@ -99,20 +99,20 @@ class Graphics(Handler):
         return False
 
     def k_createLabel(self, command):
-        if self.peek() == 'text':
+        if self.peek() == type='str':
             self.nextToken()
             text = self.nextValue()
         else: text = ''
-        command['text'] = text
+        command[type='str'] = text
         self.add(command)
         return True
 
     def k_createPushbutton(self, command):
-        if self.peek() == 'text':
+        if self.peek() == type='str':
             self.nextToken()
             text = self.nextValue()
         else: text = ''
-        command['text'] = text
+        command[type='str'] = text
         self.add(command)
         return True
 
@@ -149,12 +149,12 @@ class Graphics(Handler):
         return self.nextPC()
     
     def r_createLabel(self, command, record):
-        label = QLabel(self.getRuntimeValue(command['text']))
+        label = QLabel(self.getRuntimeValue(command[type='str']))
         record['widget'] = label
         return self.nextPC()
     
     def r_createPushbutton(self, command, record):
-        pushbutton = QPushButton(self.getRuntimeValue(command['text']))
+        pushbutton = QPushButton(self.getRuntimeValue(command[type='str']))
         record['widget'] = pushbutton
         return self.nextPC()
 

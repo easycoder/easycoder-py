@@ -1,3 +1,4 @@
+import sys
 from .ec_classes import FatalError
 from .ec_value import Value
 from .ec_condition import Condition
@@ -84,7 +85,8 @@ class Compiler:
 		return self.program.code[pc]
 
 	# Add a command to the code list
-	def addCommand(self, command):
+	def addCommand(self, command, debug=True):
+		command['debug'] = debug
 		command['bp'] = False
 		self.code.append(command)
 
@@ -132,12 +134,12 @@ class Compiler:
 			print(warning)
 
 	# Get the symbol record for the current token (assumes it is a symbol name)
-	def getSymbolRecord(self):
-		token = self.getToken()
-		if not token in self.symbols:
-			FatalError(self, f'Undefined symbol name "{token}"')
+	def getSymbolRecord(self, name=None):
+		if name == None: name = self.getToken()
+		if not name in self.symbols:
+			FatalError(self, f'Undefined symbol name "{name}"')
 			return None
-		symbol = self.symbols[token]
+		symbol = self.symbols[name]
 		if symbol == None: return None
 		symbolRecord = self.code[symbol]
 		symbolRecord['used'] = True
@@ -150,39 +152,55 @@ class Compiler:
 	# Test if a given value is in the value types list
 	def hasValue(self, type):
 		return type in self.valueTypes
+	
+	# Instantiate an object of the given class name
+	def instantiate(self, classname):
+		# Search through all loaded modules for the class
+		items = sys.modules.items()
+		for module_name, module in items:
+			if module is None:
+				continue
+			try:
+				if hasattr(module, classname):
+					cls = getattr(module, classname)
+					# Verify it's actually a class
+					if isinstance(cls, type):
+						# Attempt to instantiate
+						try:
+							return cls()
+						except TypeError as ex:
+							raise FatalError(self, f"Object instantiation error: {ex}")
+			except Exception:
+				continue
+		return None
+
+	# Compile a variable
+	def compileVariable(self, command, classname):
+		return self.compileSymbol(command, self.nextToken(), classname)
+
+	# Compile a symbol
+	def compileSymbol(self, command, name, classname):
+		try:
+			self.symbols[name]
+			raise FatalError(self, f'Duplicate symbol name "{name}"')
+		except: pass
+		command['name'] = name
+		command['classname'] = classname
+		command['program'] = self.program
+		command['used'] = False
+		self.symbols[name] = self.getCodeSize()
+		if classname != ':':
+			object = self.instantiate(classname)
+			command['object'] = object
+			if object != None:
+				command['type'] = 'symbol'
+				object.setName(name) # type: ignore
+		self.addCommand(command, False)
+		return True
 
 	# Compile a program label (a symbol ending with ':')
 	def compileLabel(self, command):
-		return self.compileSymbol(command, self.getToken())
-
-	# Compile a variable
-	def compileVariable(self, command, extra=None):
-		return self.compileSymbol(command, self.nextToken(), extra)
-
-	# Compile a symbol
-	def compileSymbol(self, command, name, extra=None):
-		try:
-			v = self.symbols[name]
-		except:
-			v = None
-		if v:
-			FatalError(self, f'Duplicate symbol name "{name}"')
-			return False
-		self.symbols[name] = self.getCodeSize()
-		command['program'] = self.program
-		command['type'] = 'symbol'
-		command['name'] = name
-		command['elements'] = 1
-		command['index'] = 0
-		command['value'] = [None]
-		command['used'] = False
-		command['debug'] = False
-		command['import'] = None
-		command['locked'] = False
-		command['extra'] = extra
-		if 'keyword' in command: command['hasValue'] = self.hasValue(command['keyword'])
-		self.addCommand(command)
-		return True
+		return self.compileSymbol(command, self.getToken(), ':')
 
 	# Compile the current token
 	def compileToken(self):
@@ -193,7 +211,7 @@ class Compiler:
 			return False
 		if len(self.code) == 0:
 			if self.program.parent == None and self.program.usingGraphics:
-				cmd = {'domain': 'graphics', 'keyword': 'init', 'debug': False}
+				cmd = {'domain': 'graphics', 'keyword': 'init'}
 				self.code.append(cmd)
 		mark = self.getIndex()
 		for domain in self.program.getDomains():
@@ -203,8 +221,6 @@ class Compiler:
 				command['domain'] = domain.getName()
 				command['lino'] = self.tokens[self.index].lino
 				command['keyword'] = token
-				command['type'] = None
-				command['debug'] = True
 				result = handler(command)
 				if result:
 					return result
@@ -234,7 +250,7 @@ class Compiler:
 		while True:
 			token = self.tokens[self.index]
 #			keyword = token.token
-			if self.debugCompile: print(self.script.lines[token.lino])
+			if self.debugCompile: print(f'{token.lino + 1}: {self.script.lines[token.lino]}')
 #			if keyword != 'else':
 			if self.compileOne() == True:
 				if self.index == len(self.tokens) - 1:

@@ -12,7 +12,7 @@ The EasyCoder language extension has been created and installed for VS Code.
 
 ## Installation
 
-The extension has been copied to: `~/.vscode/extensions/easycoder/`
+The extension is located at: `.vscode/easycoder/`
 
 **To activate:**
 1. Reload VS Code: Press `Ctrl+Shift+P` and type "Reload Window"
@@ -62,13 +62,13 @@ You should see:
 If the extension doesn't activate:
 1. Reload Window: `Ctrl+Shift+P` → "Reload Window"
 2. Check file extension is `.ecs`
-3. Verify extension is in `~/.vscode/extensions/easycoder/`
+3. Verify extension is in `.vscode/easycoder/` (project) or `~/.vscode/extensions/easycoder/` (user)
 4. Restart VS Code completely
 
 ## Customization
 
 To modify the extension, edit files in:
-`.vscode/extensions/easycoder/`
+`.vscode/easycoder/`
 
 - `syntaxes/easycoder.tmLanguage.json` - Syntax highlighting rules
 - `snippets/easycoder.json` - Code snippets

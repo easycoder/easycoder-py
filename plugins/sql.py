@@ -104,11 +104,11 @@ class SQL(Handler):
                             secondary = True
                             output.append('  id BIGSERIAL PRIMARY KEY,')
                         item.append(self.getRuntimeValue(key['name']))
-                        type = key['type']
-                        if type == 'string': type = 'text'
-                        elif type == 'datetime': type = 'timestamptz'
-                        elif type == 'u64': type = 'bigint'
-                        item.append(type.upper())
+                        vartype = key['type']
+                        if vartype == 'string': vartype = 'str'
+                        elif vartype == 'datetime': vartype = 'timestamptz'
+                        elif vartype == 'u64': vartype = 'bigint'
+                        item.append(vartype.upper())
                         if secondary:
                             item.append('UNIQUE NOT NULL')
                             secondary = False
@@ -130,7 +130,7 @@ class SQL(Handler):
                 output.append('};')
                 # -------------------------------------------------------------
             v = {}
-            v['type'] = 'text'
+            v['type'] = type='str'
             v['content'] = '\n'.join(output)
             self.putSymbolValue(target, v)
         return self.nextPC()

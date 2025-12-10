@@ -16,7 +16,7 @@ class Condition:
 		for domain in self.compiler.program.getDomains():
 			condition = domain.compileCondition()
 			if condition != None:
-				condition.domain= domain.getName()
+				condition.domain = domain.getName()
 				return condition
 			self.rewindTo(mark)
 		return None

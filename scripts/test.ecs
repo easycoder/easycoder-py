@@ -1,21 +1,16 @@
 !   test.ecs
 
     script Test
-
-    variable N
-    variable M
-    variable Dictionary
     
-	put json `{}` into Dictionary
-	put 0 into N
-	while N is less than 10
-	begin
-		put 0 into M
-		while M is less than 10
-		begin
-			set property N cat `,` cat M of Dictionary to M
-			increment M
-		end
-		increment N
-	end
-    stop
+    debug step
+
+    variable MyObject
+
+    put `Hello` into MyObject
+    print MyObject
+    set the elements of MyObject to 10
+    index MyObject to 5
+    put 12345 into MyObject
+    print MyObject
+
+    exit

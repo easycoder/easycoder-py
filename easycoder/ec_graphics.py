@@ -1,7 +1,30 @@
 import sys
 from functools import partial
+
+from tomlkit import value
 from .ec_handler import Handler
-from .ec_classes import RuntimeError, Object
+from .ec_classes import (
+    FatalError,
+    RuntimeError,
+    Object,
+    ECValue,
+    ECObject
+)
+from .ec_gclasses import (
+    ECWidget,
+    ECLayout,
+    ECGroup,
+    ECLabel,
+    ECPushButton,
+    ECCheckBox,
+    ECLineInput,
+    ECMultiline,
+    ECListBox,
+    ECComboBox,
+    ECWindow,
+    ECDialog,
+    ECMessageBox,
+)
 from .ec_border import Border
 from .ec_debug import Debugger
 from PySide6.QtCore import Qt, QTimer, Signal, QRect
@@ -42,6 +65,8 @@ from PySide6.QtWidgets import (
     QGraphicsDropShadowEffect
 )
 
+###############################################################################
+
 class Graphics(Handler):
 
     def __init__(self, compiler):
@@ -68,23 +93,19 @@ class Graphics(Handler):
             'listbox',
             'combobox',
             'widget'
-            ]
+        ]
     
-    def setWidget(self, record, widget):
-        if record['index'] >= record['elements']:
-            RuntimeError(self.program, f'Index out of range for widget {record["name"]}')
-        if not 'widget' in record:
-            record['widget'] = [None] * record['elements']
-        while len(record['widget']) < record['elements']:
-            record['widget'].append(None)
-        record['widget'][record['index']] = widget
+    # Set a graphic element as the value of a record
+    def setGraphicElement(self, record, element):
+        object = record['object']
+        object.setValue(ECValue(domain=self.getName(), type='object', content=element))
     
-    def getWidget(self, record):
-        if 'widget' in record and record['widget'] != None:
-            if record['keyword'] in ['layout', 'group']: return record['widget'] 
-            return record['widget'][record['index']]
-        else:
-            return None
+    # Get the graphic element from a record or object
+    def getGraphicElement(self, object):
+        if isinstance(object, dict): object = object['object']
+        value = object.getValue()
+        if value.getType() != 'object': return None
+        return value.getContent()
 
     def dialogTypes(self):
         return ['confirm', 'lineedit', 'multiline', 'generic']
@@ -131,13 +152,16 @@ class Graphics(Handler):
     # (5) add spacer [size] {size} to {layout}
     # (6) add {widget} at {col} {row} in {grid layout}
     def k_add(self, command):
+
+        # Add to a layout, group, list or combo box
         def addToLayout():
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                if record['keyword'] in ['layout', 'group', 'element']:
-                    command['layout'] = record['name']
-                    self.add(command)
-                    return True
+                object = record['object']
+                self.checkObjectType(record, (ECLayout, ECGroup, ECListBox, ECComboBox))
+                command['target'] = record['name']
+                self.add(command)
+                return True
             return False
         
         token = self.peek()
@@ -166,11 +190,13 @@ class Graphics(Handler):
             self.skip('to')
             return addToLayout()
 
-        # Here it's either (1) or (2)
+        # Here it's either (1), (2) or (6)
         elif self.nextIsSymbol():
             record = self.getSymbolRecord()
-            if record['extra'] == 'gui':
+            if isinstance(record['object'], ECWidget):
+                # It's either (2), (6) or (1)
                 if self.isWidget(record['keyword']):
+                    # It's either (2) or (6)
                     command['widget'] = record['name']
                     if self.peek() == 'to':
                         # (2)
@@ -184,33 +210,33 @@ class Graphics(Handler):
                         command['col'] = self.nextValue()
                         self.skip('in')
                         return addToLayout()
+            else:
+                # It's (1) with a non-widget variable
+                command['value'] = self.getValue()
+                self.skip('to')
+                return addToLayout()
 
-                else: return False
-        # (1)
+        # (1) with a value
         value = self.getValue()
         if value == None: return False
         command['value'] = value
         self.skip('to')
-        if self.nextIsSymbol():
-            record = self.getSymbolRecord()
-            command['widget'] = record['name']
-            self.add(command)
-            return True
-        return False
+        return addToLayout()
     
     def r_add(self, command):
         if 'value' in command:
             value = self.getRuntimeValue(command['value'])
-            record = self.getVariable(command['widget'])
-            if record['keyword'] == 'listbox':
-                self.getWidget(record).addItem(value)  # type: ignore
-            elif record['keyword'] == 'combobox':
+            record = self.getVariable(command['target'])
+            object = record['object']
+            if isinstance(object, ECListBox):
+                self.getGraphicElement(record).addItem(value)  # type: ignore
+            elif isinstance(object, ECComboBox):
                 if isinstance(value, list): record['widget'].addItems(value)
-                else: self.getWidget(record).addItem(value)  # type: ignore
+                else: self.getGraphicElement(record).addItem(value)  # type: ignore
         elif 'row' in command and 'col' in command:
             layout = self.getVariable(command['layout'])['widget']
             record = self.getVariable(command['widget'])
-            widget = self.getWidget(record)
+            widget = self.getGraphicElement(record)
             row = self.getRuntimeValue(command['row'])
             col = self.getRuntimeValue(command['col'])
             if record['keyword'] == 'layout':
@@ -218,30 +244,32 @@ class Graphics(Handler):
             else:
                 layout.addWidget(widget, row, col)
         else:
-            layoutRecord = self.getVariable(command['layout'])
+            layoutRecord = self.getVariable(command['target'])
             widget = command['widget']
             if widget == 'stretch':
-                self.getWidget(layoutRecord).addStretch()  # type: ignore
+                self.getGraphicElement(layoutRecord).addStretch()  # type: ignore
             elif widget == 'spacer':
-                self.getWidget(layoutRecord).addSpacing(self.getRuntimeValue(command['size']))  # type: ignore
+                self.getGraphicElement(layoutRecord).addSpacing(self.getRuntimeValue(command['size']))  # type: ignore
             else:
                 widgetRecord = self.getVariable(widget)
-                layoutRecord = self.getVariable(command['layout'])
-                widget = self.getWidget(widgetRecord)
-                layout = layoutRecord['widget']
+                self.checkObjectType(widgetRecord, ECWidget)
+                self.checkObjectType(layoutRecord, ECLayout)
+                widget = self.getGraphicElement(widgetRecord)
+                layout = self.getGraphicElement(layoutRecord)
                 stretch = 'stretch' in command
                 if widgetRecord['keyword'] == 'layout':
-                    if layoutRecord['keyword'] == 'group':
-                        if widgetRecord['keyword'] == 'layout':
-                            layout.setLayout(widget)
+                    if self.isObjectType(layoutRecord, ECGroup):
+                        if self.isObjectType(widgetRecord, ECLayout):
+                            layout.setLayout(widget) # type: ignore
                         else:
                             RuntimeError(self.program, 'Can only add a layout to a group')
                     else:
-                        if stretch: layout.addLayout(widget, stretch=1)
-                        else: layout.addLayout(widget)
+                        if stretch: layout.addLayout(widget, stretch=1) # type: ignore
+                        else: layout.addLayout(widget) # type: ignore
                 else:
-                    if stretch: layout.addWidget(widget, stretch=1)
-                    else: layout.addWidget(widget)
+                    if stretch: layout.addWidget(widget, stretch=1) # type: ignore
+                    else:
+                        layout.addWidget(widget) # type: ignore
         return self.nextPC()
 
     # Center one window on another
@@ -260,18 +288,26 @@ class Graphics(Handler):
                         return True
         return False
     
+    def k_centre(self,command):
+        return self.k_center(command)
+    
     def r_center(self, command):
-        window1 = self.getVariable(command['window1'])['window']
-        window2 = self.getVariable(command['window2'])['window']
-        geo1 = window1.geometry()
-        geo2 = window2.geometry()
+        object = self.getVariable(command['window1'])['object']
+        self.checkObjectType(object, ECWindow)
+        window1 = self.getGraphicElement(object)
+        object = self.getVariable(command['window2'])['object']
+        self.checkObjectType(object, ECWindow)
+        window2 = self.getGraphicElement(object)
+        geo1 = window1.geometry() # type: ignore
+        geo2 = window2.geometry() # type: ignore
         geo2.moveCenter(geo1.center())
-        window2.setGeometry(geo2)
+        window2.setGeometry(geo2) # type: ignore
         return self.nextPC()
 
     # Declare a checkbox variable
     def k_checkbox(self, command):
-        return self.compileVariable(command, 'gui')
+        self.compiler.addValueType()
+        return self.compileVariable(command, 'ECCheckBox')
 
     def r_checkbox(self, command):
         return self.nextPC()
@@ -280,15 +316,18 @@ class Graphics(Handler):
     def k_clear(self, command):
         if self.nextIsSymbol():
             record = self.getSymbolRecord()
-            if self.isWidget(record['keyword']):
+            widget = record['object']
+            if widget.isClearable():
                 command['name'] = record['name']
                 self.add(command)
                 return True
+            raise FatalError(self.compiler, f'Widget {record["name"]} is not clearable')
         return False
     
     def r_clear(self, command):
 
         def clearLayout(layout: QLayout) -> None:
+            """Recursively clear all items from a layout."""
             if layout is None:
                 return
             while layout.count() > 0:
@@ -297,31 +336,36 @@ class Graphics(Handler):
                     continue
                 widget = item.widget()
                 if widget is not None:
-                    # Delete the widget
                     widget.deleteLater()
                 elif item.layout() is not None:
-                    # Recursively clear sub-layout
                     clearLayout(item.layout())
                     item.layout().deleteLater()
-                # The QLayoutItem will be automatically cleaned up by Qt
 
         def clearWidget(widget: QWidget) -> None:
+            """Clear all contents from a widget."""
             if widget is None:
                 return
-            # Clear the layout first
+            if isinstance(widget, (QListWidget, QComboBox)):
+                if isinstance(widget, QListWidget):
+                    for i in range(widget.count()):
+                        item_widget = widget.itemWidget(widget.item(i))
+                        if item_widget:
+                            item_widget.deleteLater()
+                widget.clear()
+                return
             layout = widget.layout()
             if layout is not None:
                 clearLayout(layout)
                 layout.deleteLater()
-            # Clear any remaining child widgets
             child_widgets = widget.findChildren(QWidget, "", Qt.FindChildOption.FindDirectChildrenOnly)
             for child in child_widgets:
                 child.deleteLater()
 
-        widget = self.getWidget(self.getVariable(command['name']))
-        clearWidget(widget)  # type: ignore
-        return self.nextPC()
-
+        element = self.getGraphicElement(self.getVariable(command['name']))
+        if isinstance(element, QLayout):
+            clearLayout(element)  # type: ignore
+        else:
+            clearWidget(element)  # type: ignore
         return self.nextPC()
 
     # close {window}
@@ -335,12 +379,16 @@ class Graphics(Handler):
         return False
     
     def r_close(self, command):
-        self.getVariable(command['name'])['window'].close()
+        record = self.getVariable(command['name'])
+        window = self.getGraphicElement(record)
+        self.checkObjectType(window, QMainWindow)
+        window.close()  # type: ignore
         return self.nextPC()
 
     # Declare a combobox variable
     def k_combobox(self, command):
-        return self.compileVariable(command, 'gui')
+        self.compiler.addValueType()
+        return self.compileVariable(command, 'ECComboBox')
 
     def r_combobox(self, command):
         return self.nextPC()
@@ -573,7 +621,7 @@ class Graphics(Handler):
         if y == None: y = (screenHeight - h) / 2
         else: y = self.getRuntimeValue(x)
         window.setGeometry(x, y, w, h)
-        record['window'] = window
+        self.setGraphicElement(record, window)
         return self.nextPC()
     
     def r_createLayout(self, command, record):
@@ -583,13 +631,13 @@ class Graphics(Handler):
         elif layoutType == 'QStackedLayout': layout = QStackedLayout()
         else: layout = QVBoxLayout()
         layout.setContentsMargins(5,0,5,0)
-        record['widget'] = layout
+        self.setGraphicElement(record, layout)
         return self.nextPC()
     
     def r_createGroupBox(self, command, record):
         group = QGroupBox(self.getRuntimeValue(command['title']))
         group.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        record['widget'] = group
+        self.setGraphicElement(record, group)
         return self.nextPC()
     
     def r_createLabel(self, command, record):
@@ -611,7 +659,7 @@ class Graphics(Handler):
             elif alignment == 'justify': label.setAlignment(Qt.AlignmentFlag.AlignJustify)
         if 'expand' in command:
             label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        self.setWidget(record, label)
+        self.setGraphicElement(record, label)
         return self.nextPC()
     
     def r_createPushbutton(self, command, record):
@@ -637,7 +685,7 @@ class Graphics(Handler):
                 w = fm.horizontalAdvance('m') * self.getRuntimeValue(command['size']) + c.left()+c.right()
                 pushbutton.setMaximumWidth(w)
         self.putSymbolValue(record, pushbutton)
-        self.setWidget(record, pushbutton)
+        self.setGraphicElement(record, pushbutton)
         return self.nextPC()
     
     def r_createCheckBox(self, command, record):
@@ -659,7 +707,7 @@ class Graphics(Handler):
             }
         """)
         checkbox.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
-        self.setWidget(record, checkbox)
+        self.setGraphicElement(record, checkbox)
         return self.nextPC()
     
     def r_createLineEdit(self, command, record):
@@ -670,7 +718,7 @@ class Graphics(Handler):
         c = lineinput.contentsMargins()
         w = fm.horizontalAdvance('x') * self.getRuntimeValue(command['size']) +m.left()+m.right()+c.left()+c.right()
         lineinput.setMaximumWidth(w)
-        self.setWidget(record, lineinput)
+        self.setGraphicElement(record, lineinput)
         return self.nextPC()
     
     def r_createMultiLineEdit(self, command, record):
@@ -680,19 +728,19 @@ class Graphics(Handler):
         charHeight = fontMetrics.height()
         textinput.setFixedWidth(charWidth * self.getRuntimeValue(command['cols']))
         textinput.setFixedHeight(charHeight * self.getRuntimeValue(command['rows']))
-        self.setWidget(record, textinput)
+        self.setGraphicElement(record, textinput)
         return self.nextPC()
     
     def r_createListWidget(self, command, record):
-        self.setWidget(record, QListWidget())
+        self.setGraphicElement(record, QListWidget())
         return self.nextPC()
     
     def r_createComboBox(self, command, record):
-        self.setWidget(record, QComboBox())
+        self.setGraphicElement(record, QComboBox())
         return self.nextPC()
     
     def r_createWidget(self, command, record):
-        self.setWidget(record, QWidget())
+        self.setGraphicElement(record, QWidget())
         return self.nextPC()
     
     def r_createDialog(self, command, record):
@@ -784,7 +832,8 @@ class Graphics(Handler):
 
     # Declare a dialog variable
     def k_dialog(self, command):
-        return self.compileVariable(command, 'gui')
+        self.compiler.addValueType()
+        return self.compileVariable(command, 'ECDialog')
 
     def r_dialog(self, command):
         return self.nextPC()
@@ -798,7 +847,7 @@ class Graphics(Handler):
         return False
     
     def r_disable(self, command):
-        self.getWidget(self.getVariable(command['name'])).setEnabled(False)  # type: ignore
+        self.getGraphicElement(self.getVariable(command['name'])).setEnabled(False)  # type: ignore
         return self.nextPC()
 
     # Enable a widget
@@ -810,12 +859,13 @@ class Graphics(Handler):
         return False
     
     def r_enable(self, command):
-        self.getWidget(self.getVariable(command['name'])).setEnabled(True)  # type: ignore
+        self.getGraphicElement(self.getVariable(command['name'])).setEnabled(True)  # type: ignore
         return self.nextPC()
 
     # Create a group box
     def k_group(self, command):
-        return self.compileVariable(command, 'gui')
+        self.compiler.addValueType()
+        return self.compileVariable(command, 'ECGroup')
 
     def r_group(self, command):
         return self.nextPC()
@@ -832,7 +882,7 @@ class Graphics(Handler):
         
     def r_hide(self, command):
         record = self.getVariable(command['widget'])
-        if 'widget' in record: self.getWidget(record).hide()  # type: ignore
+        if 'widget' in record: self.getGraphicElement(record).hide()  # type: ignore
         return self.nextPC()
 
     # Initialize the graphics environment
@@ -858,6 +908,7 @@ class Graphics(Handler):
         timer.timeout.connect(flush)
         timer.start(10)
         QTimer.singleShot(500, init)
+        self.program.startGraphics()
         if self.program.debugging:
             self.program.debugger = Debugger(self.program)
             self.program.debugger.enableBreakpoints()
@@ -866,43 +917,47 @@ class Graphics(Handler):
 
     # Declare a label variable
     def k_label(self, command):
-        return self.compileVariable(command, 'gui')
-
+        self.compiler.addValueType()
+        return self.compileVariable(command, 'ECLabel')
     def r_label(self, command):
         return self.nextPC()
 
     # Declare a layout variable
     def k_layout(self, command):
-        return self.compileVariable(command, 'gui')
+        self.compiler.addValueType()
+        return self.compileVariable(command, 'ECLayout')
 
     def r_layout(self, command):
         return self.nextPC()
 
     # Declare a line input variable
     def k_lineinput(self, command):
-        return self.compileVariable(command, 'gui')
+        self.compiler.addValueType()
+        return self.compileVariable(command, 'ECLineInput')
 
     def r_lineinput(self, command):
         return self.nextPC()
 
     # Declare a listbox input variable
     def k_listbox(self, command):
-        return self.compileVariable(command, 'gui')
+        self.compiler.addValueType()
+        return self.compileVariable(command, 'ECListBox')
 
     def r_listbox(self, command):
         return self.nextPC()
 
     # Declare a messagebox variable
     def k_messagebox(self, command):
-        return self.compileVariable(command)
+        self.compiler.addValueType()
+        return self.compileVariable(command, 'ECMessageBox')
 
     def r_messagebox(self, command):
         return self.nextPC()
 
     # Declare a multiline input variable
     def k_multiline(self, command):
-        return self.compileVariable(command, 'gui')
-
+        self.compiler.addValueType()
+        return self.compileVariable(command, 'ECMultiline')
     def r_multiline(self, command):
         return self.nextPC()
 
@@ -979,8 +1034,8 @@ class Graphics(Handler):
     
     def r_on(self, command):
         def run(widget, record):
-            for i, w in enumerate(record['widget']):
-                if w == widget:
+            for i, w in enumerate(record['object'].getValues()):
+                if w.getContent() == widget:
                     record['index'] = i
                     self.run(command['goto'])
                     return
@@ -989,7 +1044,7 @@ class Graphics(Handler):
             self.runOnTick = command['runOnTick']
         else:
             record = self.getVariable(command['name'])
-            widget = self.getWidget(record)
+            widget = self.getGraphicElement(record)
             keyword = record['keyword']
             if keyword == 'pushbutton':
                 handler = partial(run, widget, record)
@@ -1002,7 +1057,8 @@ class Graphics(Handler):
 
     # Declare a pushbutton variable
     def k_pushbutton(self, command):
-        return self.compileVariable(command, 'gui')
+        self.compiler.addValueType()
+        return self.compileVariable(command, 'ECPushButton')
 
     def r_pushbutton(self, command):
         return self.nextPC()
@@ -1033,10 +1089,10 @@ class Graphics(Handler):
         record = self.getVariable(command['name'])
         if variant == 'current':
             if record['keyword'] == 'combobox':
-                widget = self.getWidget(record)
+                widget = self.getGraphicElement(record)
                 widget.removeItem(widget.currentIndex())  # type: ignore
             if record['keyword'] == 'listbox':
-                widget = self.getWidget(record)
+                widget = self.getGraphicElement(record)
                 selectedItem = widget.currentItem()  # type: ignore
                 if selectedItem:
                     row = widget.row(selectedItem)  # type: ignore
@@ -1061,7 +1117,7 @@ class Graphics(Handler):
         return False
     
     def r_select(self, command):
-        widget = self.getWidget(self.getVariable(command['widget']))
+        widget = self.getGraphicElement(self.getVariable(command['widget']))
         if 'index' in command:
             index = self.getRuntimeValue(command['index'])
         else:
@@ -1088,7 +1144,7 @@ class Graphics(Handler):
             self.skip('of')
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                if record['extra'] == 'gui':
+                if isinstance(record['object'], ECWidget):
                     command['name'] = record['name']
                     self.skip('to')
                     command['value'] = self.nextValue()
@@ -1098,13 +1154,12 @@ class Graphics(Handler):
             self.skip('of')
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                keyword = record['keyword']
-                if keyword in ['window', 'widget']:
+                if isinstance(record['object'], (ECWindow, ECGroup)):
                     command['name'] = record['name']
                     self.skip('to')
                     if self.nextIsSymbol():
                         record = self.getSymbolRecord()
-                        if record['keyword'] == 'layout':
+                        if isinstance(record['object'], ECLayout):
                             command['layout'] = record['name']
                             self.add(command)
                             return True
@@ -1122,7 +1177,7 @@ class Graphics(Handler):
             self.skip('of')
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                if record['keyword'] in ['label', 'pushbutton', 'lineinput', 'multiline', 'element']:
+                if record['keyword'] in ['label', 'pushbutton', 'lineinput', 'multiline']:
                     command['name'] = record['name']
                     self.skip('to')
                     command['value'] = self.nextValue()
@@ -1148,7 +1203,7 @@ class Graphics(Handler):
             self.skip('of')
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                if record['extra'] == 'gui':
+                if isinstance(record['object'], ECWidget):
                     command['name'] = record['name']
                     self.skip('to')
                     command['value'] = self.nextValue()
@@ -1158,7 +1213,7 @@ class Graphics(Handler):
             self.skip('of')
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                if record['extra'] == 'gui':
+                if isinstance(record['object'], ECWidget):
                     command['name'] = record['name']
                     self.skip('to')
                     flags = []
@@ -1215,30 +1270,30 @@ class Graphics(Handler):
     def r_set(self, command):
         what = command['what']
         if what == 'height':
-            widget = self.getWidget(self.getVariable(command['name']))
+            widget = self.getGraphicElement(self.getVariable(command['name']))
             widget.setFixedHeight(self.getRuntimeValue(command['value']))  # type: ignore
         elif what == 'width':
-            widget = self.getWidget(self.getVariable(command['name']))
+            widget = self.getGraphicElement(self.getVariable(command['name']))
             widget.setFixedWidth(self.getRuntimeValue(command['value']))  # type: ignore
         elif what == 'layout':
-            record = self.getVariable(command['layout'])
-            layout = record['widget']
-            record = self.getVariable(command['name'])
-            keyword = record['keyword']
-            if keyword == 'window':
-                window = record['window']
+            target = self.getVariable(command['name'])
+            object = target['object']
+            layoutObject = self.getVariable(command['layout'])['object']
+            self.checkObjectType(layoutObject, ECLayout)
+            layout = self.getGraphicElement(layoutObject)
+            if isinstance(object, ECWindow):
+                window = self.getGraphicElement(object)
                 container = QWidget()
-                container.setLayout(layout)
-                window.setCentralWidget(container)
-            elif keyword == 'widget':
-                widget = self.getWidget(record)
-                widget.setLayout(layout)  # type: ignore
+                container.setLayout(layout) # type: ignore
+                self.getGraphicElement(object).setCentralWidget(container) # type: ignore
+            elif isinstance(object, (ECLayout, ECGroup)):
+                self.getGraphicElement(object).setLayout(layout)  # type: ignore
         elif what == 'spacing':
-            layout = self.getWidget(self.getVariable(command['name']))
+            layout = self.getGraphicElement(self.getVariable(command['name']))
             layout.setSpacing(self.getRuntimeValue(command['value']))  # type: ignore
         elif what == 'text':
             record = self.getVariable(command['name'])
-            widget = self.getWidget(record)
+            widget = self.getGraphicElement(record)
             text = self.getRuntimeValue(command['value'])
             keyword = record['keyword']
             setText = getattr(widget, "setText", None)
@@ -1252,7 +1307,7 @@ class Graphics(Handler):
             record = self.getVariable(command['name'])
             if record['keyword'] == 'checkbox':
                 state = self.getRuntimeValue(command['value'])
-                self.getWidget(record).setChecked(state)  # type: ignore
+                self.getGraphicElement(record).setChecked(state)  # type: ignore
         elif what == 'alignment':
             widget = self.getVariable(command['name'])['widget']
             flags = command['value']
@@ -1268,22 +1323,22 @@ class Graphics(Handler):
             widget.setAlignment(alignment)
         elif what == 'style':
             record = self.getVariable(command['name'])
-            widget = self.getWidget(record)
+            widget = self.getGraphicElement(record)
             styles = self.getRuntimeValue(command['value'])
             widget.setStyleSheet(styles)  # type: ignore
         elif what == 'color':
             record = self.getVariable(command['name'])
-            widget = self.getWidget(record)
+            widget = self.getGraphicElement(record)
             color = self.getRuntimeValue(command['value'])
             widget.setStyleSheet(f"color: {color};")  # type: ignore
         elif what == 'background-color':
             record = self.getVariable(command['name'])
-            widget = self.getWidget(record)
+            widget = self.getGraphicElement(record)
             bg_color = self.getRuntimeValue(command['value'])
             widget.setStyleSheet(f"background-color: {bg_color};")  # type: ignore
         elif what == 'listbox':
             record = self.getVariable(command['name'])
-            widget = self.getWidget(record)
+            widget = self.getGraphicElement(record)
             value = self.getRuntimeValue(command['value'])
             widget.clear()  # type: ignore
             widget.addItems(value)  # type: ignore
@@ -1348,12 +1403,12 @@ class Graphics(Handler):
                 else: result = ''
             else: result = 'Cancel'
             v = {}
-            v['type'] = 'text'
+            v['type'] = 'str'
             v['content'] = result
             self.putSymbolValue(symbolRecord, v)
         elif 'window' in command:
-            window = self.getVariable(command['window'])['window']
-            window.show()
+            window = self.getGraphicElement(self.getVariable(command['window'])['object'])
+            window.show() # type: ignore
         elif 'dialog' in command:
             record = self.getVariable(command['dialog'])
             dialog = record['dialog']
@@ -1371,29 +1426,23 @@ class Graphics(Handler):
                 else: record['result'] = dialog.value  # type: ignore
         elif 'name' in command:
             record = self.getVariable(command['name'])
-            if 'widget' in record: self.getWidget(record).show()  # type: ignore
+            if 'widget' in record: self.getGraphicElement(record).show()  # type: ignore
         return self.nextPC()
 
-    # Start the graphics
-    def k_start(self, command):
-        if self.nextIs('graphics'):
-            self.add(command)
-            return True
-        return False
+    # # Start the graphics
+    # def k_start(self, command):
+    #     if self.nextIs('graphics'):
+    #         self.add(command)
+    #         return True
+    #     return False
         
-    def r_start(self, command):
-        return self.nextPC()
-
-    # Declare a widget variable
-    def k_widget(self, command):
-        return self.compileVariable(command, 'gui')
-
-    def r_widget(self, command):
-        return self.nextPC()
+    # def r_start(self, command):
+    #     return self.nextPC()
 
     # Declare a window variable
     def k_window(self, command):
-        return self.compileVariable(command)
+        self.compiler.addValueType()
+        return self.compileVariable(command, 'ECWindow')
 
     def r_window(self, command):
         return self.nextPC()
@@ -1401,42 +1450,46 @@ class Graphics(Handler):
     #############################################################################
     # Compile a value in this domain
     def compileValue(self):
-        value = {}
-        value['domain'] = self.getName()
+        value = ECValue(domain=self.getName())
         token = self.getToken()
         if self.isSymbol():
+            value.setContent(token)
             record = self.getSymbolRecord()
-            if record['extra'] == 'gui':
-                if self.isWidget(record['keyword']):
-                    value['name'] = token
-                    value['type'] = 'symbol'
-                    return value
-
+            object = record['object']
+            if isinstance(object, ECWidget) and object.hasRuntimeValue():
+                value.setType('object')
+                return value
+            else: return None
         else:
             if self.tokenIs('the'): token = self.nextToken()
-            if token == 'count':
+            value.setType(token)
+            if token in ['count', 'current', 'selected']:
+                value.setType(token)
+                if token == 'count':
+                    self.skip('of')
+                elif token in ['current', 'selected']:
+                    token = self.nextToken()
+                    if token == 'item': self.skip('in')
+                    elif token == 'index': self.skip('of')
+                if self.nextIsSymbol():
+                    record = self.getSymbolRecord()
+                    if isinstance(record['object'], (ECListBox, ECComboBox)): # type: ignore
+                        value.setContent(ECValue(domain=self.getName(), type='object', content=record['name']))
+                        return value
+            elif token == 'count':
                 self.skip('of')
                 if self.nextIsSymbol():
-                    value['type'] = 'symbol'
                     record = self.getSymbolRecord()
-                    keyword = record['keyword']
-                    if keyword in ['combobox', 'listbox']:
-                        value['type'] = 'count'
-                        value['name'] = record['name']
+                    if isinstance(record['object'], (ECListBox, ECComboBox)): # type: ignore
+                        value.setContent(ECValue(domain=self.getName(), type='object', content=record['name']))
                         return value
-            
-            elif token == 'current':
-                self.skip('item')
-                self.skip('in')
+            elif token == 'text':
+                self.skip('of')
                 if self.nextIsSymbol():
-                    value['type'] = 'symbol'
                     record = self.getSymbolRecord()
-                    keyword = record['keyword']
-                    if keyword == 'listbox':
-                        value['type'] = 'current'
-                        value['name'] = record['name']
+                    if isinstance(record['object'], (ECLabel, ECPushButton, ECMultiline, ECLineInput)): # type: ignore
+                        value.setContent(ECValue(domain=self.getName(), type='object', content=record['name']))
                         return value
-
         return None
 
     #############################################################################
@@ -1452,38 +1505,38 @@ class Graphics(Handler):
         symbolRecord = self.getVariable(symbolRecord['name'])
         keyword = symbolRecord['keyword']
         if keyword == 'pushbutton':
-            pushbutton = self.getWidget(symbolRecord)
+            pushbutton = self.getGraphicElement(symbolRecord)
             v = {}
-            v['type'] = 'text'
+            v['type'] = 'str'
             v['content'] = pushbutton.accessibleName()  # type: ignore
             return v
         elif keyword == 'lineinput':
-            lineinput = self.getWidget(symbolRecord)
+            lineinput = self.getGraphicElement(symbolRecord)
             v = {}
-            v['type'] = 'text'
+            v['type'] = 'str'
             v['content'] = lineinput.displayText()  # type: ignore
             return v
         elif keyword == 'multiline':
-            multiline = self.getWidget(symbolRecord)
+            multiline = self.getGraphicElement(symbolRecord)
             v = {}
-            v['type'] = 'text'
+            v['type'] = 'str'
             v['content'] = multiline.toPlainText()  # type: ignore
             return v
-        elif keyword == 'combobox':
-            combobox = self.getWidget(symbolRecord)
-            v = {}
-            v['type'] = 'text'
-            v['content'] = combobox.currentText()  # type: ignore
-            return v
-        elif keyword == 'listbox':
-            listbox = self.getWidget(symbolRecord)
-            content = listbox.currentItem().text()  # type: ignore
-            v = {}
-            v['type'] = 'text'
-            v['content'] = content
-            return v
+        elif keyword == 'combobox': return None
+            # combobox = self.getGraphicElement(symbolRecord)
+            # v = {}
+            # v['type'] = 'str'
+            # v['content'] = combobox.currentText()  # type: ignore
+            # return v
+        elif keyword == 'listbox': return None
+            # listbox = self.getGraphicElement(symbolRecord)
+            # content = listbox.currentItem().text()  # type: ignore
+            # v = {}
+            # v['type'] = 'str'
+            # v['content'] = content
+            # return v
         elif keyword == 'checkbox':
-            checkbox =self.getWidget(symbolRecord)
+            checkbox =self.getGraphicElement(symbolRecord)
             content = checkbox.isChecked()  # type: ignore
             v = {}
             v['type'] = 'boolean'
@@ -1492,30 +1545,54 @@ class Graphics(Handler):
         elif keyword == 'dialog':
             content = symbolRecord['result']
             v = {}
-            v['type'] = 'text'
+            v['type'] = 'str'
             v['content'] = content
             return v
         return None
 
     def v_count(self, v):
-        record = self.getVariable(v['name'])
-        keyword = record['keyword']
-        widget = self.getWidget(record)
-        if keyword in ['combobox', 'listbox']: content = widget.count()  # type: ignore
-        value = {}
-        value['type'] = 'int'
-        value['content'] = content
-        return value
+        content = v.getContent()
+        if isinstance(content, ECValue) and content.getType() == 'object':
+            record = self.getVariable(content.getContent())
+            object = record['object']
+            if isinstance(object, (ECListBox, ECComboBox)):
+                widget = self.getGraphicElement(object)
+                value = widget.count()  # type: ignore
+                return ECValue(domain=self.getName(), type='int', content=value)  # type: ignore
+            else: raise RuntimeError(self.program, f"Object is not a listbox or combobox")
 
     def v_current(self, v):
-        record = self.getVariable(v['name'])
-        keyword = record['keyword']
-        widget = self.getWidget(record)
-        if keyword == 'listbox': content = widget.currentItem().text()  # type: ignore
-        value = {}
-        value['type'] = 'text'
-        value['content'] = content
-        return value
+        content = v.getContent()
+        if isinstance(content, ECValue) and content.getType() == 'object':
+            record = self.getVariable(content.getContent())
+            keyword = record['keyword']
+            object = record['object']
+            if isinstance(object, (ECListBox, ECComboBox)):
+                widget = self.getGraphicElement(object)
+                content = widget.currentItem().text()  # type: ignore
+                return ECValue(domain=self.getName(), type='int', content=content)
+            else: raise RuntimeError(self.program, f"Object is not a listbox or combobox")
+    
+    def v_element(self, v):
+        return v.getContent()
+    
+    def v_empty(self, v):
+        if v.type == 'object':
+            record = self.getVariable(v.getContent())
+            object = record['object']
+            value = object.isEmpty()
+            return ECValue(domain=self.getName(), type='boolean', content=value)  # type: ignore
+        return None
+
+    def v_selected(self, v): return self.v_current(v)
+
+    def v_text(self, v):
+        content = v.getContent()
+        if isinstance(content, ECValue) and content.getType() == 'object':
+            record = self.getVariable(content.getContent())
+            object = record['object']
+            value = object.getText()
+            return ECValue(domain=self.getName(), type='int', content=value)  # type: ignore
 
     #############################################################################
     # Compile a condition

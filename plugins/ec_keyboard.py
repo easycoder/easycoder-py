@@ -191,7 +191,7 @@ class Keyboard(Handler):
 
     def v_key(self, v):
         value = {}
-        value['type'] = 'text'
+        value['type'] = type='str'
         value['content'] = self.key
         return value
 

@@ -1,7 +1,16 @@
-import time, json, sys
+import time, sys
 from copy import deepcopy
 from collections import deque
-from .ec_classes import Script, Token, FatalError, RuntimeError, Object
+from .ec_classes import (
+	Script,
+	Token,
+	FatalError,
+	RuntimeError, 
+	NoValueRuntimeError, 
+	Object,
+	ECObject,
+	ECValue
+)
 from .ec_compiler import Compiler
 from .ec_core import Core
 import importlib
@@ -46,15 +55,19 @@ class Program:
 		self.stack = []
 		self.script = Script(source)
 		self.compiler = Compiler(self)
+		self.object = ECObject()
 		self.value = self.compiler.value
 		self.condition = self.compiler.condition
 		self.graphics = None
 		self.useClass(Core)
-		self.externalControl = False
 		self.ticker = 0
 		self.usingGraphics = False
+		self.graphicsRunning = False
 		self.debugger = None
-		self.running = True
+		self.running = False
+		self.parent = None
+		self.message = None
+		self.onMessagePC = 0
 
 	# This is called at 10msec intervals by the GUI code
 	def flushCB(self):
@@ -78,7 +91,7 @@ class Program:
 				f'{round((finishCompile - startCompile) * 1000)} ms')
 			for name in self.symbols.keys():
 				record = self.code[self.symbols[name]]
-				if name[-1] != ':' and not record['used']:
+				if name[-1] != ':' and not 'used' in record:
 					print(f'Variable "{name}" not used')
 			else:
 				print(f'Run {self.name}')
@@ -87,8 +100,8 @@ class Program:
 			self.compiler.showWarnings()
 
 		# If this is the main script and there's no graphics, run a main loop
-		if parent == None and self.externalControl == False:
-			while True:
+		if parent == None:
+			while not self.graphicsRunning:
 				if self.running == True:
 					flush()
 					time.sleep(0.01)
@@ -99,11 +112,15 @@ class Program:
 	def useGraphics(self):
 		if not self.usingGraphics:
 			print('Loading graphics module')
-			from .ec_pyside import Graphics
+			from .ec_graphics import Graphics
 			self.graphics = Graphics
 			self.useClass(Graphics)
 			self.usingGraphics = True
 		return True
+
+	# Indicate that graphics are running
+	def startGraphics(self):
+		self.graphicsRunning = True
 
 	# Import a plugin
 	def importPlugin(self, source):
@@ -131,119 +148,161 @@ class Program:
 	# Get the domain list
 	def getDomains(self):
 		return self.domains
+	
+	def isSymbol(self, name):
+		return name in self.symbols
 
+	# Get the symbol record for a given name
 	def getSymbolRecord(self, name):
 		try:
 			target = self.code[self.symbols[name]]
-			if target['import'] != None:
+			if 'import' in target:
 				target = target['import']
 			return target
 		except:
 			RuntimeError(self, f'Unknown symbol \'{name}\'')
 
-	def doValue(self, value):
-		if value == None:
-			RuntimeError(self, f'Undefined value (variable not initialized?)')
+    # Check if the object is an instance of a wanted class. Compile and runtime
+	def checkObjectType(self, object, classes):
+		if isinstance(object, dict): return
+		if not isinstance(object, classes):
+			if self.running:
+				raise RuntimeError(self, f"Objects of type {type(object)} are not instances of {classes}")
+			else:
+				raise FatalError(self.compiler, f"Objects of type {type(object)} are not instances of {classes}")
 
+    # Check if the object is an instance of a wanted class.
+	def isObjectType(self, object, classes):
+		if isinstance(object, dict): object = object['object']
+		return isinstance(object, classes)
+
+	def constant(self, content, numeric):
 		result = {}
-		valType = value['type']
-		if valType in ['boolean', 'int', 'text', 'object']:
-			result = value
+		result['type'] = 'int' if numeric else 'str'
+		result['content'] = content
+		return result
+	
+	# Test if an item is a string or a number
+	def getItemType(self, value):
+		return 'int' if isinstance(value, int) else 'str'
+	
+	# Get the value of an item that may be an ECValue or a raw value. Return as an ECValue
+	def getValueOf(self, item):
+		value = ECValue()
+		if isinstance(item, ECValue):
+			if item.getType() == 'object':
+				return item.getContent()
+			else: value = item
+		else:
+			varType = type(item).__name__
+			if varType in ['int', 'str', 'bool', 'float', 'list', 'dict']:
+				if varType == 'int': value.setValue(type='int', content=item)
+				elif varType == 'str': value.setValue(type='str', content=item)
+				elif varType == 'bool': value.setValue(type='boolean', content=item)
+				elif varType == 'float': value.setValue(type='str', content=str(item))
+				elif varType == 'list': value.setValue(type='list', content=item)
+				elif varType == 'dict': value.setValue(type='dict', content=item)
+				else: value.setValue(None)
+		return value
+
+	# Runtime function to evaluate an ECObject or ECValue. Returns another ECValue
+	# This function may be called recursively by value handlers.
+	def evaluate(self, item):
+		if isinstance(item, ECObject):
+			value = item.getValue()
+			if value == None:
+				raise RuntimeError(self, f'Symbol {item.getName()} not initialized')
+		else: value = item
+		try:
+			valType = value.getType() # type: ignore
+		except:
+			RuntimeError(self, 'Value does not hold a valid ECValue')
+		result = ECValue(type=valType)
+	
+		if valType in ('str', 'int', 'boolean', 'list', 'dict'):
+			# Simple value - just return the content
+			result.setContent(value.getContent()) # type: ignore
+		
+		elif valType == 'object':
+			# Object other than ECVariable
+			record = self.getSymbolRecord(value.getName())
+			object = record['object'] # type: ignore
+			result = object.getContent()
+
+		elif valType == 'symbol': # type: ignore
+			# If it's a symbol, get its value
+			record = self.getSymbolRecord(value.getContent()) # type: ignore
+			variable = record['object'] if 'object' in record else None # pyright: ignore[reportOptionalSubscript, reportOperatorIssue]
+			self.checkObjectType(variable, ECObject)
+			# result = variable.getValue() # type: ignore
+			result = self.evaluate(variable) # type: ignore
+
 		elif valType == 'cat':
+			# Handle concatenation
 			content = ''
-			for part in value['value']:
-				val = self.doValue(part)
-				if val == None:
-					val = ''
-				if val != '':
-					val = str(val['content'])
-					if val == None:
-						val = ''
-					content += val
-			result['type'] = 'text'
-			result['content'] = content
-		elif valType == 'symbol':
-			name = value['name']
-			symbolRecord = self.getSymbolRecord(name)
-			# if symbolRecord['hasValue']:
-			if symbolRecord:
-				handler = self.domainIndex[symbolRecord['domain']].valueHandler('symbol')
-				result = handler(symbolRecord)
-		# 	else:
-		# 		# Call the given domain to handle a value
-		# 		# domain = self.domainIndex[value['domain']]
-		# 		handler = domain.valueHandler(value['type'])
-		# 		if handler: result = handler(value)
+			for part in value.getContent():  # pyright: ignore[reportOptionalMemberAccess]
+				val = self.evaluate(part) # pyright: ignore[reportAttributeAccessIssue]
+				if val != None:
+					if isinstance(val, ECValue): val = str(val.getContent())
+					if val == None: val = ''
+					else: content += val
+			result.setValue(type='str', content=content)
+	
 		else:
 			# Call the given domain to handle a value
-			domain = self.domainIndex[value['domain']]
-			handler = domain.valueHandler(value['type'])
+			domainName = value.getDomain()  # type: ignore
+			if domainName == None: domainName = 'core'
+			domain = self.domainIndex[domainName]
+			handler = domain.valueHandler(value.getType()) # type: ignore
 			if handler: result = handler(value)
 
 		return result
 
-	def constant(self, content, numeric):
-		result = {}
-		result['type'] = 'int' if numeric else 'text'
-		result['content'] = content
-		return result
-
-	def evaluate(self, value):
-		if value == None:
-			result = {}
-			result['type'] = 'text'
-			result['content'] = ''
-			return result
-
-		result = self.doValue(value)
-		if result:
-			return result
-		return None
-
-	def getValue(self, value):
-		result = self.evaluate(value)
-		if result:
-			return result.get('content')  # type: ignore[union-attr]
-		return None
-
+	# Get the runtime value of a value object - returns an integer, string, list, dict etc.
+	# It can also return an object such as a graphics object
 	def getRuntimeValue(self, value):
 		if value is None:
 			return None
-		v = self.evaluate(value)
-		if v != None:
-			content = v['content']
-			if v['type'] == 'boolean':
-				return True if content else False
-			if v['type'] in ['int', 'float', 'text', 'object']:
-				return content
-			return ''
-		return None
+		
+		if isinstance(value, dict):
+			value = value['object']
+		if isinstance(value, ECObject):
+			value = value.getValue()
+		if isinstance(value, ECValue): # type: ignore
+			v = self.evaluate(value) # type: ignore
+		else:
+			v = value
+		if v is None: return None
+		if isinstance(v, ECValue):
+			if v.getType() == 'object':
+				return value.getContent() # type: ignore
+			return v.getContent() 
+		return v
 
+	# Get the content of a symbol
 	def getSymbolContent(self, symbolRecord):
 		if len(symbolRecord['value']) == 0:
 			return None
 		try: return symbolRecord['value'][symbolRecord['index']]
-		except:  RuntimeError(self, f'Cannot get content of symbol "{symbolRecord["name"]}"')
+		except: raise RuntimeError(self, f'Cannot get content of symbol "{symbolRecord["name"]}"')
 
+	# Get the value of a symbol as an ECValue
 	def getSymbolValue(self, symbolRecord):
-		if len(symbolRecord['value']) == 0:
-			return None
-		try: value = symbolRecord['value'][symbolRecord['index']]
-		except:  RuntimeError(self, f'Cannot get value of symbol "{symbolRecord["name"]}"')
+		object = symbolRecord['object']
+		self.checkObjectType(object, ECObject)
+		value = symbolRecord['object'].getValue()
+		if value is None:
+			raise NoValueRuntimeError(self, f'Symbol "{symbolRecord["name"]}" has no value')
 		copy = deepcopy(value)
 		return copy
 
+	# Set the value of a symbol to either an ECValue or a raw value
 	def putSymbolValue(self, symbolRecord, value):
-		if symbolRecord['locked']:
+		variable = symbolRecord['object']
+		if variable.isLocked():
 			name = symbolRecord['name']
-			RuntimeError(self, f'Symbol "{name}" is locked')
-		if symbolRecord['value'] == None or symbolRecord['value'] == []:
-			symbolRecord['value'] = [value]
-		else:
-			index = symbolRecord['index']
-			if index == None:
-				index = 0
-			symbolRecord['value'][index] = value
+			raise RuntimeError(self, f'Symbol "{name}" is locked')
+		variable.setValue(self.getValueOf(value))
 
 	def encode(self, value):
 		return value
@@ -334,7 +393,7 @@ class Program:
 				self.pc += 1
 			else:
 				keyword = command['keyword']
-				if self.debugStep and command['debug']:
+				if self.debugStep and 'debug' in command:
 					lino = command['lino'] + 1
 					line = self.script.lines[command['lino']].strip()
 					print(f'{self.name}: Line {lino}: {domainName}:{keyword}:  {line}')
@@ -361,59 +420,42 @@ class Program:
 		item.program = self
 		item.pc = pc
 		queue.append(item)
+		self.running = True
 
 	def kill(self):
 		self.running = False
 		if self.parent != None: self.parent.program.kill()
 
-	def setExternalControl(self):
-		self.externalControl = True
-
 	def nonNumericValueError(self):
 		FatalError(self.compiler, 'Non-numeric value')
 
-	def variableDoesNotHoldAValueError(self, name):
-		raise FatalError(self.compiler, f'Variable "{name}" does not hold a value')
-
-	def noneValueError(self, name):
-		raise FatalError(self.compiler, f'Value is None')
-
 	def compare(self, value1, value2):
-		val1 = self.evaluate(value1)
-		val2 = self.evaluate(value2)
-		if val1 == None or val2 == None:
+		if value1 == None or value2 == None:
+			RuntimeError(self, 'Cannot compare a value with None')
+		v1 = self.getRuntimeValue(value1)
+		v2 = self.getRuntimeValue(value2)
+		if v1 == None or v2 == None:
+			raise RuntimeError(self, 'Both items must have a value for comparison')
+		if type(v1) == str and type(v2) == str:
+			# String comparison
+			if v1 < v2: return -1
+			if v1 > v2: return 1
 			return 0
-		v1 = val1['content']
-		v2 = val2['content']
-#		if v1 == None and v2 != None or v1 != None and v2 == None:
-#			return 0
-		if v1 == None and v2 != None: return -1
-		elif v2 == None and v1 != None: return 1
-		if v1 != None and val1['type'] == 'int':
-			if not val2['type'] == 'int':
-				if type(v2) is str:
-					try:
-						v2 = int(v2)
-					except:
-						lino = self.code[self.pc]['lino'] + 1
-						RuntimeError(None, f'Line {lino}: \'{v2}\' is not an integer')
-		else:
-			if v2 != None and val2['type'] == 'int':
-				v2 = str(v2)
-			if v1 == None:
-				v1 = ''
-			if v2 == None:
-				v2 = ''
-		if type(v1) == int:
-			if type(v2) != int:
-				v1 = f'{v1}'
-		if type(v2) == int:
-			if type(v1) != int:
-				v2 = f'{v2}'
-		if v1 > v2:  # type: ignore[operator]
-			return 1
+		
+		if type(v1) is str:
+			try:
+				v1 = int(v1)
+			except:
+				raise RuntimeError(self, f'{v1} is not an integer')
+		if type(v2) is str:
+			try:
+				v2 = int(v2)
+			except:
+				raise RuntimeError(self, f'{v2} is not an integer')
 		if v1 < v2:  # type: ignore[operator]
 			return -1
+		if v1 > v2:  # type: ignore[operator]
+			return 1
 		return 0
 
 	# Set up a message handler
@@ -434,9 +476,11 @@ def Main():
 			# Create program with debug flag
 			program = Program(sys.argv[2])
 			program.debugging = True
-			program.start()
 		else:
-			Program(sys.argv[1]).start()
+			program = Program(sys.argv[1])
+			program.debugging = False
+			program.start()
+
 	else:
 		Program('-v')
 

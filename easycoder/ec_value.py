@@ -1,11 +1,8 @@
-from .ec_classes import FatalError
+from .ec_classes import ECObject, FatalError, ECValue
 
 # Create a constant
 def getConstant(str):
-	value = {}
-	value['type'] = 'text'
-	value['content'] = str
-	return value
+	return ECValue(type='str', content=str)
 
 class Value:
 
@@ -21,23 +18,20 @@ class Value:
 		if not token:
 			return None
 
-		value = {}
+		value = ECValue()
 
 		if token == 'true':
-			value['type'] = 'boolean'
-			value['content'] = True
+			value.setValue('boolean', True)
 			return value
 
 		if token == 'false':
-			value['type'] = 'boolean'
-			value['content'] = False
+			value.setValue('boolean', False)
 			return value
 
 		# Check for a string constant
 		if token[0] == '`':
 			if token[len(token) - 1] == '`':
-				value['type'] = 'text'
-				value['content'] = token[1 : len(token) - 1]
+				value.setValue(type='str', content=token[1 : len(token) - 1])
 				return value
 			FatalError(self.compiler, f'Unterminated string "{token}"')
 			return None
@@ -46,8 +40,7 @@ class Value:
 		if token.isnumeric() or (token[0] == '-' and token[1:].isnumeric):
 			val = eval(token)
 			if isinstance(val, int):
-				value['type'] = 'int'
-				value['content'] = val
+				value.setValue('int', val)
 				return value
 			FatalError(self.compiler, f'{token} is not an integer')
 
@@ -55,30 +48,37 @@ class Value:
 		mark = self.compiler.getIndex()
 		for domain in self.compiler.program.getDomains():
 			item = domain.compileValue()
-			if item != None:
-				return item
+			if item != None: return item
 			self.compiler.rewindTo(mark)
 		# self.compiler.warning(f'I don\'t understand \'{token}\'')
 		return None
 
+	# Compile a value
 	def compileValue(self):
 		token = self.getToken()
 		item = self.getItem()
 		if item == None:
 			self.compiler.warning(f'ec_value.compileValue: Cannot get the value of "{token}"')
 			return None
+		if item.getType() == 'symbol':
+			object = self.compiler.getSymbolRecord(item.getContent())['object']
+			if not object.hasRuntimeValue(): return None
 
-		value = {}
+		value = ECValue()
 		if self.peek() == 'cat':
-			value['type'] = 'cat'
-			value['numeric'] = False
-			value['value'] = [item]
+			items = None
+			if value.getType() == 'cat': items = value.getContent()
+			else:
+				value.setType('cat')
+				items = [item]
+				value.setContent(items)
 			while self.peek() == 'cat':
-				self.nextToken()
-				self.nextToken()
-				item = self.getItem()
-				if item != None:
-					value['value'].append(item)
+				v = self.nextToken()
+				v= self.nextToken()
+				element = self.getItem()
+				if element != None:
+					items.append(element) # pyright: ignore[reportOptionalMemberAccess]
+			value.setContent(items)
 		else:
 			value = item
 
@@ -89,17 +89,14 @@ class Value:
 		return value
 
 	def compileConstant(self, token):
-		value = {}
+		value = ECValue()
 		if type(token) == 'str':
 			token = eval(token)
 		if isinstance(token, int):
-			value['type'] = 'int'
-			value['content'] = token
+			value.setValue(type='int', content=token)
 			return value
 		if isinstance(token, float):
-			value['type'] = 'float'
-			value['content'] = token
+			value.setValue(type='float', content=token)
 			return value
-		value['type'] = 'text'
-		value['content'] = token
+		value.setValue(type='str', content=token)
 		return value

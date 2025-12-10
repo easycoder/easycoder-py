@@ -191,7 +191,7 @@ def r_mycommand(self, command):
    - Runtime: Raise appropriate exceptions:
      - `RuntimeError` for general errors
      - `NoValueError` for missing values
-     - `AssertionError` for failed assertions
+     - `RuntimeAssertionError` for failed assertions
 
 ### Plugin Development Best Practices
 
@@ -432,7 +432,7 @@ def r_commandname(self, command):
 4. Error Handling
    - `RuntimeError(self.program, message)`: Runtime error
    - `NoValueRuntimeError(self.program, name)`: Variable has no value
-   - `AssertionError(self.program, message)`: Assertion failed
+   - `RuntimeAssertionError(self.program, message)`: Assertion failed
 
 ### Runtime Patterns
 
@@ -520,7 +520,7 @@ def r_assert(self, command):
     if test:
         return self.nextPC()
     # Raise assertion error
-    AssertionError(self.program, self.getRuntimeValue(command['with']))
+    RuntimeAssertionError(self.program, self.getRuntimeValue(command['with']))
 ```
 
 ### Best Practices

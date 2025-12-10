@@ -107,7 +107,7 @@ class ValueDisplay(QWidget):
             self.value_label.setText(str(content))
         elif val_type == 'int':
             self.value_label.setText(str(content))
-        elif val_type == 'text':
+        elif val_type == 'str':
             # Check if it's JSON
             if isinstance(content, str) and content.strip().startswith(('{', '[')):
                 # Likely JSON - show truncated with expand option
@@ -142,7 +142,7 @@ class ValueDisplay(QWidget):
             else:
                 val_type = val.get('type', '?')
                 content = val.get('content', '')
-                if val_type == 'text':
+                if val_type == 'str':
                     # keep each element concise
                     s = str(content)
                     if len(s) > 120:
