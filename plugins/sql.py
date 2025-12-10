@@ -1,4 +1,4 @@
-from easycoder import Handler, FatalError, RuntimeError, json
+from easycoder import Handler, ECValue
 
 class SQL(Handler):
 
@@ -83,7 +83,7 @@ class SQL(Handler):
         keyword = entity['keyword']
         if keyword == 'table':
             value = self.getSymbolValue(entity)
-            tableName = self.getRuntimeValue(value['tableName'])
+            tableName = self.textify(value['tableName'])
             output = []
             if form == 'sql':
                 # -------------------------------------------------------------
@@ -96,14 +96,14 @@ class SQL(Handler):
                 for index, key in enumerate(keys):
                     item = []
                     if 'include' in key:
-                        name = self.getRuntimeValue(key['include'])
+                        name = self.textify(key['include'])
                         includes.append(f'{name}_id')
                         item = f'{name}_id BIGINT REFERENCES {name}'
                     else:
                         if 'secondary' in key:
                             secondary = True
                             output.append('  id BIGSERIAL PRIMARY KEY,')
-                        item.append(self.getRuntimeValue(key['name']))
+                        item.append(self.textify(key['name']))
                         vartype = key['type']
                         if vartype == 'string': vartype = 'str'
                         elif vartype == 'datetime': vartype = 'timestamptz'
@@ -115,10 +115,10 @@ class SQL(Handler):
                         if 'primary' in key: item.append('PRIMARY KEY')
                         if 'required' in key: item.append('NOT NULL')
                         if 'default' in key:
-                            default = self.getRuntimeValue(key['default'])
+                            default = self.textify(key['default'])
                             item.append(f'DEFAULT \'{default}\'')
                         if 'check' in key:
-                            check = self.getRuntimeValue(key['check'])
+                            check = self.textify(key['check'])
                             item.append(f'CHECK ({check})')
                         item = ' '.join(item)
                     if index < len(keys) - 1 or len(includes) > 0: item = f'{item},'
@@ -129,9 +129,7 @@ class SQL(Handler):
                     output.append(item)
                 output.append('};')
                 # -------------------------------------------------------------
-            v = {}
-            v['type'] = type='str'
-            v['content'] = '\n'.join(output)
+            v = ECValue(domain='sql', type='str', content='\n'.join(output))
             self.putSymbolValue(target, v)
         return self.nextPC()
 

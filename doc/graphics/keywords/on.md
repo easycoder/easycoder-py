@@ -10,7 +10,7 @@
 ## Description:
 Handle a graphic event. When the user clicks/taps the specified element, perform the requested action, which can be a single command or a `begin...end` block.
 
-Next: [rectangle](rectangle.md)  
-Prev: [move](move.md)
+Next: [pushbutton](pushbutton.md)  
+Prev: [multiline](multiline.md)
 
 [Back](../../README.md)

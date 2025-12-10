@@ -12,7 +12,8 @@ Attaches an **_EasyCoder_** graphic variable ([ellipse](ellipse.md), [rectangle]
 
 When a graphic specification is rendered, every item in the structure is added to 1) a list of items in the order they were rendered (the z-order) and 2) a dictionary of items indexed by their ids.
 
-Next: [close](close.md)  
-Prev: [text](text.md)
+
+Next: [center](center.md)  
+Prev: [add](add.md)
 
 [Back](../../README.md)

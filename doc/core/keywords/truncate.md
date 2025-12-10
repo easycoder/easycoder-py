@@ -11,6 +11,6 @@
 Truncate a file
 
 Next: [unlock](variable.md)  
-Prev: [toggle](toggle.md)
+Prev: [trim](trim.md)
 
 [Back](../../README.md)

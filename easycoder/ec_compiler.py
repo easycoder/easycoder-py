@@ -141,9 +141,9 @@ class Compiler:
 			return None
 		symbol = self.symbols[name]
 		if symbol == None: return None
-		symbolRecord = self.code[symbol]
-		symbolRecord['used'] = True
-		return symbolRecord
+		record = self.code[symbol]
+		record['used'] = True
+		return record
 
 	# Add a value type
 	def addValueType(self):

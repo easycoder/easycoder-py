@@ -1,8 +1,6 @@
-import json, math, hashlib, threading, sys, os, subprocess, time
-import numbers, base64, binascii, random, requests, paramiko
-import token
+import json, math, hashlib, threading, os, subprocess, time
+import base64, binascii, random, requests, paramiko
 from copy import deepcopy
-from psutil import Process
 from datetime import datetime
 from .ec_classes import (
     FatalError,
@@ -11,7 +9,6 @@ from .ec_classes import (
     RuntimeAssertionError,
     NoValueError,
     NoValueRuntimeError,
-    Object,
     ECObject,
     ECVariable,
     ECFile,
@@ -67,7 +64,7 @@ class Core(Handler):
         self.skip('to')
         if self.nextIsSymbol():
             record = self.getSymbolRecord()
-            if not isinstance(record['object'], ECVariable): return False
+            if not isinstance(self.getObject(record), ECVariable): return False
             # If 'giving' comes next, this variable is the second value
             if self.peek() == 'giving':
                 v2 = ECValue(domain=self.getName(), type='symbol', content=record['name'])
@@ -83,7 +80,7 @@ class Core(Handler):
             else:
                 # Here the variable is the target
                 command['target'] = record['name']
-                if record['object'].isMutable():
+                if self.getObject(record).isMutable():
                     self.add(command)
                     return True
         else:
@@ -100,8 +97,8 @@ class Core(Handler):
         return False
 
     def r_add(self, command):
-        value1 = self.getRuntimeValue(command['value1'])
-        value2 = self.getRuntimeValue(command['value2']) if 'value2' in command else None
+        value1 = self.textify(command['value1'])
+        value2 = self.textify(command['value2']) if 'value2' in command else None
         target = self.getVariable(command['target'])
         # Check that the target variable is mutable. If not, it's not an arithmetic add
         # If value2 exists, we are adding two values and storing the result in target
@@ -121,15 +118,15 @@ class Core(Handler):
         command['value'] = self.nextValue()
         if self.nextIs('to'):
             if self.nextIsSymbol():
-                symbolRecord = self.getSymbolRecord()
-                self.program.checkObjectType(symbolRecord['object'], ECVariable)
-                command['target'] = symbolRecord['name']
+                record = self.getSymbolRecord()
+                self.program.checkObjectType(self.getObject(record), ECVariable)
+                command['target'] = record['name']
                 self.add(command)
                 return True
         return False
 
     def r_append(self, command):
-        value = self.getRuntimeValue(command['value'])
+        value = self.textify(command['value'])
         target = self.getVariable(command['target'])
         content = target['object'].getContent()
         items = [] if content == None else content
@@ -154,7 +151,7 @@ class Core(Handler):
         test = self.program.condition.testCondition(command['test'])
         if test:
             return self.nextPC()
-        RuntimeAssertionError(self.program, self.getRuntimeValue(command['with']))
+        RuntimeAssertionError(self.program, self.textify(command['with']))
 
     # Begin a block
     def k_begin(self, command):
@@ -171,23 +168,32 @@ class Core(Handler):
 
     # clear {variable}
     def k_clear(self, command):
-        if self.nextIsSymbol():
-            target = self.getSymbolRecord()
-            command['target'] = target['name']
-            if target['keyword'] == 'ssh':
+        token = self.nextToken()
+        if token == 'breakpoint':
+            command['breakpoint'] = True
+            self.add(command)
+            return True
+        elif self.isSymbol():
+            record = self.getSymbolRecord()
+            command['target'] = record['name']
+            object = self.getObject(record)
+            if isinstance(object, ECSSH):
                 self.add(command)
                 return True
-            if isinstance(target['object'], ECVariable):
+            if isinstance(object, ECVariable):
                 self.add(command)
                 return True
         return False
 
     def r_clear(self, command):
-        target = self.getVariable(command['target'])
-        if target['keyword'] == 'ssh':
-            target['ssh'] = None
+        if 'breakpoint' in command:
+            self.program.breakpoint = False
         else:
-            self.putSymbolValue(target, ECValue(domain=self.getName(), type='boolean', content=False))
+            target = self.getVariable(command['target'])
+            if target['keyword'] == 'ssh':
+                target['ssh'] = None
+            else:
+                self.putSymbolValue(target, ECValue(domain=self.getName(), type='boolean', content=False))
         return self.nextPC()
 
     # Close a file
@@ -206,7 +212,7 @@ class Core(Handler):
         fileRecord['file'].close()
         return self.nextPC()
 
-    #Create directory
+    # Create directory
     # create directory {name}
     def k_create(self, command):
         if self.nextIs('directory'):
@@ -218,7 +224,7 @@ class Core(Handler):
 
     def r_create(self, command):
         if command['item'] == 'directory':
-            path = self.getRuntimeValue(command['path'])
+            path = self.textify(command['path'])
             if not os.path.exists(path):
                 os.makedirs(path)
         return self.nextPC()
@@ -230,7 +236,7 @@ class Core(Handler):
             self.compiler.debugCompile = True
             self.nextToken()
             return True
-        elif token in ['step', 'stop', 'program', 'custom']:
+        elif token in ['step', 'stop', 'breakpoint', 'program', 'custom']:
             command['mode'] = token
             self.nextToken()
         elif token == 'stack':
@@ -256,18 +262,20 @@ class Core(Handler):
             self.program.debugStep = True
         elif command['mode'] == 'stop':
             self.program.debugStep = False
+        elif command['mode'] == 'breakpoint':
+            self.program.breakpoint = True
         elif command['mode'] == 'program':
             for item in self.code:
                 print(json.dumps(item, indent = 2))
         elif command['mode'] == 'stack':
             stackRecord = self.getVariable(command['stack'])
             value = self.getSymbolValue(stackRecord)
-            print(f'{self.getRuntimeValue(command["as"])}:',json.dumps(self.getSymbolValue(stackRecord), indent = 2))
+            print(f'{self.textify(command["as"])}:',json.dumps(self.getSymbolValue(stackRecord), indent = 2))
         elif command['mode'] == 'custom':
             # Custom debugging code goes in here
             record = self.getVariable('Script')
             print('(Debug) Script:',record)
-            value = self.getRuntimeValue(record)
+            value = self.textify(record)
             print('(Debug) Value:',value)
             pass
         return self.nextPC()
@@ -276,9 +284,9 @@ class Core(Handler):
     # decrement {variable}
     def k_decrement(self, command):
         if self.nextIsSymbol():
-            symbolRecord = self.getSymbolRecord()
-            self.checkObjectType(symbolRecord['object'], ECVariable)
-            command['target'] = symbolRecord['name']
+            record = self.getSymbolRecord()
+            self.checkObjectType(self.getObject(record), ECVariable)
+            command['target'] = record['name']
             self.add(command)
             return True
         return False
@@ -302,7 +310,7 @@ class Core(Handler):
             self.skip('of')
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                if isinstance(record['object'], ECObject):
+                if isinstance(self.getObject(record), ECObject):
                     command['var'] = record['name']
                     self.add(command)
                     return True
@@ -315,21 +323,21 @@ class Core(Handler):
     def r_delete(self, command):
         type = command['type']
         if type == 'file':
-            filename = self.getRuntimeValue(command['filename'])
+            filename = self.textify(command['filename'])
             if filename != None:
                 if os.path.isfile(filename): os.remove(filename)
         elif type == 'property':
-            key = self.getRuntimeValue(command['key'])
-            symbolRecord = self.getVariable(command['var'])
-            value = self.getSymbolValue(symbolRecord)
+            key = self.textify(command['key'])
+            record = self.getVariable(command['var'])
+            value = self.getSymbolValue(record)
             content = value.getContent()
             content.pop(key, None)
             value.setContent(content)
-            self.putSymbolValue(symbolRecord, value)
+            self.putSymbolValue(record, value)
         elif type == 'element':
-            key = self.getRuntimeValue(command['key'])
-            symbolRecord = self.getVariable(command['var'])
-            value = self.getSymbolValue(symbolRecord)
+            key = self.textify(command['key'])
+            record = self.getVariable(command['var'])
+            value = self.getSymbolValue(record)
             content = value.getContent()
             if isinstance(key, int):
                 if key >= 0 and key < len(content): del(content[key])
@@ -337,7 +345,7 @@ class Core(Handler):
                 if key in content: content.remove(key)
             else: RuntimeError(self.program, f'Index {key} out of range')
             value.setContent(content)
-            self.putSymbolValue(symbolRecord, value)
+            self.putSymbolValue(record, value)
         return self.nextPC()
 
     # Arithmetic divide
@@ -376,8 +384,8 @@ class Core(Handler):
         return False
 
     def r_divide(self, command):
-        value1 = self.getRuntimeValue(command['value1']) if 'value1' in command else None
-        value2 = self.getRuntimeValue(command['value2'])
+        value1 = self.textify(command['value1']) if 'value1' in command else None
+        value2 = self.textify(command['value2'])
         target = self.getVariable(command['target'])
         # Check that the target variable can hold a value
         self.checkObjectType(target, ECVariable)
@@ -406,21 +414,13 @@ class Core(Handler):
     
     def r_download(self, command):
         binary = command['binary']
-        url = self.getRuntimeValue(command['url'])
-        path = self.getRuntimeValue(command['path'])
+        url = self.textify(command['url'])
+        path = self.textify(command['path'])
         mode = 'wb' if binary else 'w'
         response = requests.get(url, stream=True)
         with open(path, mode) as f:
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk: f.write(chunk)
-        return self.nextPC()
-
-    # Dummy command for testing
-    def k_dummy(self, command):
-        self.add(command)
-        return True
-
-    def r_dummy(self, command):
         return self.nextPC()
 
     # Match a begin
@@ -471,11 +471,11 @@ class Core(Handler):
     # get {variable) from {url} [or {command}]
     def k_get(self, command):
         if self.nextIsSymbol():
-            symbolRecord = self.getSymbolRecord()
-            if isinstance(symbolRecord['object'], ECObject):
+            record = self.getSymbolRecord()
+            if isinstance(self.getObject(record), ECObject):
                 command['target'] = self.getToken()
             else:
-                NoValueError(self.compiler, symbolRecord)
+                NoValueError(self.compiler, record)
         if self.nextIs('from'):
             if self.nextIs('url'):
                 url = self.nextValue()
@@ -496,11 +496,11 @@ class Core(Handler):
     def r_get(self, command):
         global errorCode, errorReason
         retval = ECValue(type='str')
-        url = self.getRuntimeValue(command['url'])
+        url = self.textify(command['url'])
         target = self.getVariable(command['target'])
         response = json.loads('{}')
         try:
-            timeout = self.getRuntimeValue(command['timeout'])
+            timeout = self.textify(command['timeout'])
             response = requests.get(url, auth = ('user', 'pass'), timeout=timeout)
             if response.status_code >= 400:
                 errorCode = response.status_code
@@ -649,9 +649,9 @@ class Core(Handler):
     # Increment a variable
     def k_increment(self, command):
         if self.nextIsSymbol():
-            symbolRecord = self.getSymbolRecord()
-            self.checkObjectType(symbolRecord['object'], ECVariable)
-            command['target'] = symbolRecord['name']
+            record = self.getSymbolRecord()
+            self.checkObjectType(self.getObject(record), ECVariable)
+            command['target'] = record['name']
             self.add(command)
             return True
         return False
@@ -673,9 +673,9 @@ class Core(Handler):
         return False
 
     def r_index(self, command):
-        value = self.getRuntimeValue(command['value'])
-        symbolRecord = self.getVariable(command['target'])
-        symbolRecord['object'].setIndex(value)
+        value = self.textify(command['value'])
+        record = self.getVariable(command['target'])
+        self.getObject(record).setIndex(value)
         return self.nextPC()
 
     # Input a value from the terminal
@@ -694,10 +694,10 @@ class Core(Handler):
         return False
 
     def r_input(self, command):
-        symbolRecord = self.getVariable(command['target'])
+        record = self.getVariable(command['target'])
         prompt = command['prompt'].getValue()
         value = ECValue(domain=self.getName(), type='str', content=prompt+input(prompt))
-        self.putSymbolValue(symbolRecord, value)
+        self.putSymbolValue(record, value)
         return self.nextPC()
 
     # 1 Load a plugin. This is done at compile time.
@@ -711,9 +711,9 @@ class Core(Handler):
                 self.program.importPlugin(f'{source}:{clazz}')
                 return True
         elif self.isSymbol():
-            symbolRecord = self.getSymbolRecord()
-            if isinstance(symbolRecord['object'], ECVariable):
-                command['target'] = symbolRecord['name']
+            record = self.getSymbolRecord()
+            if isinstance(self.getObject(record), ECVariable):
+                command['target'] = record['name']
                 if self.nextIs('from'):
                     if self.nextIsSymbol():
                         record = self.getSymbolRecord()
@@ -737,7 +737,7 @@ class Core(Handler):
         target = self.getVariable(command['target'])
         if 'ssh' in command:
             ssh = self.getVariable(command['ssh'])
-            path = self.getRuntimeValue(command['path'])
+            path = self.textify(command['path'])
             sftp = ssh['sftp']
             try:
                 with sftp.open(path, 'r') as remote_file: content = remote_file.read().decode()
@@ -749,7 +749,7 @@ class Core(Handler):
                 else:
                     RuntimeError(self.program, f'Error: {errorReason}')
         else:
-            filename = self.getRuntimeValue(command['file'])
+            filename = self.textify(command['file'])
             try:
                 with open(filename) as f: content = f.read()
             except:
@@ -768,8 +768,8 @@ class Core(Handler):
     # Lock a variable
     def k_lock(self, command):
         if self.nextIsSymbol():
-            symbolRecord = self.getSymbolRecord()
-            command['target'] = symbolRecord['name']
+            record = self.getSymbolRecord()
+            command['target'] = record['name']
             self.add(command)
             return True
         return False
@@ -829,8 +829,8 @@ class Core(Handler):
         return False
 
     def r_multiply(self, command):
-        value1 = self.getRuntimeValue(command['value1']) if 'value1' in command else None
-        value2 = self.getRuntimeValue(command['value2'])
+        value1 = self.textify(command['value1']) if 'value1' in command else None
+        value2 = self.textify(command['value2'])
         target = self.getVariable(command['target'])
         # Check that the target variable can hold a value
         self.checkObjectType(target, ECVariable)
@@ -848,24 +848,24 @@ class Core(Handler):
     # Negate a variable
     def k_negate(self, command):
         if self.nextIsSymbol():
-            symbolRecord = self.getSymbolRecord()
-            if symbolRecord['hasValue']:
+            record = self.getSymbolRecord()
+            if record['hasValue']:
                 command['target'] = self.getToken()
                 self.add(command)
                 return True
-            self.warning(f'Core.negate: Variable {symbolRecord["name"]} does not hold a value')
+            self.warning(f'Core.negate: Variable {record["name"]} does not hold a value')
         return False
 
     def r_negate(self, command):
-        symbolRecord = self.getVariable(command['target'])
-        if not symbolRecord['hasValue']:
-            NoValueRuntimeError(self.program, symbolRecord)
+        record = self.getVariable(command['target'])
+        if not record['hasValue']:
+            NoValueRuntimeError(self.program, record)
             return None
-        value = self.getSymbolValue(symbolRecord)
+        value = self.getSymbolValue(record)
         if value == None:
-            RuntimeError(self.program, f'{symbolRecord["name"]} has not been initialised')
+            RuntimeError(self.program, f'{record["name"]} has not been initialised')
         value.setContent(value.getContent() * -1)
-        self.putSymbolValue(symbolRecord, value)
+        self.putSymbolValue(record, value)
         return self.nextPC()
 
     # on message {action}
@@ -902,10 +902,10 @@ class Core(Handler):
     # open {file} for reading/writing/appending
     def k_open(self, command):
         if self.nextIsSymbol():
-            symbolRecord = self.getSymbolRecord()
-            command['target'] = symbolRecord['name']
+            record = self.getSymbolRecord()
+            command['target'] = record['name']
             command['path'] = self.nextValue()
-            if symbolRecord['keyword'] == 'file':
+            if record['keyword'] == 'file':
                 if self.peek() == 'for':
                     self.nextToken()
                     token = self.nextToken()
@@ -930,12 +930,20 @@ class Core(Handler):
         return False
 
     def r_open(self, command):
-        symbolRecord = self.getVariable(command['target'])
-        path = self.getRuntimeValue(command['path'])
+        record = self.getVariable(command['target'])
+        path = self.textify(command['path'])
         if command['mode'] == 'r' and os.path.exists(path) or command['mode'] != 'r':
-            symbolRecord['file'] = open(path, command['mode'])
+            record['file'] = open(path, command['mode'])
             return self.nextPC()
         RuntimeError(self.program, f"File {path} does not exist")
+
+    # Dummy command for testing
+    def k_pass(self, command):
+        self.add(command)
+        return True
+
+    def r_pass(self, command):
+        return self.nextPC()
 
     # Pop a value from a stack
     # pop {variable} from {stack}
@@ -955,10 +963,10 @@ class Core(Handler):
         return False
 
     def r_pop(self, command):
-        symbolRecord = self.getVariable(command['target'])
+        record = self.getVariable(command['target'])
         stackRecord = self.getVariable(command['from'])
         value = stackRecord['object'].pop()
-        self.putSymbolValue(symbolRecord, value)
+        self.putSymbolValue(record, value)
         return self.nextPC()
 
     # Perform an HTTP POST
@@ -984,8 +992,8 @@ class Core(Handler):
     def r_post(self, command):
         global errorCode, errorReason
         retval = ECValue(domain=self.getName(), type='str', content = '')
-        value = self.getRuntimeValue(command['value'])
-        url = self.getRuntimeValue(command['url'])
+        value = self.textify(command['value'])
+        url = self.textify(command['url'])
         try:
             response = requests.post(url, value, timeout=5)
             retval.setContent(response.text) # type: ignore
@@ -1020,7 +1028,7 @@ class Core(Handler):
         return False
 
     def r_print(self, command):
-        value = self.getRuntimeValue(command['value'])
+        value = self.textify(command['value'])
         program = command['program']
         code = program.code[program.pc]
         lino = str(code['lino'] + 1)
@@ -1041,8 +1049,8 @@ class Core(Handler):
         if peekValue in ['onto', 'to']:
             self.nextToken()
             if self.nextIsSymbol():
-                symbolRecord = self.getSymbolRecord()
-                command['to'] = symbolRecord['name']
+                record = self.getSymbolRecord()
+                command['to'] = record['name']
                 self.add(command)
                 return True
         return False
@@ -1060,9 +1068,9 @@ class Core(Handler):
             command['value'] = value
             if self.nextIs('into'):
                 if self.nextIsSymbol():
-                    symbolRecord = self.getSymbolRecord()
-                    command['target'] = symbolRecord['name']
-                    self.checkObjectType(symbolRecord['object'], ECVariable)
+                    record = self.getSymbolRecord()
+                    command['target'] = record['name']
+                    self.checkObjectType(self.getObject(record), ECVariable)
                     command['or'] = None
                     self.processOr(command, self.getCodeSize())
                     return True
@@ -1077,8 +1085,8 @@ class Core(Handler):
 #                return command['or']
 #            else:
 #                RuntimeError(self.program, f'Error: could not compute value')
-        symbolRecord = self.getVariable(command['target'])
-        self.putSymbolValue(symbolRecord, value)
+        record = self.getVariable(command['target'])
+        self.putSymbolValue(record, value)
         return self.nextPC()
 
     # Read from a file
@@ -1090,14 +1098,14 @@ class Core(Handler):
         else:
             command['line'] = False
         if self.nextIsSymbol():
-            symbolRecord = self.getSymbolRecord()
-            self.checkObjectType(symbolRecord['object'], ECVariable)
+            record = self.getSymbolRecord()
+            self.checkObjectType(self.getObject(record), ECVariable)
             if self.peek() == 'from':
                 self.nextToken()
                 if self.nextIsSymbol():
                     fileRecord = self.getSymbolRecord()
                     self.checkObjectType(fileRecord['object'], ECFile)
-                    command['target'] = symbolRecord['name']
+                    command['target'] = record['name']
                     command['file'] = fileRecord['name']
                     self.add(command)
                     return True
@@ -1106,14 +1114,14 @@ class Core(Handler):
         return False
 
     def r_read(self, command):
-        symbolRecord = self.getVariable(command['target'])
+        record = self.getVariable(command['target'])
         fileRecord = self.getVariable(command['file'])
         line = command['line']
         file = fileRecord['file']
         if file.mode == 'r':
             content = file.readline().split('\n')[0] if line else file.read()
             value = ECValue(domain=self.getName(), type='str', content=content)
-            self.putSymbolValue(symbolRecord, value)
+            self.putSymbolValue(record, value)
         return self.nextPC()
 
     # Release the parent script
@@ -1146,8 +1154,8 @@ class Core(Handler):
     def r_replace(self, command):
         templateRecord = self.getVariable(command['target'])
         content = self.getSymbolValue(templateRecord).getContent()
-        original = self.getRuntimeValue(command['original'])
-        replacement = self.getRuntimeValue(command['replacement'])
+        original = self.textify(command['original'])
+        replacement = self.textify(command['replacement'])
         content = content.replace(original, str(replacement))
         value = ECValue(domain=self.getName(), type='str', content=content)
         self.putSymbolValue(templateRecord, value)
@@ -1156,15 +1164,15 @@ class Core(Handler):
     # Reset a variable
     def k_reset(self, command):
         if self.nextIsSymbol():
-            symbolRecord = self.getSymbolRecord()
-            command['target'] = symbolRecord['name']
+            record = self.getSymbolRecord()
+            command['target'] = record['name']
             self.add(command)
             return True
         return False
 
     def r_reset(self, command):
-        symbolRecord = self.getVariable(command['target'])
-        symbolRecord['object'].reset()
+        record = self.getVariable(command['target'])
+        self.getObject(record).reset()
         return self.nextPC()
 
     # Return from subroutine
@@ -1208,15 +1216,15 @@ class Core(Handler):
 
     def r_run(self, command):
         module = self.getVariable(command['module'])
-        path = self.getRuntimeValue(command['path'])
+        path = self.textify(command['path'])
         exports = json.loads(command['exports'])
         for n in range(0, len(exports)):
             exports[n] = self.getVariable(exports[n])
         module['path'] = path
-        parent = Object()
-        parent.program = self.program
-        parent.pc = self.nextPC()
-        parent.waiting = True
+        parent = ECValue()
+        parent.program = self.program # type: ignore
+        parent.pc = self.nextPC() # type: ignore
+        parent.waiting = True # type: ignore
         p = self.program.__class__
         p(path).start(parent, module, exports)
         return 0
@@ -1241,10 +1249,10 @@ class Core(Handler):
 
     def r_save(self, command):
         errorReason = None
-        content = self.getRuntimeValue(command['content'])
+        content = self.textify(command['content'])
         if 'ssh' in command:
             ssh = self.getVariable(command['ssh'])
-            path = self.getRuntimeValue(command['path'])
+            path = self.textify(command['path'])
             sftp = ssh['sftp']
             if path.endswith('.json'): content = json.dumps(content)
             try:
@@ -1257,11 +1265,13 @@ class Core(Handler):
                 else:
                     RuntimeError(self.program, f'Error: {errorReason}')
         else:
-            filename = self.getRuntimeValue(command['file'])
+            filename = self.textify(command['file'])
             try:
+                if not isinstance(content, str):
+                    content = self.textify(content)
                 with open(filename, 'w') as f: f.write(content)
-            except:
-                errorReason = f'Unable to write to {filename}'
+            except Exception as e:
+                errorReason = f'Unable to write to {filename}: {str(e)}'
 
         if errorReason:
             if command['or'] != None:
@@ -1289,7 +1299,7 @@ class Core(Handler):
         return False
 
     def r_send(self, command):
-        message = self.getRuntimeValue(command['message'])
+        message = self.textify(command['message'])
         module = self.getVariable(command['module'])
         module['child'].handleMessage(message)
         return self.nextPC()
@@ -1299,6 +1309,7 @@ class Core(Handler):
     # set {ssh} host {host} user {user} password {password}
     # set the elements of {variable} to {value}
     # set element/property of {variable} to {value}
+    # set breakpoint
     def k_set(self, command):
         if self.nextIsSymbol():
             record = self.getSymbolRecord()
@@ -1325,7 +1336,7 @@ class Core(Handler):
                 command['type'] = 'ssh'
                 self.add(command)
                 return True
-            elif isinstance(record['object'], ECVariable):
+            elif isinstance(self.getObject(record), ECVariable):
                 command['type'] = 'set'
                 self.add(command)
                 return True
@@ -1381,6 +1392,11 @@ class Core(Handler):
             command['path'] = self.nextValue()
             self.add(command)
             return True
+        
+        elif token == 'breakpoint':
+            command['breakpoint'] = True
+            self.add(command)
+            return True
 
         return False
 
@@ -1392,15 +1408,16 @@ class Core(Handler):
             return self.nextPC()
 
         elif cmdType == 'elements':
-            symbolRecord = self.getVariable(command['name'])
-            elements = self.getRuntimeValue(command['elements'])
-            self.checkObjectType(symbolRecord['object'], ECObject)
-            symbolRecord['object'].setElements(elements)
+            record = self.getVariable(command['name'])
+            elements = self.textify(command['elements'])
+            object = self.getObject(record)
+            self.checkObjectType(object, ECObject)
+            object.setElements(elements)
             return self.nextPC()
 
         elif cmdType == 'element':
-            value = self.getRuntimeValue(command['value'])
-            index = self.getRuntimeValue(command['index'])
+            value = self.textify(command['value'])
+            index = self.textify(command['index'])
             target = self.getVariable(command['target'])
             val = self.getSymbolValue(target)
             content = val.getContent()
@@ -1414,31 +1431,33 @@ class Core(Handler):
             return self.nextPC()
 
         elif cmdType == 'encoding':
-            self.encoding = self.getRuntimeValue(command['encoding'])
+            self.encoding = self.textify(command['encoding'])
             return self.nextPC()
 
         elif cmdType == 'path':
-            path = self.getRuntimeValue(command['path'])
+            path = self.textify(command['path'])
             os.chdir(path)
             return self.nextPC()
 
         elif cmdType == 'property':
-            name = self.getRuntimeValue(command['name'])
+            name = self.textify(command['name'])
             value = self.evaluate(command['value'])
             record = self.getVariable(command['target'])
-            variable = record['object']
+            variable = self.getObject(record)
             content = variable.getContent()
             if content == None: content = {}
-            elif not isinstance(content, dict): raise RuntimeError(self.program, f'{record["name"]} is not a dictionary')
-            content[name] = self.getRuntimeValue(value)
+            elif not isinstance(content, dict): 
+                raise RuntimeError(self.program, f'{record["name"]} is not a dictionary')
+            if isinstance(value, dict): content[name] = value
+            else: content[name] = self.textify(value)
             variable.setContent(ECValue(domain=self.getName(), type='dict', content=content))
             return self.nextPC()
         
         elif cmdType == 'ssh':
             target = self.getVariable(command['target'])
-            host = self.getRuntimeValue(command['host'])
-            user = self.getRuntimeValue(command['user'])
-            password = self.getRuntimeValue(command['password'])
+            host = self.textify(command['host'])
+            user = self.textify(command['user'])
+            password = self.textify(command['password'])
             ssh = paramiko.SSHClient()
             target['ssh'] = ssh
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -1448,41 +1467,45 @@ class Core(Handler):
             except:
                 target['error'] = f'Unable to connect to {host} (timeout)'
             return self.nextPC()
+        
+        elif cmdType == 'breakpoint':
+            self.program.breakpoint = True
+            return self.nextPC()
 
     # Shuffle a JSON list
     def k_shuffle(self, command):
         if self.nextIsSymbol():
-            symbolRecord = self.getSymbolRecord()
-            if symbolRecord['hasValue']:
+            record = self.getSymbolRecord()
+            if record['hasValue']:
                 command['target'] = self.getToken()
                 self.add(command)
                 return True
-            self.warning(f'Core.negate: Variable {symbolRecord["name"]} does not hold a value')
+            self.warning(f'Core.negate: Variable {record["name"]} does not hold a value')
         return False
 
     def r_shuffle(self, command):
-        symbolRecord = self.getVariable(command['target'])
-        if not symbolRecord['hasValue']:
-            NoValueRuntimeError(self.program, symbolRecord)
+        record = self.getVariable(command['target'])
+        if not record['hasValue']:
+            NoValueRuntimeError(self.program, record)
             return None
-        value = self.getSymbolValue(symbolRecord)
+        value = self.getSymbolValue(record)
         if value == None:
-            RuntimeError(self.program, f'{symbolRecord["name"]} has not been initialised')
+            RuntimeError(self.program, f'{record["name"]} has not been initialised')
         content = value.getContent()
         if isinstance(content, list):
             random.shuffle(content)
             value.setContent(content)
-            self.putSymbolValue(symbolRecord, value)
+            self.putSymbolValue(record, value)
             return self.nextPC()
-        RuntimeError(self.program, f'{symbolRecord["name"]} is not a list')
+        RuntimeError(self.program, f'{record["name"]} is not a list')
 
     # Split a string into a variable with several elements
     # split {variable} on {value}
     def k_split(self, command):
         if self.nextIsSymbol():
-            symbolRecord = self.getSymbolRecord()
-            if isinstance(symbolRecord['object'], ECObject):
-                command['target'] = symbolRecord['name']
+            record = self.getSymbolRecord()
+            if isinstance(record['object'], ECObject):
+                command['target'] = record['name']
                 value = ECValue(domain=self.getName(), type='str', content='\n')
                 command['on'] = value
                 if self.peek() == 'on':
@@ -1500,7 +1523,7 @@ class Core(Handler):
     def r_split(self, command):
         target = self.getVariable(command['target'])
         value = self.getSymbolValue(target)
-        content = value.getContent().split(self.getRuntimeValue(command['on']))
+        content = value.getContent().split(self.textify(command['on']))
         elements = len(content)
         object = target['object']
         object.setElements(elements)
@@ -1555,7 +1578,7 @@ class Core(Handler):
         return False
 
     def r_system(self, command):
-        value = self.getRuntimeValue(command['value'])
+        value = self.textify(command['value'])
         if value != None:
             if command['background']:
                 subprocess.Popen(["sh",value,"&"])
@@ -1605,8 +1628,8 @@ class Core(Handler):
         return False
 
     def r_take(self, command):
-        value1 = self.getRuntimeValue(command['value1'])
-        value2 = self.getRuntimeValue(command['value2']) if 'value2' in command else None
+        value1 = self.textify(command['value1'])
+        value2 = self.textify(command['value2']) if 'value2' in command else None
         target = self.getVariable(command['target'])
         # Check that the target variable can hold a value
         self.checkObjectType(target, ECVariable)
@@ -1675,8 +1698,8 @@ class Core(Handler):
     # Unlock a variable
     def k_unlock(self, command):
         if self.nextIsSymbol():
-            symbolRecord = self.getSymbolRecord()
-            command['target'] = symbolRecord['name']
+            record = self.getSymbolRecord()
+            command['target'] = record['name']
             self.add(command)
             return True
         return False
@@ -1732,7 +1755,7 @@ class Core(Handler):
         return True
 
     def r_wait(self, command):
-        value = self.getRuntimeValue(command['value']) * command['multiplier']
+        value = self.textify(command['value']) * command['multiplier']
         next = self.nextPC()
         threading.Timer(value/1000.0, lambda: (self.run(next))).start()
         return 0
@@ -1798,7 +1821,7 @@ class Core(Handler):
         return False
 
     def r_write(self, command):
-        value = self.getRuntimeValue(command['value'])
+        value = self.textify(command['value'])
         fileRecord = self.getVariable(command['file'])
         file = fileRecord['file']
         if file.mode in ['w', 'w+', 'a', 'a+']:
@@ -1811,15 +1834,15 @@ class Core(Handler):
     # Support functions
 
     def incdec(self, command, mode):
-        symbolRecord = self.getVariable(command['target'])
-        self.checkObjectType(symbolRecord['object'], ECVariable)
-        value = self.getSymbolValue(symbolRecord)
+        record = self.getVariable(command['target'])
+        self.checkObjectType(record['object'], ECVariable)
+        value = self.getSymbolValue(record)
         content = value.getContent()
         if not isinstance(content, int):
-            RuntimeError(self.program, f'Variable {symbolRecord["name"]} does not hold an integer')
+            RuntimeError(self.program, f'Variable {record["name"]} does not hold an integer')
         if mode == '+': value.setContent(content + 1)
         else: value.setContent(content - 1)
-        self.putSymbolValue(symbolRecord, value)
+        self.putSymbolValue(record, value)
         return self.nextPC()
 
     #############################################################################
@@ -1835,13 +1858,13 @@ class Core(Handler):
 
         if token == 'arg':
             self.nextToken()
-            value.setProperty('index', self.getValue())
+            value.index = self.getValue()
             return value
 
         if token in ['cos', 'sin', 'tan']:
-            value.setProperty('angle', self.nextValue())
+            value.angle = self.nextValue()
             if self.nextToken() == 'radius':
-                value.setProperty('radius', self.nextValue())
+                value.radius = self.nextValue()
                 return value
             return None
 
@@ -1854,50 +1877,44 @@ class Core(Handler):
 
         if (token in ['datime', 'datetime']):
             value.setType('datime')
-            value.setProperty('timestamp', self.nextValue())
+            value.timestamp = self.nextValue()
             if self.peek() == 'format':
                 self.nextToken()
-                value.setProperty('format', self.nextValue())
+                value.format = self.nextValue()
             else:
-                value.setProperty('format', None)
+                value.format = None
             return value
 
         if token == 'element':
-            value.setProperty('index', self.nextValue())
+            value.index = self.nextValue()
             if self.nextToken() == 'of':
                 if self.nextIsSymbol():
-                    symbolRecord = self.getSymbolRecord()
-                    self.checkObjectType(symbolRecord['object'], ECVariable)
-                    value.setProperty('target', ECValue(domain=self.getName(), type='symbol', content=symbolRecord['name']))
+                    record = self.getSymbolRecord()
+                    self.checkObjectType(record['object'], ECVariable)
+                    value.target = ECValue(domain=self.getName(), type='symbol', content=record['name'])
                     return value
             return None
 
         if token == 'property':
-            value.setProperty('name', self.nextValue())
+            value.name = self.nextValue() # type: ignore
             if self.nextToken() == 'of':
                 if self.nextIsSymbol():
-                    symbolRecord = self.getSymbolRecord()
-                    object = symbolRecord['object']
+                    record = self.getSymbolRecord()
+                    object = record['object']
                     self.checkObjectType(object, ECObject)
                     if hasattr(object, 'name'):
-                        value.setProperty('target', ECValue(domain=self.getName(), type='symbol', content=object.name))
+                        value.target = ECValue(domain=self.getName(), type='symbol', content=object.name) # type: ignore
                         return value
-                    raise RuntimeError(self.program, f'Object {symbolRecord["name"]} has no attribute "name"')
-                    # if object.hasProperties():
-                    #     if  object.hasProperty('name'):
-                    #         value.setProperty('target', ECValue(domain=self.getName(), type='symbol', content=object.getProperty('name')))
-                    #         return value
-                    #     raise RuntimeError(self.program, f'Object {symbolRecord["name"]} has no property "name"')
-                    # raise FatalError(self.compiler, f'Object {symbolRecord["name"]} has no properties')
+                    raise RuntimeError(self.program, f'Object {record["name"]} has no attribute "name"')
             return None
 
         if token == 'arg':
             value.setContent(self.nextValue())
             if self.getToken() == 'of':
                 if self.nextIsSymbol():
-                    symbolRecord = self.getSymbolRecord()
-                    if symbolRecord['keyword'] == 'variable':
-                        value.setProperty('target', symbolRecord['name'])
+                    record = self.getSymbolRecord()
+                    if record['keyword'] == 'variable':
+                        value.target = record['name'] # type: ignore
                         return value
             return None
 
@@ -1918,45 +1935,46 @@ class Core(Handler):
         if token == 'elements':
             if self.nextIs('of'):
                 if self.nextIsSymbol():
-                    value.setProperty('name', self.getToken())
+                    value.name = self.getToken() # type: ignore
                     return value
             return None
 
         if token == 'keys':
             if self.nextIs('of'):
-                value.setProperty('name', self.nextValue())
+                value.name = self.nextValue() # type: ignore
                 return value
             return None
 
         if token == 'count':
             if self.nextIs('of'):
                 if self.nextIsSymbol():
-                    object = self.getSymbolRecord()['object']
+                    record = self.getSymbolRecord()
+                    object = record['object']
                     if isinstance(object, ECVariable):
-                        value.setContent(object)
+                        value.setContent(record['name'])
                         return value
             return None
 
         if token == 'index':
             if self.nextIs('of'):
                 if self.nextIsSymbol():
-                    value.setProperty('variable', self.getSymbolRecord()['name'])
+                    value.variable = self.getSymbolRecord()['name'] # type: ignore
                     if self.peek() == 'in':
-                        value.setProperty('value', None)
+                        value.value = None # type: ignore
                         value.setType('indexOf')
                         if self.nextIsSymbol():
-                            value.setProperty('target', self.getSymbolRecord()['name'])
+                            value.target = self.getSymbolRecord()['name'] # type: ignore
                             return value
                     else:
-                        value.setProperty('name', self.getToken())
+                        value.name = self.getToken() # type: ignore
                         return value
                 else:
-                    value.setProperty('value', self.getValue())
+                    value.value = self.getValue() # type: ignore
                     if self.nextIs('in'):
-                        value.setProperty('variable', None)
+                        value.variable = None # type: ignore
                         value.setType('indexOf')
                         if self.nextIsSymbol():
-                            value.setProperty('target', self.getSymbolRecord()['name'])
+                            value.target = self.getSymbolRecord()['name'] # type: ignore
                             return value
             return None
 
@@ -1976,52 +1994,54 @@ class Core(Handler):
             return None
 
         if token in ['left', 'right']:
-            value.setProperty('count', self.nextValue())
+            value.count = self.nextValue() # type: ignore
             if self.nextToken() == 'of':
                 value.setContent(self.nextValue())
                 return value
             return None
 
+        # from {n} of {value}
+        # from {n} to {m} of {value}
         if token == 'from':
-            value.setProperty('start', self.nextValue())
+            value.start = self.nextValue() # type: ignore
             if self.peek() == 'to':
                 self.nextToken()
-                value.setProperty('to', self.nextValue())
+                value.to = self.nextValue() # type: ignore
             else:
-                value.setProperty('to', None)
+                value.to = None # type: ignore
             if self.nextToken() == 'of':
                 value.setContent(self.nextValue())
                 return value
 
+        # position of [the] [last] {needle} in {haystack}
         if token == 'position':
-            if self.nextIs('of'):
-                value.setProperty('last', False)
-                if self.nextIs('the'):
-                    if self.nextIs('last'):
-                        self.nextToken()
-                        value.setProperty('last', True)
-                value.setProperty('needle', self.getValue())
-                if self.nextToken() == 'in':
-                    value.setProperty('haystack', self.nextValue())
-                    return value
+            self.skip('of')
+            self.skip('the')
+            if self.peek() == 'last':
+                value.last = True # type: ignore
+                self.nextToken()
+            value.needle = self.nextValue() # type: ignore
+            self.skip('in')
+            value.haystack = self.nextValue() # type: ignore
+            return value
 
         if token == 'message':
             return value
 
         if token == 'timestamp':
-            value.setProperty('format', None)
+            value.format = None # type: ignore
             if self.peek() == 'of':
                 self.nextToken()
-                value.setProperty('datime', self.nextValue())
+                value.timestamp = self.nextValue() # type: ignore
                 if self.peek() == 'format':
                     self.nextToken()
-                    value.setProperty('format', self.nextValue())
+                    value.format = self.nextValue() # type: ignore
             return value
 
         if token == 'files':
             token = self.nextToken()
             if token in ['in', 'of']:
-                value.setProperty('target', self.nextValue())
+                value.target = self.nextValue() # type: ignore
                 return value
             return None
 
@@ -2029,40 +2049,36 @@ class Core(Handler):
             value.setType('weekday')
             return value
 
-        if token == 'mem' or token == 'memory':
-            value.setType('memory')
-            return value
-
         if token == 'error':
             token = self.peek()
             if token == 'code':
                 self.nextToken()
-                value.setProperty('item', 'errorCode')
+                value.item = 'errorCode' # type: ignore
                 return value
             elif token == 'reason':
                 self.nextToken()
-                value.setProperty('item', 'errorReason')
+                value.item = 'errorReason' # type: ignore
                 return value
             elif token in ['in', 'of']:
                 self.nextToken()
                 if self.nextIsSymbol():
                     record = self.getSymbolRecord()
                     if isinstance(record['object'], ECSSH):
-                        value.setProperty('item', 'sshError')
-                        value.setProperty('name', record['name'])
+                        value.item = 'sshError' # type: ignore
+                        value.name = record['name'] # type: ignore
                         return value
             return None
 
         if token == 'type':
             if self.nextIs('of'):
-                value.setProperty('value', self.nextValue())
+                value.value = self.nextValue() # type: ignore
                 return value
             return None
 
         if token == 'modification':
             if self.nextIs('time'):
                 if self.nextIs('of'):
-                    value.setProperty('fileName', self.nextValue())
+                    value.fileName = self.nextValue() # type: ignore
                     return value
             return None
 
@@ -2081,7 +2097,7 @@ class Core(Handler):
         if self.peek() == 'modulo':
             self.nextToken()
             mv = ECValue(domain=self.getName(), type='modulo', content=value)
-            mv.setProperty('modval', self.nextValue())
+            mv.modval = self.nextValue() # type: ignore
             return mv
 
         return value
@@ -2093,7 +2109,7 @@ class Core(Handler):
         return ECValue(domain=self.getName(), type='str', content=json.dumps(self.program.argv))
 
     def v_arg(self, v):
-        index = self.getRuntimeValue(v['index'])
+        index = self.textify(v['index'])
         if index >= len(self.program.argv):
             RuntimeError(self.program, 'Index exceeds # of args')
         return ECValue(domain=self.getName(), type='str', content=self.program.argv[index])
@@ -2102,26 +2118,26 @@ class Core(Handler):
         value = ECValue(domain=self.getName(), type='boolean', content=v.getContent())
 
     def v_cos(self, v):
-        angle = self.getRuntimeValue(v['angle'])
-        radius = self.getRuntimeValue(v['radius'])
+        angle = self.textify(v['angle'])
+        radius = self.textify(v['radius'])
         return ECValue(domain=self.getName(), type='int', content=round(math.cos(angle * 0.01745329) * radius))
 
     def v_count(self, v):
-        content = self.getRuntimeValue(v.getContent())
+        content = self.textify(self.getVariable(v.getContent()))
         if content == None: raise RuntimeError(self.program, 'Count: No value provided')
         return ECValue(domain=self.getName(), type='int', content=len(content))
 
     def v_datime(self, v):
-        ts = self.getRuntimeValue(v.getProperty('timestamp'))
-        fmt = v.getProperty('format')
+        ts = self.textify(v.timestamp)
+        fmt = v.format
         if fmt == None:
             fmt = '%b %d %Y %H:%M:%S'
         else:
-            fmt = self.getRuntimeValue(fmt)
+            fmt = self.textify(fmt)
         return ECValue(domain=self.getName(), type='str', content=datetime.fromtimestamp(ts/1000).strftime(fmt))
 
     def v_decode(self, v):
-        content = self.getRuntimeValue(v.getContent())
+        content = self.textify(v.getContent())
         value = ECValue(domain=self.getName(), type='str')
         if self.encoding == 'utf-8':
             value.setContent(content.decode('utf-8'))
@@ -2138,8 +2154,8 @@ class Core(Handler):
         return value
 
     def v_element(self, v):
-        index = self.getRuntimeValue(v.getProperty('index'))
-        targetName = v.getProperty('target')
+        index = self.textify(v.index)
+        targetName = v.target
         target = self.getVariable(targetName.getContent())
         variable = target['object']
         self.checkObjectType(variable, ECObject)
@@ -2150,11 +2166,11 @@ class Core(Handler):
             RuntimeError(self.program, f'Index out of range in {targetName}')
         targetValue = content[index]
         if isinstance(targetValue, ECValue):
-            targetValue = self.getRuntimeValue(targetValue)
+            targetValue = self.textify(targetValue)
         return targetValue
 
     def v_elements(self, v):
-        var = self.getVariable(v.getProperty('name'))
+        var = self.getVariable(v.name)
         object = var['object']
         self.checkObjectType(object, ECVariable)
         return ECValue(domain=self.getName(), type='int', content=object.getElements())
@@ -2163,7 +2179,7 @@ class Core(Handler):
         return ECValue(domain=self.getName(), type='str', content=''  )
 
     def v_encode(self, v):
-        content = self.getRuntimeValue(v.getContent())
+        content = self.textify(v.getContent())
         value = ECValue(domain=self.getName(), type='str')
         if self.encoding == 'utf-8':
             value.setContent(content.encode('utf-8'))
@@ -2182,22 +2198,22 @@ class Core(Handler):
     def v_error(self, v):
         global errorCode, errorReason
         value = ECValue(domain=self.getName())
-        item = v.getProperty('item')
+        item = v.item
         if item == 'errorCode':
             value.setValue(type='int', content=errorCode)
         elif item == 'errorReason':
             value.setValue(type='str', content=errorReason)
         elif item == 'sshError':
-            record = self.getVariable(v.getProperty('name'))
+            record = self.getVariable(v.name)
             value.setValue(type='str', content=record['error'] if 'error' in record else '')
         return value
 
     def v_files(self, v):
-        path = self.getRuntimeValue(v.getProperty('target'))
+        path = self.textify(v.target)
         return ECValue(domain=self.getName(), type='str', content=json.dumps(os.listdir(path)))
 
     def v_float(self, v):
-        val = self.getRuntimeValue(v.getContent())
+        val = self.textify(v.getContent())
         value = ECValue(domain=self.getName(), type='float')
         try:
             value.setContent(float(val))
@@ -2207,9 +2223,9 @@ class Core(Handler):
         return value
 
     def v_from(self, v):
-        content = self.getRuntimeValue(v.getContent())
-        start = self.getRuntimeValue(v.getProperty('start'))
-        to = self.getRuntimeValue(v.getProperty('to'))
+        content = self.textify(v.getContent())
+        start = self.textify(v.start)
+        to = self.textify(v.to)
         if start is not None and type(start) != int:
             RuntimeError(self.program, 'Invalid "from" value')
         if to is not None and type(to) != int:
@@ -2217,30 +2233,32 @@ class Core(Handler):
         return ECValue(domain=self.getName(), type='str', content=content[start:] if to == None else content[start:to])
 
     def v_hash(self, v):
-        hashval = self.getRuntimeValue(v.getContent())
+        hashval = self.textify(v.getContent())
         return ECValue(domain=self.getName(), type='str', content=hashlib.sha256(hashval.encode('utf-8')).hexdigest())
 
     def v_index(self, v):
-        return ECValue(domain=self.getName(), type='int', content=self.getVariable(v['name'])['index'])
+        record = self.getVariable(v.name)
+        object = self.getObject(record)
+        return ECValue(domain=self.getName(), type='int', content=object.getIndex())
 
     def v_indexOf(self, v):
-        value = v.getProperty('value')
+        value = v.value
         if value == None:
-            value = self.getSymbolValue(v.getProperty('variable')).getContent()
+            value = self.getSymbolValue(v.variable).getContent()
         else:
-            value = self.getRuntimeValue(value)
-        target = self.getVariable(v.getProperty('target'))
+            value = self.textify(value)
+        target = self.getVariable(v.target)
         data = self.getSymbolValue(target).getContent()
         try: index = data.index(value)
         except: index = -1
         return ECValue(domain=self.getName(), type='int', content=index)
 
     def v_integer(self, v):
-        val = self.getRuntimeValue(v.getValue())
+        val = self.textify(v.getValue())
         return ECValue(domain=self.getName(), type='int', content=int(val))
 
     def v_json(self, v):
-        item = self.getRuntimeValue(v.getContent())
+        item = self.textify(v.getContent())
         value = ECValue(domain=self.getName())
         try:
             v = json.loads(item)
@@ -2253,40 +2271,35 @@ class Core(Handler):
         return value
 
     def v_keys(self, v):
-        value = self.getRuntimeValue(v.getProperty('name'))
+        value = self.textify(v.name)
         return ECValue(domain=self.getName(), type='list', content=list(value.keys())) # type: ignore
 
     def v_left(self, v):
-        content = self.getRuntimeValue(v.getContent())
-        count = self.getRuntimeValue(v.getProperty('count'))
+        content = self.textify(v.getContent())
+        count = self.textify(v.count)
         return ECValue(domain=self.getName(), type='str', content=content[0:count])
 
     def v_lengthOf(self, v):
-        content = self.getRuntimeValue(v.getContent())
+        content = self.textify(v.getContent())
         if type(content) == str:
             return ECValue(domain=self.getName(), type='int', content=len(content))
         RuntimeError(self.program, 'Value is not a string')
 
     def v_lowercase(self, v):
-        content = self.getRuntimeValue(v.getValue())
+        content = self.textify(v.getValue())
         return ECValue(domain=self.getName(), type='str', content=content.lower())
-
-    def v_memory(self, v):
-        process: Process = Process(os.getpid())
-        megabytes: float = process.memory_info().rss / (1024 * 1024)
-        return ECValue(domain=self.getName(), type='float', content=megabytes)
 
     def v_message(self, v):
         return ECValue(domain=self.getName(), type='str', content=self.program.message)
 
     def v_modification(self, v):
-        fileName = self.getRuntimeValue(v['fileName'])
+        fileName = self.textify(v['fileName'])
         ts = int(os.stat(fileName).st_mtime)
         return ECValue(domain=self.getName(), type='int', content=ts)
 
     def v_modulo(self, v):
-        val = self.getRuntimeValue(v.getContent())
-        modval = self.getRuntimeValue(v.getProperty('modval'))
+        val = self.textify(v.getContent())
+        modval = self.textify(v.modval)
         return ECValue(domain=self.getName(), type='int', content=val % modval)
 
     def v_newline(self, v):
@@ -2296,20 +2309,20 @@ class Core(Handler):
         return ECValue(domain=self.getName(), type='int', content=int(time.time()))
 
     def v_position(self, v):
-        needle = self.getRuntimeValue(v.getProperty('needle'))
-        haystack = self.getRuntimeValue(v.getProperty('haystack'))
-        last = v.getProperty('last')
+        needle = self.textify(v.needle)
+        haystack = self.textify(v.haystack)
+        last = v.last
         return ECValue(domain=self.getName(), type='int', content=haystack.rfind(needle) if last else haystack.find(needle))
 
     def v_prettify(self, v):
-        item = self.getRuntimeValue(v.getContent())
+        item = self.textify(v.getContent())
         return ECValue(domain=self.getName(), type='str', content=json.dumps(item, indent=4))
 
     def v_property(self, v):
-        propertyName = v.getProperty('name')
-        propertyValue = self.getRuntimeValue(propertyName)
-        targetName = v.getProperty('target')
-        targetValue = self.getRuntimeValue(targetName)
+        propertyName = v.name
+        propertyValue = self.textify(propertyName)
+        targetName = v.target
+        targetValue = self.textify(targetName)
         try:
             targetObject = json.loads(targetValue)
         except:
@@ -2320,44 +2333,44 @@ class Core(Handler):
             RuntimeError(self.program, f'This value does not have the property \'{propertyValue}\'')
         value = targetObject[propertyValue]
         if isinstance(value, ECValue):
-            value = self.getRuntimeValue(value)
+            value = self.textify(value)
         return value
 
     def v_random(self, v):
-        limit = self.getRuntimeValue(v.getValue())
+        limit = self.textify(v.getValue())
         return ECValue(domain=self.getName(), type='int', content=random.randrange(0, limit))
 
     def v_right(self, v):
-        content = self.getRuntimeValue(v.getContent())
-        count = self.getRuntimeValue(v.getProperty('count'))
+        content = self.textify(v.getContent())
+        count = self.textify(v.count)
         return ECValue(domain=self.getName(), type='str', content=content[-count:])
 
     def v_sin(self, v):
-        angle = self.getRuntimeValue(v.getProperty('angle'))
-        radius = self.getRuntimeValue(v.getProperty('radius'))
+        angle = self.textify(v.angle)
+        radius = self.textify(v.radius)
         return ECValue(domain=self.getName(), type='int', content=round(math.sin(angle * 0.01745329) * radius))
 
     def v_stringify(self, v):
-        item = self.getRuntimeValue(v.getContent())
+        item = self.textify(v.getContent())
         self.checkObjectType(item, (dict, list))
         return ECValue(domain=self.getName(), type='str', content=json.dumps(item))
 
     # This is used by the expression evaluator to get the value of a symbol
     def v_symbol(self, v):
-        name = v.getProperty('name')
-        symbolRecord = self.program.getSymbolRecord(name)
-        keyword = symbolRecord['keyword']
+        name = v.name
+        record = self.program.getSymbolRecord(name)
+        keyword = record['keyword']
         if keyword == 'object':
-            return symbolRecord['object'].getValue()
+            return record['object'].getValue()
         elif keyword == 'variable':
-            return self.getSymbolValue(symbolRecord)
+            return self.getSymbolValue(record)
         elif keyword == 'ssh':
-            return ECValue(domain=self.getName(), type='boolean', content=True if 'ssh' in symbolRecord and symbolRecord['ssh'] != None else False)
+            return ECValue(domain=self.getName(), type='boolean', content=True if 'ssh' in record and record['ssh'] != None else False)
         else:
             return None
 
     def v_system(self, v):
-        command = self.getRuntimeValue(v.getContent())
+        command = self.textify(v.getContent())
         result = os.popen(command).read()
         return ECValue(domain=self.getName(), type='str', content=result)
 
@@ -2365,8 +2378,8 @@ class Core(Handler):
         return ECValue(domain=self.getName(), type='str', content='\t')
 
     def v_tan(self, v):
-        angle = self.getRuntimeValue(v['angle'])
-        radius = self.getRuntimeValue(v['radius'])
+        angle = self.textify(v['angle'])
+        radius = self.textify(v['radius'])
         return ECValue(domain=self.getName(), type='int', content=round(math.tan(angle * 0.01745329) * radius))
 
     def v_ticker(self, v):
@@ -2374,12 +2387,12 @@ class Core(Handler):
 
     def v_timestamp(self, v):
         value = ECValue(domain=self.getName(), type='int')
-        fmt = v.getProperty('format')
+        fmt = v.format
         if fmt == None:
             value.setContent(int(time.time()))
         else:
-            fmt = self.getRuntimeValue(fmt)
-            dt = self.getRuntimeValue(v.getProperty('datetime'))
+            fmt = self.textify(fmt)
+            dt = self.textify(v.timestamp)
             spec = datetime.strptime(dt, fmt)
             t = datetime.now().replace(hour=spec.hour, minute=spec.minute, second=spec.second, microsecond=0)
             value.setContent(int(t.timestamp()))
@@ -2390,12 +2403,12 @@ class Core(Handler):
 
     def v_trim(self, v):
         content = v.getContent()
-        content = self.getRuntimeValue(content)
+        content = self.textify(content)
         return ECValue(domain=self.getName(), type='str', content=content.strip())
 
     def v_type(self, v):
         value = ECValue(domain=self.getName(), type='str')
-        val = self.getRuntimeValue(v['value'])
+        val = self.textify(v['value'])
         if val is None:
             value.setContent('none')
         elif type(val) is str:
@@ -2411,17 +2424,17 @@ class Core(Handler):
         return value
 
     def v_uppercase(self, v):
-        content = self.getRuntimeValue(v.getContent())
+        content = self.textify(v.getContent())
         return ECValue(domain=self.getName(), type='str', content=content.upper())
 
     def v_valueOf(self, v):
-        v = self.getRuntimeValue(v.getContent())
+        v = self.textify(v.getContent())
         return ECValue(domain=self.getName(), type='int', content=int(v) if v != '' else 0)
     
     def v_variable(self, v):
         name = v.getContent()
-        symbolRecord = self.program.getSymbolRecord(name)
-        variable = symbolRecord['object']
+        record = self.program.getSymbolRecord(name)
+        variable = record['object']
         self.checkObjectType(variable, ECVariable)
         value = variable.getValue()
         return value
@@ -2432,14 +2445,14 @@ class Core(Handler):
     #############################################################################
     # Compile a condition
     def compileCondition(self):
-        condition = Object()
-        condition.negate = False
+        condition = ECValue()
+        condition.negate = False # type: ignore
 
         token = self.getToken()
 
         if token == 'not':
-            condition.type = 'not'
-            condition.value = self.nextValue()
+            condition.type = 'not' # type: ignore
+            condition.value = self.nextValue() # type: ignore
             return condition
 
         elif token == 'error':
@@ -2448,21 +2461,21 @@ class Core(Handler):
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
                 if record['keyword'] == 'ssh':
-                    condition.type = 'sshError'
-                    condition.target = record['name']
+                    condition.type = 'sshError' # type: ignore
+                    condition.target = record['name'] # type: ignore
                     return condition
             return None
 
         elif token == 'file':
             path = self.nextValue()
-            condition.path = path
-            condition.type = 'exists'
+            condition.path = path # type: ignore
+            condition.type = 'exists' # type: ignore
             self.skip('on')
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
                 if record['keyword'] == 'ssh':
-                    condition.type = 'sshExists'
-                    condition.target = record['name']
+                    condition.type = 'sshExists' # type: ignore
+                    condition.target = record['name'] # type: ignore
                     token = self.nextToken()
             else: token = self.getToken()
             if token == 'exists':
@@ -2470,7 +2483,7 @@ class Core(Handler):
             elif token == 'does':
                 if self.nextIs('not'):
                     if self.nextIs('exist'):
-                        condition.negate = not condition.negate
+                        condition.negate = not condition.negate # type: ignore
                         return condition
             return None
 
@@ -2478,16 +2491,16 @@ class Core(Handler):
         if value == None:
             return None
 
-        condition.value1 = value
+        condition.value1 = value # type: ignore
         token = self.peek()
-        condition.type = token
+        condition.type = token # type: ignore
 
         if token == 'has':
             self.nextToken()
             if self.nextToken() == 'property':
                 prop = self.nextValue()
-                condition.type = 'hasProperty'
-                condition.property = prop
+                condition.type = 'hasProperty' # type: ignore
+                condition.property = prop # type: ignore
                 return condition
             return None
 
@@ -2498,48 +2511,48 @@ class Core(Handler):
                 if token == 'have':
                     if self.nextToken() == 'property':
                         prop = self.nextValue()
-                        condition.type = 'hasProperty'
-                        condition.property = prop
-                        condition.negate = not condition.negate
+                        condition.type = 'hasProperty' # type: ignore
+                        condition.property = prop # type: ignore
+                        condition.negate = not condition.negate # type: ignore
                         return condition
                 elif token == 'include':
                     value = self.nextValue()
-                    condition.type = 'includes'
-                    condition.value2 = value
-                    condition.negate = not condition.negate
+                    condition.type = 'includes' # type: ignore
+                    condition.value2 = value # type: ignore
+                    condition.negate = not condition.negate # type: ignore
                     return condition
             return None
 
         if token in ['starts', 'ends']:
             self.nextToken()
             if self.nextToken() == 'with':
-                condition.value2 = self.nextValue()
+                condition.value2 = self.nextValue() # type: ignore
                 return condition
 
         if token == 'includes':
-            condition.value2 = self.nextValue()
+            condition.value2 = self.nextValue() # type: ignore
             return condition
 
         if token == 'is':
             token = self.nextToken()
             if self.peek() == 'not':
                 self.nextToken()
-                condition.negate = True
+                condition.negate = True # type: ignore
             token = self.nextToken()
-            condition.type = token
+            condition.type = token # type: ignore
             if token in ['numeric', 'string', 'boolean', 'none', 'list', 'object', 'even', 'odd', 'empty']:
                 return condition
             if token in ['greater', 'less']:
                 if self.nextToken() == 'than':
-                    condition.value2 = self.nextValue()
+                    condition.value2 = self.nextValue() # type: ignore
                     return condition
-            condition.type = 'is'
-            condition.value2 = self.getValue()
+            condition.type = 'is' # type: ignore
+            condition.value2 = self.getValue() # type: ignore
             return condition
  
-        if condition.value1:
+        if condition.value1: # type: ignore
             # It's a boolean if
-            condition.type = 'boolean'
+            condition.type = 'boolean' # type: ignore
             return condition
 
         self.warning(f'Core.compileCondition: I can\'t get a conditional:')
@@ -2556,7 +2569,7 @@ class Core(Handler):
     # Condition handlers
 
     def c_boolean(self, condition):
-        value = self.getRuntimeValue(condition.value1)
+        value = self.textify(condition.value1)
         if type(value) == bool:
             return not value if condition.negate else value
         elif type(value) == int:
@@ -2571,7 +2584,7 @@ class Core(Handler):
         return False
 
     def c_empty(self, condition):
-        value = self.getRuntimeValue(condition.value1)
+        value = self.textify(condition.value1)
         if value == None:
             comparison = True
         elif type(value) == str or type(value) == list or type(value) == dict:
@@ -2580,19 +2593,19 @@ class Core(Handler):
             domainName = condition.value1.domain
             domain = self.program.domainIndex[domainName] # type: ignore
             handler = domain.valueHandler('empty') # type: ignore
-            if handler: comparison = self.getRuntimeValue(handler(condition.value1))
+            if handler: comparison = self.textify(handler(condition.value1))
         return not comparison if condition.negate else comparison
 
     def c_ends(self, condition):
-        value1 = self.getRuntimeValue(condition.value1)
-        value2 = self.getRuntimeValue(condition.value2)
+        value1 = self.textify(condition.value1)
+        value2 = self.textify(condition.value2)
         return value1.endswith(value2)
 
     def c_even(self, condition):
-        return self.getRuntimeValue(condition.value1) % 2 == 0
+        return self.textify(condition.value1) % 2 == 0
 
     def c_exists(self, condition):
-        path = self.getRuntimeValue(condition.path)
+        path = self.textify(condition.path)
         comparison = os.path.exists(path)
         return not comparison if condition.negate else comparison
 
@@ -2601,8 +2614,14 @@ class Core(Handler):
         return comparison <= 0 if condition.negate else comparison > 0
 
     def c_hasProperty(self, condition):
-        value = self.getRuntimeValue(condition.value1)
-        prop = self.getRuntimeValue(condition.property)
+        value = self.textify(condition.value1)
+        prop = self.textify(condition.property)
+        if isinstance(value, str):
+            try:
+                jsonValue = json.loads(value)
+                value = jsonValue
+            except:
+                pass
         try:
             value[prop]
             hasProp = True
@@ -2611,8 +2630,8 @@ class Core(Handler):
         return not hasProp if condition.negate else hasProp
 
     def c_includes(self, condition):
-        value1 = self.getRuntimeValue(condition.value1)
-        value2 = self.getRuntimeValue(condition.value2)
+        value1 = self.textify(condition.value1)
+        value2 = self.textify(condition.value2)
         includes = value2 in value1
         return not includes if condition.negate else includes
 
@@ -2625,26 +2644,26 @@ class Core(Handler):
         return comparison >= 0 if condition.negate else comparison < 0
 
     def c_list(self, condition):
-        comparison = type(self.getRuntimeValue(condition.value1)) is list
+        comparison = type(self.textify(condition.value1)) is list
         return not comparison if condition.negate else comparison
 
     def c_numeric(self, condition):
-        comparison = type(self.getRuntimeValue(condition.value1)) is int
+        comparison = type(self.textify(condition.value1)) is int
         return not comparison if condition.negate else comparison
 
     def c_none(self, condition):
-        comparison = self.getRuntimeValue(condition.value1) is None
+        comparison = self.textify(condition.value1) is None
         return not comparison if condition.negate else comparison
 
     def c_not(self, condition):
-        return not self.getRuntimeValue(condition.value)
+        return not self.textify(condition.value)
 
     def c_object(self, condition):
-        comparison = type(self.getRuntimeValue(condition.value1)) is dict
+        comparison = type(self.textify(condition.value1)) is dict
         return not comparison if condition.negate else comparison
 
     def c_odd(self, condition):
-        return self.getRuntimeValue(condition.value1) % 2 == 1
+        return self.textify(condition.value1) % 2 == 1
     
     def c_sshError(self, condition):
         target = self.getVariable(condition.target)
@@ -2654,7 +2673,7 @@ class Core(Handler):
         return not test if condition.negate else test
 
     def c_sshExists(self, condition):
-        path = self.getRuntimeValue(condition.path)
+        path = self.textify(condition.path)
         ssh = self.getVariable(condition.target)
         sftp = ssh['sftp']
         try:
@@ -2665,10 +2684,10 @@ class Core(Handler):
         return not comparison if condition.negate else comparison
 
     def c_starts(self, condition):
-        value1 = self.getRuntimeValue(condition.value1)
-        value2 = self.getRuntimeValue(condition.value2)
+        value1 = self.textify(condition.value1)
+        value2 = self.textify(condition.value2)
         return value1.startswith(value2)
 
     def c_string(self, condition):
-        comparison = type(self.getRuntimeValue(condition.value1)) is str
+        comparison = type(self.textify(condition.value1)) is str
         return not comparison if condition.negate else comparison

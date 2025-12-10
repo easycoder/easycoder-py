@@ -1,5 +1,7 @@
 #!/bin/python3
 
+import os
 from easycoder import Program
 
-Program('/home/graham/dev/rbr/roombyroom/Controller/ui/rbr_ui.ecs').start()
+os.chdir('/home/graham/dev/rbr/roombyroom/Controller/ui')
+Program('rbr_ui.ecs').start()

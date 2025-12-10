@@ -9,7 +9,8 @@
 ## Description:
 Creates a window with the given parameters. There can only be one of these in a program.
 
-Next: [ellipse](ellipse.md)  
-Prev: [close](close.md)
+
+Next: [dialog](dialog.md)  
+Prev: [combobox](combobox.md)
 
 [Back](../../README.md)

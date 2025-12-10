@@ -1,20 +1,44 @@
 from .ec_classes import ECObject
 
 ###############################################################################
-# A graphic element variable
+# A generic graphic element
 class ECGElement(ECObject):
     def __init__(self):
         super().__init__()
+    
+    # By default, classes that inherit from here do not belong to this package
+    def isCoreClass(self):
+        return False
 
 ###############################################################################
-# A widget variable
+# A generic widget (other packages should inherit from this)
 class ECWidget(ECGElement):
     def __init__(self):
         super().__init__()
 
 ###############################################################################
+# A core widget (only classes in this package should inherit from this)
+class ECCoreWidget(ECWidget):
+    def __init__(self):
+        super().__init__()
+    
+    # This is a core class
+    def isCoreClass(self):
+        return True
+
+###############################################################################
+# A simple panel widget
+class ECPanel(ECCoreWidget):
+    def __init__(self):
+        super().__init__()
+    
+    # This type of widget is clearable
+    def isClearable(self):
+         return True
+
+###############################################################################
 # A widget with a text value
-class ECTextWidget(ECWidget):
+class ECTextWidget(ECCoreWidget):
     def __init__(self):
         super().__init__()
     
@@ -24,7 +48,7 @@ class ECTextWidget(ECWidget):
     
     # Get the text of the widget
     def getText(self):
-        return self.getContent().text() # type: ignore
+        return self.getContent() # type: ignore
 
     # Check if the object is empty
     def isEmpty(self):
@@ -32,13 +56,13 @@ class ECTextWidget(ECWidget):
 
 ###############################################################################
 # A layout variable
-class ECLayout(ECWidget):
+class ECLayout(ECCoreWidget):
     def __init__(self):
         super().__init__()
 
 ###############################################################################
 # A group variable
-class ECGroup(ECWidget):
+class ECGroup(ECCoreWidget):
     def __init__(self):
         super().__init__()
 
@@ -47,16 +71,24 @@ class ECGroup(ECWidget):
 class ECLabel(ECTextWidget):
     def __init__(self):
         super().__init__()
+    
+    # This is a core class
+    def isCoreClass(self):
+        return True
 
 ###############################################################################
 # A pushbutton variable
 class ECPushButton(ECTextWidget):
     def __init__(self):
         super().__init__()
+    
+    # This is a core class
+    def isCoreClass(self):
+        return True
 
 ###############################################################################
 # A checkbox variable
-class ECCheckBox(ECWidget):
+class ECCheckBox(ECCoreWidget):
     def __init__(self):
         super().__init__()
     
@@ -71,7 +103,7 @@ class ECCheckBox(ECWidget):
         return v.getContent().isChecked()
 
 ###############################################################################
-# A line input variable
+# A line input widget
 class ECLineInput(ECTextWidget):
     def __init__(self):
         super().__init__()
@@ -91,14 +123,14 @@ class ECLineInput(ECTextWidget):
         return v.getContent().text()
 
 ###############################################################################
-# A multiline variable
+# A multiline widget
 class ECMultiline(ECTextWidget):
     def __init__(self):
         super().__init__()
 
 ###############################################################################
 # A listbox variable
-class ECListBox(ECWidget):
+class ECListBox(ECCoreWidget):
     def __init__(self):
         super().__init__()
     
@@ -124,10 +156,15 @@ class ECListBox(ECWidget):
         widget = self.getValue().getContent() # type: ignore
         content = widget.selectedItems()[0].text() if widget.selectedItems() else None
         return content
+    
+    # Get the text of the widget
+    def getText(self):
+        return self.getValue().getContent().text() # type: ignore
+
 
 ###############################################################################
 # A combo box variable
-class ECComboBox(ECWidget):
+class ECComboBox(ECCoreWidget):
     def __init__(self):
         super().__init__()
     
@@ -147,18 +184,39 @@ class ECComboBox(ECWidget):
     def getCount(self):
         v = self.getContent().count() # type: ignore
         return v
+    
+    # Get the text of the widget
+    def getText(self):
+        return self.getValue().getContent().text() # type: ignore
+
 
 ###############################################################################
 # A window variable
 class ECWindow(ECGElement):
     def __init__(self):
         super().__init__()
+    
+    # This is a core class
+    def isCoreClass(self):
+        return True
 
 ###############################################################################
 # A dialog variable
 class ECDialog(ECGElement):
     def __init__(self):
         super().__init__()
+    
+    # This is a core class
+    def isCoreClass(self):
+        return True
+    
+    # This type of widget has a runtime value
+    def hasRuntimeValue(self):
+        return True
+
+    def getReturnValue(self):
+        dialog = self.getValue().getContent() # type: ignore
+        return dialog.result
 
 ###############################################################################
 # A message box variable

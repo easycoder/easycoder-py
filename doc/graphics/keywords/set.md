@@ -9,7 +9,7 @@
 ## Description:
 Set an attribute of a graphic element. Valid attributes depend on the element but include such as `left`, `bottom`, `width` and `height`.
 
-Next: [text](text.md)  
-Prev: [run](run.md)
+Next: [window](window.md)  
+Prev: [select](select.md)
 
 [Back](../../README.md)

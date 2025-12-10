@@ -1,13 +1,14 @@
 import time, sys
 from copy import deepcopy
 from collections import deque
+
+from tomlkit import value
 from .ec_classes import (
 	Script,
 	Token,
 	FatalError,
 	RuntimeError, 
 	NoValueRuntimeError, 
-	Object,
 	ECObject,
 	ECValue
 )
@@ -68,6 +69,12 @@ class Program:
 		self.parent = None
 		self.message = None
 		self.onMessagePC = 0
+		self.breakpoint = False
+
+	# A runtime breakpoint is enabled by 'set breakpoint'
+	def debug(self):
+		if self.breakpoint:
+			pass	# Place a breakpoint here for a debugger to catch
 
 	# This is called at 10msec intervals by the GUI code
 	def flushCB(self):
@@ -145,6 +152,17 @@ class Program:
 		self.domains.append(handler)
 		self.domainIndex[handler.getName()] = handler
 
+	# This is the runtime callback for event handlers
+	def callback(self, item, record, goto):
+		object = self.getObject(record)
+		values = object.getValues() # type: ignore
+		for i, v in enumerate(values):
+			if isinstance(v, ECValue): v = v.getContent()
+			if v == item:
+				object.setIndex(i) # type: ignore
+				self.run(goto)
+				return
+
 	# Get the domain list
 	def getDomains(self):
 		return self.domains
@@ -153,7 +171,8 @@ class Program:
 		return name in self.symbols
 
 	# Get the symbol record for a given name
-	def getSymbolRecord(self, name):
+	def getVariable(self, name):
+		if isinstance(name, dict): name = name['name']
 		try:
 			target = self.code[self.symbols[name]]
 			if 'import' in target:
@@ -161,8 +180,21 @@ class Program:
 			return target
 		except:
 			RuntimeError(self, f'Unknown symbol \'{name}\'')
+	
+	# Get the object represented by a symbol record
+	def getObject(self, record):
+		if isinstance(record, dict) and 'object' in record:
+			return record['object']
+		return record
 
-    # Check if the object is an instance of a wanted class. Compile and runtime
+	# Check if an object is an instance of a given class
+	# This can either be  variable record (a dict) or an instance of ECObject
+	def isObjectType(self, object, classes):
+		if isinstance(object, dict) and 'object' in object and isinstance(object['object'], ECObject):
+			object = object['object']
+		return isinstance(object, classes)
+
+    # Check if the object is an instance of one of a set of classes. Compile and runtime
 	def checkObjectType(self, object, classes):
 		if isinstance(object, dict): return
 		if not isinstance(object, classes):
@@ -171,10 +203,16 @@ class Program:
 			else:
 				raise FatalError(self.compiler, f"Objects of type {type(object)} are not instances of {classes}")
 
-    # Check if the object is an instance of a wanted class.
-	def isObjectType(self, object, classes):
+	# Get the inner (non-EC) object from a name, record or object
+	def getInnerObject(self, object):
 		if isinstance(object, dict): object = object['object']
-		return isinstance(object, classes)
+		elif isinstance(object, str):
+			record = self.getVariable(object) # type: ignore
+			object = self.getObject(record) # type: ignore
+		value = object.getValue() # type: ignore
+		if isinstance(value, ECValue) and value.getType() == 'object':
+			return value.getContent()
+		else: return value
 
 	def constant(self, content, numeric):
 		result = {}
@@ -225,18 +263,26 @@ class Program:
 		
 		elif valType == 'object':
 			# Object other than ECVariable
-			record = self.getSymbolRecord(value.getName())
-			object = record['object'] # type: ignore
-			result = object.getContent()
+			record = self.getVariable(value.getName())
+			object = self.getObject(record) # type: ignore
+			result = object.getContent() # type: ignore
 
 		elif valType == 'symbol': # type: ignore
 			# If it's a symbol, get its value
-			record = self.getSymbolRecord(value.getContent()) # type: ignore
-			variable = record['object'] if 'object' in record else None # pyright: ignore[reportOptionalSubscript, reportOperatorIssue]
-			self.checkObjectType(variable, ECObject)
-			# result = variable.getValue() # type: ignore
-			result = self.evaluate(variable) # type: ignore
-
+			record = self.getVariable(value.getContent()) # type: ignore
+			if not 'object' in record: return None # type: ignore
+			variable = self.getObject(record) # type: ignore
+			result = variable.getValue() # type: ignore
+			if isinstance(result, ECValue): return self.evaluate(result)
+			if isinstance(result, ECObject): return result.getValue()
+			else:
+				# See if one of the domains can handle this value
+				value = result
+				result = None
+				for domain in self.domains:
+					result = domain.getUnknownValue(value)
+					if result != None: break
+				
 		elif valType == 'cat':
 			# Handle concatenation
 			content = ''
@@ -258,9 +304,8 @@ class Program:
 
 		return result
 
-	# Get the runtime value of a value object - returns an integer, string, list, dict etc.
-	# It can also return an object such as a graphics object
-	def getRuntimeValue(self, value):
+	# Get the runtime value of a value object (as a string or integer)
+	def textify(self, value):
 		if value is None:
 			return None
 		
@@ -280,29 +325,29 @@ class Program:
 		return v
 
 	# Get the content of a symbol
-	def getSymbolContent(self, symbolRecord):
-		if len(symbolRecord['value']) == 0:
+	def getSymbolContent(self, record):
+		if len(record['value']) == 0:
 			return None
-		try: return symbolRecord['value'][symbolRecord['index']]
-		except: raise RuntimeError(self, f'Cannot get content of symbol "{symbolRecord["name"]}"')
+		try: return record['value'][record['index']]
+		except: raise RuntimeError(self, f'Cannot get content of symbol "{record["name"]}"')
 
 	# Get the value of a symbol as an ECValue
-	def getSymbolValue(self, symbolRecord):
-		object = symbolRecord['object']
+	def getSymbolValue(self, record):
+		object = self.getObject(record)
 		self.checkObjectType(object, ECObject)
-		value = symbolRecord['object'].getValue()
+		value = object.getValue() # type: ignore
 		if value is None:
-			raise NoValueRuntimeError(self, f'Symbol "{symbolRecord["name"]}" has no value')
+			raise NoValueRuntimeError(self, f'Symbol "{record["name"]}" has no value')
 		copy = deepcopy(value)
 		return copy
 
 	# Set the value of a symbol to either an ECValue or a raw value
-	def putSymbolValue(self, symbolRecord, value):
-		variable = symbolRecord['object']
-		if variable.isLocked():
-			name = symbolRecord['name']
+	def putSymbolValue(self, record, value):
+		variable = self.getObject(record)
+		if variable.isLocked(): # type: ignore
+			name = record['name']
 			raise RuntimeError(self, f'Symbol "{name}" is locked')
-		variable.setValue(self.getValueOf(value))
+		variable.setValue(self.getValueOf(value)) # type: ignore
 
 	def encode(self, value):
 		return value
@@ -402,6 +447,8 @@ class Program:
 				if handler:
 					command = self.code[self.pc]
 					command['program'] = self
+					if self.breakpoint:
+						pass	# Place a breakpoint here for a debugger to catch
 					self.pc = handler(command)
 					# Deal with 'exit'
 					if self.pc == -1:
@@ -416,9 +463,9 @@ class Program:
 	# Run the script at a given PC value
 	def run(self, pc):
 		global queue
-		item = Object()
-		item.program = self
-		item.pc = pc
+		item = ECValue()
+		item.program = self # type: ignore
+		item.pc = pc # type: ignore
 		queue.append(item)
 		self.running = True
 
@@ -432,8 +479,8 @@ class Program:
 	def compare(self, value1, value2):
 		if value1 == None or value2 == None:
 			RuntimeError(self, 'Cannot compare a value with None')
-		v1 = self.getRuntimeValue(value1)
-		v2 = self.getRuntimeValue(value2)
+		v1 = self.textify(value1)
+		v2 = self.textify(value2)
 		if v1 == None or v2 == None:
 			raise RuntimeError(self, 'Both items must have a value for comparison')
 		if type(v1) == str and type(v2) == str:
