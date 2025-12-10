@@ -24,10 +24,12 @@ Thank you for your interest in contributing to EasyCoder-py! This guide will hel
    ```bash
    git remote add upstream https://github.com/easycoder/easycoder-py.git
    ```
-4. **Install dependencies**:
+4. **Install dependencies** (in development mode, allowing you to modify code without reinstalling):
    ```bash
-   pip install requests easycoder
+   pip install -e .
    ```
+   
+   This will install all required dependencies from `pyproject.toml` and make the `easycoder` command available.
 
 ## Development Workflow
 
@@ -214,16 +216,31 @@ git mergetool
 Before submitting your changes, always test them:
 
 1. **Run the test suite**:
+   
+   If you have EasyCoder installed:
    ```bash
    easycoder scripts/tests.ecs
+   ```
+   
+   Or in development mode (without installing):
+   ```bash
+   python -m easycoder scripts/tests.ecs
    ```
 
 2. **Test your specific changes** with custom scripts
 
 3. **Verify no regressions** by running existing sample scripts:
+   
+   If you have EasyCoder installed:
    ```bash
    easycoder scripts/fizzbuzz.ecs
    easycoder scripts/benchmark.ecs
+   ```
+   
+   Or in development mode:
+   ```bash
+   python -m easycoder scripts/fizzbuzz.ecs
+   python -m easycoder scripts/benchmark.ecs
    ```
 
 ## Submitting a Pull Request
