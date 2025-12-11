@@ -945,7 +945,7 @@ class Graphics(Handler):
         
     def r_hide(self, command):
         record = self.getVariable(command['widget'])
-        if 'widget' in record: self.getInnerObject(record).hide()  # type: ignore
+        self.getInnerObject(record).hide()  # type: ignore
         return self.nextPC()
 
     # Initialize the graphics environment
@@ -1352,7 +1352,7 @@ class Graphics(Handler):
                 container = QWidget()
                 container.setLayout(layout) # type: ignore
                 self.getInnerObject(object).setCentralWidget(container) # type: ignore
-            elif isinstance(object, (ECLayout, ECGroup)):
+            elif isinstance(object, (ECLayout, ECGroup, ECPanel)):
                 self.getInnerObject(object).setLayout(layout)  # type: ignore
         elif what == 'spacing':
             layout = self.getInnerObject(self.getVariable(command['name']))
@@ -1493,7 +1493,7 @@ class Graphics(Handler):
                 else: object.result = dialog.value  # type: ignore
         elif 'name' in command:
             record = self.getVariable(command['name'])
-            if 'widget' in record: self.getInnerObject(record).show()  # type: ignore
+            self.getInnerObject(record).show()  # type: ignore
         return self.nextPC()
 
     # Declare a window variable
