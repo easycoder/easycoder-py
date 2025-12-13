@@ -27,7 +27,7 @@ from .ec_gclasses import (
     ECMessageBox,
 )
 from .ec_border import Border
-from .ec_debug import Debugger
+from .debugger.ec_debug import Debugger
 from PySide6.QtCore import Qt, QTimer, Signal, QRect
 from PySide6.QtGui import QPixmap, QPainter
 from PySide6.QtWidgets import (
@@ -1645,11 +1645,9 @@ class Graphics(Handler):
     #############################################################################
 	# Get the value of an unknown item (domain-specific)
     def getUnknownValue(self, value):
-        if isinstance(value, ECLabelWidget): return value.text()  # type: ignore
-        if isinstance(value, ECLineEditWidget): return value.text()  # type: ignore
-        if isinstance(value, ECListBoxWidget): return value.text()  # type: ignore
-        if isinstance(value, ECComboBoxWidget): return value.text()  # type: ignore
-        if isinstance(value, ECDialogWindow): 
+        if self.isObjectType(value, (ECLabelWidget, ECPushButtonWidget, ECLineEditWidget, ECListBoxWidget, ECComboBoxWidget)):
+            return value.text()  # type: ignore
+        if self.isObjectType(value, (ECDialogWindow,)): 
             return value.result()  # type: ignore
         return None # Unable to get value
 

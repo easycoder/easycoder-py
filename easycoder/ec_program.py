@@ -60,9 +60,9 @@ class Program:
 		self.value = self.compiler.value
 		self.condition = self.compiler.condition
 		self.graphics = None
+		self.psutil = None
 		self.useClass(Core)
 		self.ticker = 0
-		self.usingGraphics = False
 		self.graphicsRunning = False
 		self.debugger = None
 		self.running = False
@@ -70,11 +70,6 @@ class Program:
 		self.message = None
 		self.onMessagePC = 0
 		self.breakpoint = False
-
-	# A runtime breakpoint is enabled by 'set breakpoint'
-	def debug(self):
-		if self.breakpoint:
-			pass	# Place a breakpoint here for a debugger to catch
 
 	# This is called at 10msec intervals by the GUI code
 	def flushCB(self):
@@ -117,12 +112,20 @@ class Program:
 	
 	# Use the graphics module
 	def useGraphics(self):
-		if not self.usingGraphics:
+		if self.graphics == None:
 			print('Loading graphics module')
 			from .ec_graphics import Graphics
 			self.graphics = Graphics
 			self.useClass(Graphics)
-			self.usingGraphics = True
+		return True
+	
+	# Use the psutil module
+	def usePSUtil(self):
+		if self.psutil == None:
+			print('Loading psutil module')
+			from .ec_psutil import PSUtil
+			self.psutil = PSUtil
+			self.useClass(PSUtil)
 		return True
 
 	# Indicate that graphics are running
@@ -493,12 +496,14 @@ class Program:
 			try:
 				v1 = int(v1)
 			except:
-				raise RuntimeError(self, f'{v1} is not an integer')
+				print(f'{v1} is not an integer')
+				return None
 		if type(v2) is str:
 			try:
 				v2 = int(v2)
 			except:
-				raise RuntimeError(self, f'{v2} is not an integer')
+				print(f'{v2} is not an integer')
+				return None
 		if v1 < v2:  # type: ignore[operator]
 			return -1
 		if v1 > v2:  # type: ignore[operator]

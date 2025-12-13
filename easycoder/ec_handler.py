@@ -49,7 +49,6 @@ class Handler:
 		self.putSymbolValue = self.program.putSymbolValue
 		self.run = self.program.run
 		self.callback = self.program.callback
-		self.debug = self.program.debug
 
 		self.nonNumericValueError = self.program.nonNumericValueError
 

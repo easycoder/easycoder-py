@@ -46,21 +46,22 @@
 	take Start from Finish giving N
 	log N cat ` seconds`
 
-	log `Allocate and initialize a 5000 element dictionary`
+	log `Allocate and initialize a 500,000 element dictionary`
 	wait 1 tick
 	put json `{}` into Dictionary
 	put now into Start
 	put 0 into N
-	while N is less than 100
+	while N is less than 1000
 	begin
 		put 0 into M
-		while M is less than 50
+		while M is less than 500
 		begin
 			set property N cat ` ` cat M of Dictionary to M
 			increment M
 		end
 		increment N
 	end
+	log property `123 456` of Dictionary
 	put now into Finish
 	take Start from Finish giving N
 	log N cat ` seconds`

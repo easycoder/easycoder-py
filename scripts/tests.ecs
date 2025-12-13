@@ -2,6 +2,8 @@
 
 	script Tests
 
+	use psutil
+
 	variable Data
 	variable D
 	variable E
@@ -15,8 +17,8 @@
 	stack Stack
 	file File
 
-	debug compile
-	debug step
+!	debug compile
+!	debug step
 
 	log `FOR loop counting to 10`
 	put 0 into N
@@ -54,8 +56,6 @@
 		end
 		increment N
 	end
-
-	debug step
 
 	put 20 into Y
 	put 6 into X
@@ -198,7 +198,9 @@ Loop1:
 
     log the files in `.`
 
-    log the memory
+    log `Memory: ` cat the memory cat `MB`
+	if 5 is not `OK` log `Comparing 5 with 'OK' gives False`
+	if 5 is `5` log `but comparing 5 with '5' gives True`
 
 	wait 2
 	log `All done!`

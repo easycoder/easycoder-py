@@ -1267,7 +1267,11 @@ class Core(Handler):
         else:
             filename = self.textify(command['file'])
             try:
-                if not isinstance(content, str):
+                if content == None:
+                    content = ''
+                elif isinstance(content, dict) or isinstance(content, list):
+                    content = json.dumps(content)
+                elif not isinstance(content, str):
                     content = self.textify(content)
                 with open(filename, 'w') as f: f.write(content)
             except Exception as e:
@@ -1709,7 +1713,9 @@ class Core(Handler):
         target['locked'] = False
         return self.nextPC()
 
-    # Use a plugin module
+    # use plugin {class} from {source}
+    # use graphics
+    # use psutil.
     def k_use(self, command):
         if self.peek() == 'plugin':
             # Import a plugin
@@ -1724,6 +1730,8 @@ class Core(Handler):
             token = self.nextToken()
             if token == 'graphics':
                 return self.program.useGraphics()
+            elif token == 'psutil':
+                return self.program.usePSUtil()
         return False
 
     # Declare a general-purpose variable
@@ -2611,6 +2619,8 @@ class Core(Handler):
 
     def c_greater(self, condition):
         comparison = self.program.compare(condition.value1, condition.value2)
+        if comparison == None:
+            raise RuntimeError(self.program, f'Cannot compare {self.textify(condition.value1)} and {self.textify(condition.value2)}')
         return comparison <= 0 if condition.negate else comparison > 0
 
     def c_hasProperty(self, condition):
@@ -2637,10 +2647,13 @@ class Core(Handler):
 
     def c_is(self, condition):
         comparison = self.program.compare(condition.value1, condition.value2)
+        if comparison == None: comparison = 1
         return comparison != 0 if condition.negate else comparison == 0
 
     def c_less(self, condition):
         comparison = self.program.compare(condition.value1, condition.value2)
+        if comparison == None:
+            raise RuntimeError(self.program, f'Cannot compare {self.textify(condition.value1)} and {self.textify(condition.value2)}')
         return comparison >= 0 if condition.negate else comparison < 0
 
     def c_list(self, condition):
