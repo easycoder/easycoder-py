@@ -92,7 +92,7 @@ Here in the repository is a folder called `scripts` containing some sample scrip
 
 **_EasyCoder_** comprises a set of modules to handle tokenisation, compilation and runtime control. Syntax and grammar are defined by [packages](doc/README.md), of which there are currently two; the [core](doc/core/README.md) package, which implements a comprehensive set of command-line programming features, and and the [graphics](doc/graphics/README.md) package, which adds graphical features in a windowing environment.
 
-See also[How it works](doc/README.md)
+See also [How it works](doc/README.md)
 
 ## Extending the language
 
