@@ -86,11 +86,7 @@ English is highly object-oriented. A horse is not the same as a car; each has it
 
 ```
 brush your teeth and put out the cat
-```
 
-with
-
-```
 brush the cat and put out your teeth
 ```
 
