@@ -104,11 +104,11 @@ class Core(Handler):
         # If value2 exists, we are adding two values and storing the result in target
         if value2 != None:
             # add X to Y giving Z
-            targetValue = ECValue(domain=self.getName(), type='int', content=value1 + value2)
+            targetValue = ECValue(domain=self.getName(), type='int', content=int(value1) + int(value2))
         else:
             # add X to Y
             targetValue = self.getSymbolValue(target)
-            targetValue.setContent(targetValue.getContent() + value1)
+            targetValue.setContent(int(targetValue.getContent()) + int(value1))
         self.putSymbolValue(target, targetValue)
         return self.nextPC()
 
@@ -392,11 +392,11 @@ class Core(Handler):
         # If value1 exists, we are adding two values and storing the result in target
         if value1 != None:
             # divide X by Y giving Z
-            targetValue = ECValue(domain=self.getName(), type='int', content=value1 // value2)
+            targetValue = ECValue(domain=self.getName(), type='int', content=int(value1) // int(value2))
         else:
             # divide X by Y
             targetValue = self.getSymbolValue(target)
-            targetValue.setContent(targetValue.getContent() // value2)
+            targetValue.setContent(int(targetValue.getContent()) // int(value2))
         self.putSymbolValue(target, targetValue)
         return self.nextPC()
 
@@ -837,11 +837,11 @@ class Core(Handler):
         # If value1 exists, we are adding two values and storing the result in target
         if value1 != None:
             # multiply X by Y giving Z
-            targetValue = ECValue(domain=self.getName(), type='int', content=value1 * value2)
+            targetValue = ECValue(domain=self.getName(), type='int', content=int(value1) * int(value2))
         else:
             # multiply X by Y
             targetValue = self.getSymbolValue(target)
-            targetValue.setContent(targetValue.getContent() * value2)
+            targetValue.setContent(int(targetValue.getContent()) * int(value2))
         self.putSymbolValue(target, targetValue)
         return self.nextPC()
 
@@ -1640,11 +1640,11 @@ class Core(Handler):
         # If value2 exists, we are adding two values and storing the result in target
         if value2 != None:
             # take X from Y giving Z
-            targetValue = ECValue(domain=self.getName(), type='int', content=value2 - value1)
+            targetValue = ECValue(domain=self.getName(), type='int', content=int(value2) - int(value1))
         else:
             # take X from Y
             targetValue = self.getSymbolValue(target)
-            targetValue.setContent(targetValue.getContent() - value1)
+            targetValue.setContent(int(targetValue.getContent()) - int(value1))
         self.putSymbolValue(target, targetValue)
         return self.nextPC()
 

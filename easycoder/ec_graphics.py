@@ -1,13 +1,10 @@
 import sys
 from functools import partial
-
-from tomlkit import value
 from .ec_handler import Handler
 from .ec_classes import (
     FatalError,
     RuntimeError,
-    ECValue,
-    ECObject
+    ECValue
 )
 from .ec_gclasses import (
     ECWidget,

@@ -1,5 +1,7 @@
 #!/bin/python3
 
+import os
 from easycoder import Program
 
-Program('scripts/tests.ecs').start()
+os.chdir('/home/graham/dev/easycoder/easycoder-py/tests')
+Program('test.ecs').start()

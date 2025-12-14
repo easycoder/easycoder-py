@@ -1,8 +1,6 @@
 import time, sys
 from copy import deepcopy
 from collections import deque
-
-from tomlkit import value
 from .ec_classes import (
 	Script,
 	Token,
@@ -340,7 +338,8 @@ class Program:
 		value = object.getValue() # type: ignore
 		if value is None:
 			raise NoValueRuntimeError(self, f'Symbol "{record["name"]}" has no value')
-		copy = deepcopy(value)
+		# copy = deepcopy(value)
+		copy = ECValue(domain=value.getDomain(),type=value.getType(),content=deepcopy(value.getContent()))
 		return copy
 
 	# Set the value of a symbol to either an ECValue or a raw value
@@ -451,7 +450,10 @@ class Program:
 					command['program'] = self
 					if self.breakpoint:
 						pass	# Place a breakpoint here for a debugger to catch
-					self.pc = handler(command)
+					try:
+						self.pc = handler(command)
+					except Exception as e:
+						raise RuntimeError(self, f'Error during execution of {domainName}:{keyword}: {str(e)}')
 					# Deal with 'exit'
 					if self.pc == -1:
 						queue = deque()
