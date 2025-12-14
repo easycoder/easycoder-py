@@ -1,3 +1,5 @@
+# How it works #
+
 **_EasyCoder_** is a combined compiler and runtime for a high-level English-like script. Compilation is very quick - typically of the order of 10 lines per millisecond - so there is no need to run the compiler as a separate pass.
 
 ## The tokeniser
