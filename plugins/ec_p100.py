@@ -25,10 +25,10 @@ class P100(Handler):
 
     def r_relay(self, command):
         try:
-            address = self.getRuntimeValue(command['address'])
-            email = self.getRuntimeValue(command['email'])
-            password = self.getRuntimeValue(command['password'])
-            state = self.getRuntimeValue(command['state'])
+            address = self.textify(command['address'])
+            email = self.textify(command['email'])
+            password = self.textify(command['password'])
+            state = self.textify(command['state'])
             p100 = PyP100.P100(address, email, password)
             p100.handshake()
             p100.login()
@@ -56,9 +56,9 @@ class P100(Handler):
 
     def r_set(self, command):
         if 'email' in command:
-            self.loginEmail = self.getRuntimeValue(command['email'])
+            self.loginEmail = self.textify(command['email'])
         if 'password' in command:
-            self.loginPassword = self.getRuntimeValue(command['password'])
+            self.loginPassword = self.textify(command['password'])
         return self.nextPC()
 
     #############################################################################

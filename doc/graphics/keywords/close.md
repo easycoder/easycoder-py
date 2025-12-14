@@ -9,7 +9,7 @@
 ## Description:
 Close the window. This will also terminate the **_EasyCoder_** script.
 
-Next: [create](create.md)  
-Prev: [attach](attach.md)
+Next: [combobox](combobox.md)  
+Prev: [clear](clear.md)
 
 [Back](../../README.md)

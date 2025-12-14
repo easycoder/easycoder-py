@@ -34,8 +34,8 @@ class Points(Handler):
 
     def r_set(self, command):
         pointRecord = self.getVariable(command['name'])
-        x = self.getRuntimeValue(command['x'])
-        y = self.getRuntimeValue(command['y'])
+        x = self.textify(command['x'])
+        y = self.textify(command['y'])
         pointRecord['x'] = x
         pointRecord['y'] = y
         return self.nextPC()

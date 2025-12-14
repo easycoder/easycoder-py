@@ -35,7 +35,7 @@
       "patterns": [
         {
           "name": "keyword.control.easycoder",
-          "match": "\\b(add|append|assert|begin|clear|close|create|debug|decrement|delete|divide|download|end|exit|file|fork|get|go|goto|gosub|if|else|import|increment|index|init|input|load|lock|log|module|multiply|negate|on|open|pop|post|print|push|put|read|release|replace|return|run|save|script|send|set|shuffle|split|ssh|stack|stop|system|take|toggle|truncate|unlock|use|variable|wait|while|write)\\b"
+          "match": "\\b(add|append|assert|begin|center|checkbox|clear|close|combobox|create|createCheckBox|createDialog|createGroupBox|createLabel|createLayout|createLineEdit|createMessageBox|createMultiLineEdit|createPushbutton|createWidget|createWindow|debug|decrement|delete|dialog|disable|divide|download|dummy|enable|end|exit|file|fork|get|go|gosub|goto|group|hide|if|import|increment|index|init|input|label|layout|lineinput|listbox|load|lock|log|messagebox|module|multiline|multiply|negate|object|on|open|pop|post|print|push|pushbutton|put|read|release|remove|replace|return|run|save|script|select|send|set|show|shuffle|split|ssh|stack|start|stop|system|take|toggle|trim|truncate|unlock|use|variable|wait|while|widget|window|write)\\b"
         },
         {
           "name": "keyword.operator.easycoder",

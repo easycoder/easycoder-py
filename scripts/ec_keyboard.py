@@ -78,13 +78,13 @@ class Keyboard(Handler):
 
     def r_render(self, command):
         self.keyboard = Object()
-        layout = self.getRuntimeValue(command['layout'])
+        layout = self.textify(command['layout'])
         with open(f'{layout}') as f: spec = f.read()
         self.keyboard.layout = json.loads(spec)
         layout = self.keyboard.layout[0]
-        x = getActual(self.getRuntimeValue(command['x']))
-        y = getActual(self.getRuntimeValue(command['y']))
-        w = getActual(self.getRuntimeValue(command['w']))
+        x = getActual(self.textify(command['x']))
+        y = getActual(self.textify(command['y']))
+        w = getActual(self.textify(command['w']))
         # Scan the keyboard layout to find the longest row
         max = 0
         rows = self.keyboard.layout[0]['rows']
@@ -177,7 +177,7 @@ class Keyboard(Handler):
 
     def v_key(self, v):
         value = {}
-        value['type'] = 'text'
+        value['type'] = type='str'
         value['content'] = self.key
         return value
 

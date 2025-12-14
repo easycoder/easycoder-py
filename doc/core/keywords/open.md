@@ -21,7 +21,7 @@
 ## Description:
 Opens a disk file for reading, writing or appending. Each of the [file](file.md) variables must be declared as such as in the example.
 
-Next: [pop](pop.md)  
+Next: [pass](pass.md)  
 Prev: [on](on.md)
 
 [Back](../../README.md)

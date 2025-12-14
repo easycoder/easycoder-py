@@ -12,6 +12,6 @@
 Moves a graphic element in its parent container, either by a relative amount or to a specified location.
 
 Next: [on](on.md)  
-Prev: [image](image.md)
+Prev: [messagebox](messagebox.md)
 
 [Back](../../README.md)

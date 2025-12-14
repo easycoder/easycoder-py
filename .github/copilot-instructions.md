@@ -165,7 +165,7 @@ def k_mycommand(self, command):
 
 def r_mycommand(self, command):
     # Execute the command
-    value = self.getRuntimeValue(command['value'])
+    value = self.textify(command['value'])
     target = self.getVariable(command['target'])
     # Implement command logic
     return self.nextPC()
@@ -175,7 +175,7 @@ def r_mycommand(self, command):
 
 1. Value Handling
    - Use `self.nextValue()` to get the next value token
-   - Use `self.getRuntimeValue()` to get actual value during runtime
+   - Use `self.textify()` to get actual value during runtime
    - Values can be:
      - Variables: Check with `self.nextIsSymbol()`
      - Literals: Strings, numbers
@@ -191,7 +191,7 @@ def r_mycommand(self, command):
    - Runtime: Raise appropriate exceptions:
      - `RuntimeError` for general errors
      - `NoValueError` for missing values
-     - `AssertionError` for failed assertions
+     - `RuntimeAssertionError` for failed assertions
 
 ### Plugin Development Best Practices
 
@@ -398,7 +398,7 @@ Basic runtime handler structure:
 ```python
 def r_commandname(self, command):
     # 1. Retrieve parameters from command dict
-    value = self.getRuntimeValue(command['value'])
+    value = self.textify(command['value'])
     target = self.getVariable(command['target'])
     
     # 2. Perform the command's action
@@ -416,7 +416,7 @@ def r_commandname(self, command):
 ### Core Runtime Functions
 
 1. Value and Variable Access
-   - `self.getRuntimeValue(param)`: Evaluate values, variables, expressions at runtime
+   - `self.textify(param)`: Evaluate values, variables, expressions at runtime
    - `self.getVariable(name)`: Fetch variable symbol record
    - `self.getSymbolValue(record)`: Get variable's value dict
    - `self.putSymbolValue(record, value)`: Set variable's value dict
@@ -432,7 +432,7 @@ def r_commandname(self, command):
 4. Error Handling
    - `RuntimeError(self.program, message)`: Runtime error
    - `NoValueRuntimeError(self.program, name)`: Variable has no value
-   - `AssertionError(self.program, message)`: Assertion failed
+   - `RuntimeAssertionError(self.program, message)`: Assertion failed
 
 ### Runtime Patterns
 
@@ -440,7 +440,7 @@ def r_commandname(self, command):
 ```python
 def r_set(self, command):
     # set {variable} to {value}
-    value = self.getRuntimeValue(command['value'])
+    value = self.textify(command['value'])
     target = self.getVariable(command['target'])
     val = {}
     val['type'] = 'string'
@@ -453,7 +453,7 @@ def r_set(self, command):
 ```python
 def r_add(self, command):
     # add {value} to {variable}
-    value1 = self.getRuntimeValue(command['value1'])
+    value1 = self.textify(command['value1'])
     target = self.getVariable(command['target'])
     targetValue = self.getSymbolValue(target)
     
@@ -484,7 +484,7 @@ def r_if(self, command):
 ```python
 def r_append(self, command):
     # append {value} to {array}
-    value = self.getRuntimeValue(command['value'])
+    value = self.textify(command['value'])
     target = self.getVariable(command['target'])
     val = self.getSymbolValue(target)
     content = val['content']
@@ -520,7 +520,7 @@ def r_assert(self, command):
     if test:
         return self.nextPC()
     # Raise assertion error
-    AssertionError(self.program, self.getRuntimeValue(command['with']))
+    RuntimeAssertionError(self.program, self.textify(command['with']))
 ```
 
 ### Best Practices

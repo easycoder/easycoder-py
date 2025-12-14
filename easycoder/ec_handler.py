@@ -1,4 +1,5 @@
-import json
+import sys, json
+from .ec_classes import FatalError, ECValue
 
 class Handler:
 
@@ -18,8 +19,9 @@ class Handler:
 		self.nextIs = compiler.nextIs
 		self.isSymbol = compiler.isSymbol
 		self.nextIsSymbol = compiler.nextIsSymbol
-		self.getSymbolRecord = compiler.getSymbolRecord
 		self.compileVariable = compiler.compileVariable
+		self.compileSymbol = compiler.compileSymbol
+		self.getSymbolRecord = compiler.getSymbolRecord
 		self.rewindTo = compiler.rewindTo
 		self.warning = compiler.warning
 		self.getCodeSize = compiler.getCodeSize
@@ -30,9 +32,15 @@ class Handler:
 		self.compileConstant = compiler.compileConstant
 
 		self.code = self.program.code
+		self.checkObjectType = self.program.checkObjectType
+		self.isObjectType = self.program.isObjectType
+		self.isObjectType = self.program.isObjectType
+		self.getInnerObject = self.program.getInnerObject
+		self.getItemType = self.program.getItemType
 		self.evaluate = self.program.evaluate
-		self.getVariable = self.program.getSymbolRecord
-		self.getRuntimeValue = self.program.getRuntimeValue
+		self.getVariable = self.program.getVariable
+		self.getObject = self.program.getObject
+		self.textify = self.program.textify
 		self.testCondition = self.program.condition.testCondition
 		self.symbols = self.program.symbols
 		self.stack = self.program.stack
@@ -40,10 +48,9 @@ class Handler:
 		self.getSymbolValue = self.program.getSymbolValue
 		self.putSymbolValue = self.program.putSymbolValue
 		self.run = self.program.run
+		self.callback = self.program.callback
 
 		self.nonNumericValueError = self.program.nonNumericValueError
-		self.variableDoesNotHoldAValueError = self.program.variableDoesNotHoldAValueError
-		self.noneValueError = self.program.noneValueError
 
 	def nextPC(self):
 		return self.program.pc + 1
@@ -66,10 +73,6 @@ class Handler:
 	def conditionHandler(self, name):
 		return getattr(self, f'c_{name}')
 
-	@staticmethod
-	def isJson(value):
-		try:
-			json.loads(value)
-		except ValueError as e:
-			return False
-		return True
+	# Get the value of an unknown item (domain-specific)
+	def getUnknownValue(self, value):
+		return None # Unable to get value
