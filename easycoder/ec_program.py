@@ -29,7 +29,6 @@ class Program:
 	def __init__(self, argv):
 		global queue
 		print(f'EasyCoder version {version("easycoder")}')
-		print(argv)
 		if len(argv) == 0:
 			print('No script supplied')
 			exit()
@@ -521,7 +520,6 @@ class Program:
 
 # This is the program launcher
 def Main():
-	print(sys.argv)
 	if (len(sys.argv) > 1):
 		# Check if 'debug' is the first argument
 		if sys.argv[1] == 'debug' and len(sys.argv) > 2:
