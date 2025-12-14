@@ -13,21 +13,21 @@ The tokeniser create a list of lines and a separate list of tokens. Each token i
 
 ## The compiler
 
-The compiler first creates an empty code list object. It then starts at the beginning of the token list and examines the first token. This will always be a command keyword or a variable declaration (also classed as a keyword).
+The compiler first creates an empty code list. It then starts at the beginning of the token list and examines the first token. This will always be a command keyword or a variable declaration (also classed as a keyword).
 
-For every valid keyword, somewhere in the system there is a compiler function with the keyword prefixed by `k_`. Compiler functions are held in packages of related commands, such as
+For every valid keyword, somewhere in the system there is a compiler function with the keyword prefixed by `k_`, such as 'k_add', 'k_if' or 'k_set'. Compiler functions are held in packages of related commands, such as
 
 - a core package containing all the commands generally used by any programming language.
 - a graphics package containing commands relating to on-screen graphics.
 - custom plugin packages that add extra functionality to the language, to meet the requirements of specific application domains. Plugins can be added dynamically to gain instant access to additional vocabulary and/or syntax.
 
-As the compiler progresses through the token list it first extracts the command keyword, then searches for the corresponding `k_` function in the known packages. When this is found it is called to compile the specific command, and returns `True` or `False` for success or failure. Failure does not necessarily mean an error, as the same command keyword can appear in more than one package. If all candidates fail to return `true`, an error is then assumed. The error report can include lines leading up to the error.
+As the compiler progresses through the token list it first extracts the command keyword, then searches for the corresponding `k_` function in the known packages. When this is found it is called to compile the specific command, and returns `True` or `False` for success or failure. Failure does not necessarily mean an error, as the same command keyword can appear in more than one package. If no package returns `true`, an error is then assumed. The error report can include lines leading up to the error.
 
 Every time a variable definition is encountered it is added to the symbol table; a dictionary that holds the value of each variable against its name. Every compiled command is added to to the code list, which when complete becomes the program ready to run.
 
 ## The runtime engine
 
-The runtime engine starts at the beginning of the code list and picks up one entry at a time. Each one contains the original keyword as one its elements, and as with the compiler modules there is a corresponding `r_` runtime handler function. The domain (package) is also identified in the compiled item, so there's no need to search for the runtime handler; just go directly to the appropriate package and call the `r_` function.
+The runtime engine starts at the beginning of the code list and picks up one entry at a time. Each one contains the original keyword as one its elements, and as with the compiler modules there is a corresponding `r_` ('r_add', 'r_if', 'r_set' etc) runtime handler function. The domain (package) is also identified in the compiled item, so there's no need to search for the runtime handler; just go directly to the appropriate package and call the `r_` function. Each runtime command contains the index of the next command to run in the code list; mostly the one immediately following, but flow control commands such as 'if', 'while', 'goto', 'on' etc take the program flow elsewhere.
 
 ## Helper functions
 
@@ -52,7 +52,7 @@ The runtime engine has helper functions such as
 
 ## Values
 
-All values are held in a special `ECValue` object, which contains the type of the value and its content. Numbers and text can be held as constant values but many entites have values that can't be known at compile time, such as the date or the size of a file. To deal with this, many values are instructions on how to get the actual value at runtime. As a simple example, a negate command is held as a 'negate' type and the value to be negated, which will in this case be a variable name. Values such as `left`, `right` or `size of` may operate on another `ECValue`, which is then evaluated recursively. Strings are concatenated using the word `cat` and the parts are held separately until runtime.This allows quite complex constructs such as
+All values are held in a special `ECValue` object, which contains the type of the value and its content. Numbers and text can be held as constant values but many entites have values that can't be known at compile time, such as the date or the size of a file. To deal with this, many values are instructions on how to get the actual value at runtime. As a simple example, a negate command is held as a 'negate' type and the value to be negated, which will in this case be a variable name. Values such as `left`, `right` or `size of` may operate on another `ECValue`, which is then evaluated recursively. Strings are concatenated using the word `cat` and the parts are held separately until runtime.This allows compound constructs such as
 
 ```
 print `Value: ` cat left 10 of SomeText
@@ -68,7 +68,7 @@ The compiler will deal with `cat` before `the size of`, which may not be what wa
 
 ## Synonyms and syntactic noise
 
-At the current stage of development there is usually just one way to implement a given command. English is replete with alternatives that all mean the same thing and additional words that carry no actual meaning but make a sentence easier to read, and there is no reason why many of these cannot be implemented in **_EasyCoder_** as a means to make scripts more readable. An example might be
+At the current stage of development there is usually just one way to process a given command. English is replete with alternatives that all mean the same thing and additional words that carry no actual meaning but make a sentence easier to read, and there is no reason why many of these cannot be implemented in **_EasyCoder_** as a means to make scripts more readable. An example might be
 
 ```
 create Label text `Summary` in Panel
@@ -81,6 +81,20 @@ create Label with text `Summary` and add to Panel
 ```
 
 where `with`, `in` and `and add to` are "syntactic noise" that has no effect on the code produced by the compiler but may make reading a script simpler. Careful use of such as this makes scripts look more like English without adding any noticeable performance handicap.
+
+English is highly object-oriented. A horse is not the same as a car; each has its own particular attributes and behaviours, but they may share use of the same words. A slightly humourous example is to compare instructions given to junior and senior citizens:
+
+```
+brush your teeth and put out the cat
+```
+
+with
+
+```
+brush the cat and put out your teeth
+```
+
+Commands that do something with one particular object may do something completely different when applied to another object, or they may make no sense at all. **_EasyCoder_** behaves the same way and many words appear in different contexts. The language is organised into packages where the same command keyword may appear in more than one, to avoid the need for one function to handle all possible cases.
 
 ## Compiler strategy
 
