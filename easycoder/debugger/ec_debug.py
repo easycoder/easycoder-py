@@ -21,7 +21,7 @@ from PySide6.QtGui import QTextCursor, QIcon
 from PySide6.QtCore import Qt, QTimer
 from typing import Any, Optional
 from .ec_dbg_value_display import ValueDisplay
-from .ec_dbg_watch_list import WatchListWidget
+from .ec_dbg_watchlist import WatchListWidget
 
 class Object():
     def __setattr__(self, name: str, value: Any) -> None:
@@ -123,6 +123,12 @@ class Debugger(QMainWindow):
                 lst.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
                 if items:
                     lst.setCurrentRow(0)
+                # Allow double-click to accept immediately
+                def accept_double(item):
+                    if item:
+                        lst.setCurrentItem(item)
+                    dlg.accept()
+                lst.itemDoubleClicked.connect(accept_double)
                 v.addWidget(lst)
                 buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, parent=dlg)
                 v.addWidget(buttons)

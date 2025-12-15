@@ -24,18 +24,19 @@ def flush():
 
 class Program:
 
-	def __init__(self, argv):
+	def __init__(self, arg):
 		global queue
 		print(f'EasyCoder version {version("easycoder")}')
-		if len(argv) == 0:
+		if len(arg) == 0:
 			print('No script supplied')
 			exit()
-		if argv in ['-v', '--version']: return
-		if argv[0:6] == 'debug ':
-			self.scriptName = argv[6:]
+		if arg in ['-v', '--version']: return
+		if arg[0:6] == 'debug ':
+			print('Debug mode requested')
+			self.scriptName = arg[6:]
 			self.debugging = True
 		else:
-			self.scriptName = argv
+			self.scriptName = arg
 			self.debugging = False
 
 		f = open(self.scriptName, 'r')
@@ -523,16 +524,7 @@ class Program:
 # This is the program launcher
 def Main():
 	if (len(sys.argv) > 1):
-		# Check if 'debug' is the first argument
-		if sys.argv[1] == 'debug' and len(sys.argv) > 2:
-			# Create program with debug flag
-			program = Program(sys.argv[2])
-			program.debugging = True
-		else:
-			program = Program(sys.argv[1])
-			program.debugging = False
-			program.start()
-
+		Program(' '.join(sys.argv[1:])).start()
 	else:
 		Program('-v')
 

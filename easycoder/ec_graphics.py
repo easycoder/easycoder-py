@@ -949,6 +949,7 @@ class Graphics(Handler):
     # Unused: def k_init(self, command):
     
     def r_init(self, command):
+        print('Initializing graphics...')
         self.app = QApplication(sys.argv)
         screen = QApplication.screens()[0].size().toTuple()
         self.program.screenWidth = screen[0]  # type: ignore
@@ -970,6 +971,7 @@ class Graphics(Handler):
         QTimer.singleShot(500, init)
         self.program.startGraphics()
         if self.program.debugging:
+            print('Starting debugger...')
             self.program.debugger = Debugger(self.program)
             self.program.debugger.enableBreakpoints()
         self.app.lastWindowClosed.connect(on_last_window_closed)
