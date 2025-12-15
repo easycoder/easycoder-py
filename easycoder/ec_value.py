@@ -11,6 +11,7 @@ class Value:
 		self.getToken = compiler.getToken
 		self.nextToken = compiler.nextToken
 		self.peek = compiler.peek
+		self.skip = compiler.skip
 		self.tokenIs = compiler.tokenIs
 
 	def getItem(self):
@@ -53,34 +54,44 @@ class Value:
 		# self.compiler.warning(f'I don\'t understand \'{token}\'')
 		return None
 
-	# Compile a value
-	def compileValue(self):
-		token = self.getToken()
-		item = self.getItem()
-		if item == None:
-			self.compiler.warning(f'ec_value.compileValue: Cannot get the value of "{token}"')
-			return None
-		if item.getType() == 'symbol':
-			object = self.compiler.getSymbolRecord(item.getContent())['object']
-			if not object.hasRuntimeValue(): return None
-
+	# Get something starting following 'the'
+	def getTheSomething(self):
+		self.nextToken()  # consume 'the'
 		value = ECValue()
-		if self.peek() == 'cat':
-			items = None
-			if value.getType() == 'cat': items = value.getContent()
-			else:
-				value.setType('cat')
-				items = [item]
-				value.setContent(items)
-			while self.peek() == 'cat':
-				v = self.nextToken()
-				v= self.nextToken()
+		if self.getToken() == 'cat':
+			self.nextToken()  # consume 'cat'
+			self.skip('of')
+			self.nextToken()
+			item = self.getItem()
+			value.setType('cat')
+			items = [item]
+			while self.peek() in ['cat', 'and']:
+				self.nextToken()
+				self.nextToken()
 				element = self.getItem()
 				if element != None:
 					items.append(element) # pyright: ignore[reportOptionalMemberAccess]
 			value.setContent(items)
+		return value
+	
+	# Compile a value
+	def compileValue(self):
+		token = self.getToken()
+		if token == 'the': value = self.getTheSomething()
 		else:
-			value = item
+			item = self.getItem()
+			if item == None:
+				self.compiler.warning(f'ec_value.compileValue: Cannot get the value of "{token}"')
+				return None
+			if item.getType() == 'symbol':
+				object = self.compiler.getSymbolRecord(item.getContent())['object']
+				if not object.hasRuntimeValue(): return None
+
+			value = ECValue()
+			if self.peek() == 'cat':
+				value = self.getTheSomething()
+			else:
+				value = item
 
 	# See if any domain has something to add to the value
 		for domain in self.compiler.program.getDomains():

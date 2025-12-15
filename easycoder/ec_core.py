@@ -1310,6 +1310,7 @@ class Core(Handler):
 
     # Set a value
     # set {variable}
+    # set {variable} to {value}
     # set {ssh} host {host} user {user} password {password}
     # set the elements of {variable} to {value}
     # set element/property of {variable} to {value}
@@ -1341,7 +1342,11 @@ class Core(Handler):
                 self.add(command)
                 return True
             elif isinstance(self.getObject(record), ECVariable):
-                command['type'] = 'set'
+                if self.peek() == 'to':
+                    command['type'] = 'setValue'
+                    self.nextToken()
+                    command['value'] = self.nextValue()
+                else: command['type'] = 'set'
                 self.add(command)
                 return True
             return False
@@ -1409,6 +1414,12 @@ class Core(Handler):
         if cmdType == 'set':
             target = self.getVariable(command['target'])
             self.putSymbolValue(target, ECValue(domain=self.getName(), type='boolean', content=True))
+            return self.nextPC()
+        
+        elif cmdType == 'setValue':
+            value = self.evaluate(command['value'])
+            target = self.getVariable(command['target'])
+            self.putSymbolValue(target, value)
             return self.nextPC()
 
         elif cmdType == 'elements':

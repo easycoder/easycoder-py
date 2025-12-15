@@ -418,6 +418,8 @@ class Debugger(QMainWindow):
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowCloseButtonHint)
         self.stopped = True
         self.skip_next_breakpoint = False  # Flag to skip breakpoint check on resume
+        self.saved_queue = []  # Save queue state when stopped to preserve forked threads
+        self._highlighted: set[int] = set()
 
         # try to load saved geometry from ~/.ecdebug.conf
         cfg_path = os.path.join(os.path.expanduser("~"), ".ecdebug.conf")
@@ -794,7 +796,7 @@ class Debugger(QMainWindow):
     ###########################################################################
     # Set the background color of one line of the script
     def setBackground(self, lino, color):
-        # Set the background color of the given line
+        # Set the background color of the given line and track highlighted lines
         if lino < 0 or lino >= len(self.scriptLines):
             return
         lineSpec = self.scriptLines[lino]
@@ -803,8 +805,16 @@ class Debugger(QMainWindow):
             return
         if color == 'none':
             panel.setStyleSheet("")
+            self._highlighted.discard(lino)
         else:
             panel.setStyleSheet(f"background-color: {color};")
+            self._highlighted.add(lino)
+
+    def _clearHighlights(self):
+        # Remove highlighting from all previously highlighted lines
+        for lino in list(self._highlighted):
+            self.setBackground(lino, 'none')
+        self._highlighted.clear()
     
     ###########################################################################
     # Here before each instruction is run
@@ -842,12 +852,15 @@ class Debugger(QMainWindow):
             self.stopped = True
             should_halt = True
         
-        # If halting, update the UI
+        # If halting, update the UI and save queue state
         if should_halt:
             self.scrollTo(lino)
+            self._clearHighlights()
             self.setBackground(lino, 'LightYellow')
             # Refresh variable values when halted
             self.refreshVariables()
+            # Save the current queue state to preserve forked threads
+            self._saveQueueState()
         
         return should_halt
     
@@ -858,6 +871,28 @@ class Debugger(QMainWindow):
                 self.leftColumn.watch_list.refreshVariables(self.program)
         except Exception as ex:
             print(f"Error refreshing variables: {ex}")
+    
+    def _saveQueueState(self):
+        """Save the current global queue state (preserves forked threads)"""
+        try:
+            # Import the module to access the global queue
+            from easycoder import ec_program
+            # Save a copy of the queue
+            self.saved_queue = list(ec_program.queue)
+        except Exception as ex:
+            print(f"Error saving queue state: {ex}")
+    
+    def _restoreQueueState(self):
+        """Restore the saved queue state (resume all forked threads)"""
+        try:
+            # Import here to avoid circular dependency
+            from easycoder import ec_program
+            # Restore the queue from saved state
+            if self.saved_queue:
+                ec_program.queue.clear()
+                ec_program.queue.extend(self.saved_queue)
+        except Exception as ex:
+            print(f"Error restoring queue state: {ex}")
     
     def doRun(self):
         """Resume free-running execution from current PC"""
@@ -874,8 +909,13 @@ class Debugger(QMainWindow):
         # Skip the breakpoint check for the current instruction (the one we're resuming from)
         self.skip_next_breakpoint = True
         
-        # Resume execution at current PC
+        # Restore the saved queue state to resume all forked threads
+        self._restoreQueueState()
+
+        # Enqueue the current thread, then flush immediately
         self.program.run(self.pc)
+        from easycoder.ec_program import flush
+        flush()
     
     def doStep(self):
         """Execute one instruction and halt again"""
@@ -891,10 +931,27 @@ class Debugger(QMainWindow):
         # Skip the breakpoint check for the current instruction (the one we're stepping from)
         self.skip_next_breakpoint = True
         
-        # Execute the current instruction
+        # Restore the saved queue state to resume all forked threads
+        self._restoreQueueState()
+
+        # Enqueue the current thread, then flush a single cycle
         self.program.run(self.pc)
+        from easycoder.ec_program import flush
+        flush()
     
     def doStop(self):
+        try:
+            lino = self.program.code[self.pc].get('lino', 0) + 1
+            print(f"Stopped by user at line {lino}")
+        except Exception:
+            print("Stopped by user")
+        # Clear all previous highlights and mark the current line
+        try:
+            self._clearHighlights()
+            current_lino = self.program.code[self.pc].get('lino', 0)
+            self.setBackground(current_lino, 'LightYellow')
+        except Exception:
+            pass
         self.stopped = True
     
     def doClose(self):
