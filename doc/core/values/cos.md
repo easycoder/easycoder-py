@@ -11,6 +11,6 @@
 Gets an integer value being the cosine of the given angle (in degrees), multiplied by the given radius. See also [sin](sin.md) and [tan](tan.md).
 
 Next: [datime](datime.md)  
-Prev: [args](args.md)
+Prev: [cat](cat.md)
 
 [Back](../../README.md)

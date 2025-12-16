@@ -1,3 +1,4 @@
+from typing import Optional, List
 from .ec_classes import ECObject, FatalError, ECValue
 
 # Create a constant
@@ -14,7 +15,7 @@ class Value:
 		self.skip = compiler.skip
 		self.tokenIs = compiler.tokenIs
 
-	def getItem(self):
+	def getItem(self) -> Optional[ECValue]:
 		token = self.getToken()
 		if not token:
 			return None
@@ -55,8 +56,8 @@ class Value:
 		return None
 
 	# Get a list of items following 'the cat of ...'
-	def getCatItems(self):
-		items: list[ECValue] = []
+	def getCatItems(self) -> Optional[List[ECValue]]:
+		items: List[ECValue] = []
 		item = self.getItem()
 		if item == None: return None
 		items.append(item)
@@ -87,17 +88,21 @@ class Value:
 		return value
 	
 	# Compile a value
-	def compileValue(self):
+	def compileValue(self) -> Optional[ECValue]:
 		token = self.getToken()
-		if token == 'the':
-			if self.peek() == 'cat':
-				self.nextToken()  # consume 'cat'
-				self.skip('of')
-				self.nextToken()
-				items = self.getCatItems()
-				value = ECValue(domain='core', type='cat', content=items)
-				return self.checkDomainAdditions(value)
+		# Special-case the plugin-safe full form: "the cat of ..."
+		if token == 'the' and self.peek() == 'cat':
+			self.nextToken()  # move to 'cat'
+			self.skip('of')
 			self.nextToken()
+			items = self.getCatItems()
+			value = ECValue(domain='core', type='cat', content=items)
+			return self.checkDomainAdditions(value)
+
+		# Otherwise, consume any leading articles before normal parsing
+		self.compiler.skipArticles()
+		token = self.getToken()
+
 		item: ECValue|None = self.getItem()
 		if item == None:
 			self.compiler.warning(f'ec_value.compileValue: Cannot get the value of "{token}"')

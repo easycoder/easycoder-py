@@ -158,24 +158,31 @@ EasyCoder's strength is its extensibility via plugins. The core module must:
 6. **Document plugin implications**: Add section to plugin dev guide warning about reserved stems.
 7. **Test with existing scripts**: Ensure no regressions; validate new forms compile correctly.
 
-### Phase 2: Plugin-Aware Registry (Next)
-1. **Create `doc/core/values/operations.md`**: Inventory value-time operations with plugin notes.
-   - `the cat of A and B` (concatenation) — reserved in core; plugins should avoid `cat` as verb.
-   - `the element N of {array}` (indexing) — reserved; plugins should use qualified forms.
-   - `the index of X in {array}` (search) — reserved.
-   - `the property Name of {object}` (object access) — reserved.
-   - `the length of {value}` (length) — reserved.
-2. **Define reserved stems**: List keywords/stems core claims (e.g., `put`, `set`, `fork`, `cat`, `element`).
-3. **Plugin guidelines**: Recommend plugins use qualified forms (e.g., `file cat` instead of bare `cat`).
+### Phase 2: Plugin-Aware Registry ✅ Complete
+1. ✅ **Created `doc/core/values/operations.md`**: Comprehensive inventory of value-time operations with plugin notes.
+   - String operations: `the cat of`, `left/right/from N of`
+   - Array operations: `element N of`, `the index of X in`, `the length of`
+   - Object operations: `property X of`
+   - Encoding: `encode`, `decode`, `hash`
+   - Time: `now`, `timestamp`, `datime`
+   - System: `the memory`, `the files in`
+   - All with plugin-safe alternatives documented
+2. ✅ **Reserved stems defined**: Complete table with 18 value stems and plugin alternatives.
+3. ✅ **Plugin guidelines**: Four patterns documented (article+preposition, qualified stems, synonyms, avoid bare forms).
 
-### Phase 3: Extension Pattern Documentation (Follow-up)
-1. **Create `PLUGIN_PATTERNS.md`**: Extension-safe patterns for plugin developers.
-   - **Avoid bare verbs** unless they can't conflict with core.
-   - **Prefer qualified forms** (e.g., `{plugin} {verb}` or `{verb} via {plugin}`).
-   - **Use articles/prepositions** to disambiguate (e.g., `the X of Y` vs. `X Y`).
-2. **Reserved stems list**: Core publishes which words are off-limits.
-3. **Example walkthrough**: Show how to add a plugin keyword safely (avoids collision with existing/future core).
-4. **Linting rules**: Define what makes a plugin keyword "safe" (no conflict with reserved stems; clear syntax boundary).
+### Phase 3: Extension Pattern Documentation ✅ Complete
+1. ✅ **Created `PLUGIN_PATTERNS.md`**: Comprehensive guide (500+ lines) for safe plugin development.
+   - **5 core principles**: Check reserved stems, use syntactic anchors, qualify forms, prefer full forms, use lowercase
+   - **3 safe command patterns**: `{plugin} {verb}`, `{verb} via {plugin}`, attribute-centric operations
+   - **2 safe value patterns**: `the {operation} of {input}`, infix notation (use sparingly)
+   - **Event handler extension**: Safe event patterns for graphics plugins
+   - **Graphics widget extension**: New widget types and attributes
+   - **3 worked examples**: JSON plugin, database plugin, table widget plugin (all complete with usage)
+   - **Validation checklist**: 6-part checklist (namespace, syntax, handlers, testing, docs, code quality)
+   - **Collision detection**: Automated grep checks + manual verification steps
+   - **Best practices table**: Do's and don'ts with examples
+2. ✅ **Safe patterns documented**: Command patterns, value expressions, conditions, event handlers
+3. ✅ **Plugin examples**: Fully worked implementations showing proper handler structure
 
 ### Phase 4: LSP Validation (Post-Refactoring)
 1. **LSP server reads registries**: Consults reserved-stems and core operations lists.

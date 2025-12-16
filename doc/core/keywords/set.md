@@ -2,6 +2,7 @@
 
 ## Syntax:
 `set {variable}`  
+`set {variable} to {value}`  
 `set [the] elements of {variable} to {value}`  
 `set element/property {name} of {variable} to {value}`  
 ``set [the] encoding to `utf-8`/`base64` ``

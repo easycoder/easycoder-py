@@ -9,6 +9,7 @@ class Handler:
 		self.getToken = compiler.getToken
 		self.nextToken = compiler.nextToken
 		self.skip = compiler.skip
+		self.skipArticles = compiler.skipArticles
 		self.peek = compiler.peek
 		self.getValue = compiler.getValue
 		self.nextValue = compiler.nextValue

@@ -450,9 +450,9 @@ class Core(Handler):
         return self.nextPC()
 
     # Fork to a label
+    # fork [to] {label}
     def k_fork(self, command):
-        if self.peek() == 'to':
-            self.nextToken()
+        self.skip('to')  # Optional 'to' (core-reserved keyword, plugin-safe)
         command['fork'] = self.nextToken()
         self.add(command)
         return True
@@ -520,10 +520,10 @@ class Core(Handler):
         return self.nextPC()
 
     # Go to a label
+    # go [to] {label}
     def k_go(self, command):
-        if self.peek() == 'to':
-            self.nextToken()
-            return self.k_goto(command)
+        self.skip('to')  # Optional 'to' (core-reserved keyword, plugin-safe)
+        return self.k_goto(command)
 
     def k_goto(self, command):
         command['keyword'] = 'goto'
@@ -545,9 +545,9 @@ class Core(Handler):
         return command['goto']
 
     # Call a subroutine
+    # gosub [to] {label}
     def k_gosub(self, command):
-        if self.peek() == 'to':
-            self.nextToken()
+        self.skip('to')  # Optional 'to' (core-reserved keyword, plugin-safe)
         command['gosub'] = self.nextToken()
         self.add(command)
         return True
@@ -1342,11 +1342,15 @@ class Core(Handler):
                 self.add(command)
                 return True
             elif isinstance(self.getObject(record), ECVariable):
-                if self.peek() == 'to':
+                self.skip('to')
+                mark = self.compiler.getIndex()
+                value = self.nextValue()
+                if value != None:
                     command['type'] = 'setValue'
-                    self.nextToken()
-                    command['value'] = self.nextValue()
-                else: command['type'] = 'set'
+                    command['value'] = value
+                else:
+                    self.rewindTo(mark)
+                    command['type'] = 'set'
                 self.add(command)
                 return True
             return False
