@@ -112,7 +112,21 @@ class Compiler:
 				if next == item:
 					self.nextToken()
 					return
-		elif next == token: self.nextToken()
+		elif next == token:
+			self.nextToken()
+
+	# Skip common articles (optional syntactic noise for readability/disambiguation)
+	def skipArticles(self):
+		# Consume leading articles at current position (not just lookahead)
+		while True:
+			try:
+				tok = self.getToken()
+			except Exception:
+				break
+			if tok in ['the', 'a', 'an']:
+				self.nextToken()
+			else:
+				break
 
 	# Rewind to a given position in the code list
 	def rewindTo(self, index):
