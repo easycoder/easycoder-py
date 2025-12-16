@@ -1128,9 +1128,10 @@ class Graphics(Handler):
         return self.nextPC()
 
     # remove [the] [current/selected] [item] [from/in] {combobox}/{listbox}
+    # Graphics-reserved syntax: optional article pattern is plugin-safe (core-only command)
     def k_remove(self, command):
         command['variant'] = None
-        self.skip('the')
+        self.skipArticles()  # Optional 'the', 'a', 'an' — syntactic sugar
         self.skip(['current', 'selected'])
         self.skip('item')
         self.skip(['from', 'in'])
@@ -1201,7 +1202,10 @@ class Graphics(Handler):
     # set {listbox} to {list}
     # set blocked true/false
     def k_set(self, command):
-        self.skip('the')
+        # Graphics-reserved syntax: optional article pattern with 'of'/'to' prepositions
+        # Forms like 'set the layout of Window to MainPanel' and 'set layout of Window to MainPanel' are equivalent
+        # Plugin-safe: graphics is a core-only module
+        self.skipArticles()  # Optional 'the', 'a', 'an' — syntactic sugar for readability
         token = self.nextToken()
         command['what'] = token
         if token in ['width', 'height']:

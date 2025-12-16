@@ -116,14 +116,12 @@ class Compiler:
 			self.nextToken()
 
 	# Skip common articles (optional syntactic noise for readability/disambiguation)
+	# Consumes leading articles ('the', 'a', 'an') at the next position
 	def skipArticles(self):
-		# Consume leading articles at current position (not just lookahead)
+		# Consume leading articles at next position(s) — like skip() but for multiple
 		while True:
-			try:
-				tok = self.getToken()
-			except Exception:
-				break
-			if tok in ['the', 'a', 'an']:
+			next_tok = self.peek()
+			if next_tok in ['the', 'a', 'an']:
 				self.nextToken()
 			else:
 				break
