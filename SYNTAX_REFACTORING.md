@@ -170,14 +170,19 @@ EasyCoder's strength is its extensibility via plugins. The core module must:
 2. ✅ **Reserved stems defined**: Complete table with 18 value stems and plugin alternatives.
 3. ✅ **Plugin guidelines**: Four patterns documented (article+preposition, qualified stems, synonyms, avoid bare forms).
 
-### Phase 3: Extension Pattern Documentation (Follow-up)
-1. **Create `PLUGIN_PATTERNS.md`**: Extension-safe patterns for plugin developers.
-   - **Avoid bare verbs** unless they can't conflict with core.
-   - **Prefer qualified forms** (e.g., `{plugin} {verb}` or `{verb} via {plugin}`).
-   - **Use articles/prepositions** to disambiguate (e.g., `the X of Y` vs. `X Y`).
-2. **Reserved stems list**: Core publishes which words are off-limits.
-3. **Example walkthrough**: Show how to add a plugin keyword safely (avoids collision with existing/future core).
-4. **Linting rules**: Define what makes a plugin keyword "safe" (no conflict with reserved stems; clear syntax boundary).
+### Phase 3: Extension Pattern Documentation ✅ Complete
+1. ✅ **Created `PLUGIN_PATTERNS.md`**: Comprehensive guide (500+ lines) for safe plugin development.
+   - **5 core principles**: Check reserved stems, use syntactic anchors, qualify forms, prefer full forms, use lowercase
+   - **3 safe command patterns**: `{plugin} {verb}`, `{verb} via {plugin}`, attribute-centric operations
+   - **2 safe value patterns**: `the {operation} of {input}`, infix notation (use sparingly)
+   - **Event handler extension**: Safe event patterns for graphics plugins
+   - **Graphics widget extension**: New widget types and attributes
+   - **3 worked examples**: JSON plugin, database plugin, table widget plugin (all complete with usage)
+   - **Validation checklist**: 6-part checklist (namespace, syntax, handlers, testing, docs, code quality)
+   - **Collision detection**: Automated grep checks + manual verification steps
+   - **Best practices table**: Do's and don'ts with examples
+2. ✅ **Safe patterns documented**: Command patterns, value expressions, conditions, event handlers
+3. ✅ **Plugin examples**: Fully worked implementations showing proper handler structure
 
 ### Phase 4: LSP Validation (Post-Refactoring)
 1. **LSP server reads registries**: Consults reserved-stems and core operations lists.
