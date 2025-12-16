@@ -14,7 +14,7 @@ class Value:
 		self.skip = compiler.skip
 		self.tokenIs = compiler.tokenIs
 
-	def getItem(self) -> ECValue|None:
+	def getItem(self):
 		token = self.getToken()
 		if not token:
 			return None
