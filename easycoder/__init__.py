@@ -14,4 +14,4 @@ from .ec_psutil import *
 from .ec_timestamp import *
 from .ec_value import *
 
-__version__ = "251215.3"
+__version__ = "251216.1"

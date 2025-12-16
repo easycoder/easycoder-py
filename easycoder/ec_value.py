@@ -14,7 +14,7 @@ class Value:
 		self.skip = compiler.skip
 		self.tokenIs = compiler.tokenIs
 
-	def getItem(self):
+	def getItem(self) -> ECValue|None:
 		token = self.getToken()
 		if not token:
 			return None
@@ -54,50 +54,68 @@ class Value:
 		# self.compiler.warning(f'I don\'t understand \'{token}\'')
 		return None
 
+	# Get a list of items following 'the cat of ...'
+	def getCatItems(self):
+		items: list[ECValue] = []
+		item = self.getItem()
+		if item == None: return None
+		items.append(item)
+		while self.peek() in ['cat', 'and']:
+			self.nextToken()
+			self.nextToken()
+			element = self.getItem()
+			if element != None:
+				items.append(element) # pyright: ignore[reportOptionalMemberAccess]
+		return items
+
 	# Get something starting following 'the'
 	def getTheSomething(self):
 		self.nextToken()  # consume 'the'
-		value = ECValue()
 		if self.getToken() == 'cat':
 			self.nextToken()  # consume 'cat'
 			self.skip('of')
 			self.nextToken()
-			item = self.getItem()
-			value.setType('cat')
-			items = [item]
-			while self.peek() in ['cat', 'and']:
-				self.nextToken()
-				self.nextToken()
-				element = self.getItem()
-				if element != None:
-					items.append(element) # pyright: ignore[reportOptionalMemberAccess]
-			value.setContent(items)
+			items = self.getCatItems()
+			value = ECValue(domain='core', type='cat', content=items)
+			return value
+		raise FatalError(self.compiler, 'Expected "the cat of ..."')
+
+	# Check if any domain has something to add to the value
+	def checkDomainAdditions(self, value):
+		for domain in self.compiler.program.getDomains():
+			value = domain.modifyValue(value)
 		return value
 	
 	# Compile a value
 	def compileValue(self):
 		token = self.getToken()
-		if token == 'the': value = self.getTheSomething()
-		else:
-			item = self.getItem()
-			if item == None:
-				self.compiler.warning(f'ec_value.compileValue: Cannot get the value of "{token}"')
-				return None
-			if item.getType() == 'symbol':
-				object = self.compiler.getSymbolRecord(item.getContent())['object']
-				if not object.hasRuntimeValue(): return None
-
-			value = ECValue()
+		if token == 'the':
 			if self.peek() == 'cat':
-				value = self.getTheSomething()
-			else:
-				value = item
+				self.nextToken()  # consume 'cat'
+				self.skip('of')
+				self.nextToken()
+				items = self.getCatItems()
+				value = ECValue(domain='core', type='cat', content=items)
+				return self.checkDomainAdditions(value)
+			self.nextToken()
+		item: ECValue|None = self.getItem()
+		if item == None:
+			self.compiler.warning(f'ec_value.compileValue: Cannot get the value of "{token}"')
+			return None
+		if item.getType() == 'symbol':
+			object = self.compiler.getSymbolRecord(item.getContent())['object']
+			if not object.hasRuntimeValue(): return None
 
-	# See if any domain has something to add to the value
-		for domain in self.compiler.program.getDomains():
-			value = domain.modifyValue(value)
+		if self.peek() == 'cat':
+			self.nextToken()  # consume 'cat'
+			self.nextToken()
+			items = self.getCatItems()
+			if items != None: items.insert(0, item)
+			value = ECValue(domain='core', type='cat', content=items)
+		else:
+			value = item
 
-		return value
+		return self.checkDomainAdditions(value)
 
 	def compileConstant(self, token):
 		value = ECValue()
