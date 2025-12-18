@@ -937,7 +937,7 @@ class Core(Handler):
             return self.nextPC()
         RuntimeError(self.program, f"File {path} does not exist")
 
-    # Dummy command for testing
+    # Dummy command to hit a debugger breakpoint
     def k_pass(self, command):
         self.add(command)
         return True
@@ -1080,11 +1080,6 @@ class Core(Handler):
 
     def r_put(self, command):
         value = self.evaluate(command['value'])
-#        if value == None:
-#            if command['or'] != None:
-#                return command['or']
-#            else:
-#                RuntimeError(self.program, f'Error: could not compute value')
         record = self.getVariable(command['target'])
         self.putSymbolValue(record, value)
         return self.nextPC()
@@ -1379,7 +1374,7 @@ class Core(Handler):
                 return True
 
         elif token == 'property':
-            command['name'] = self.nextValue()
+            command['key'] = self.nextValue()
             if self.nextIs('of'):
                 if self.nextIsSymbol():
                     command['target'] = self.getSymbolRecord()['name']
@@ -1459,7 +1454,7 @@ class Core(Handler):
             return self.nextPC()
 
         elif cmdType == 'property':
-            name = self.textify(command['name'])
+            key = self.textify(command['key'])
             value = self.evaluate(command['value'])
             record = self.getVariable(command['target'])
             variable = self.getObject(record)
@@ -1467,8 +1462,8 @@ class Core(Handler):
             if content == None: content = {}
             elif not isinstance(content, dict): 
                 raise RuntimeError(self.program, f'{record["name"]} is not a dictionary')
-            if isinstance(value, dict): content[name] = value
-            else: content[name] = self.textify(value)
+            if isinstance(value, dict): content[key] = value
+            else: content[key] = self.textify(value)
             variable.setContent(ECValue(domain=self.getName(), type='dict', content=content))
             return self.nextPC()
         

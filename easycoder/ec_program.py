@@ -292,7 +292,7 @@ class Program:
 				if val != None:
 					if isinstance(val, ECValue): val = str(val.getContent())
 					if val == None: val = ''
-					else: content += val
+					else: content += str(val)
 			result.setValue(type='str', content=content)
 	
 		else:
