@@ -235,7 +235,7 @@ class ECObject():
 
 ###############################################################################
 # A generic variable object that can hold a mutable value
-class ECVariable(ECObject):
+class ECValueHolder(ECObject):
     def __init__(self):
         super().__init__()
         self.properties = {}
@@ -271,7 +271,7 @@ class ECVariable(ECObject):
 
     # Reset the object to empty state
     def reset(self):
-        self.setValue(ECValue())
+        self.setValue(ECValue(domain='core', content=None))
     
     # Check if the object can have properties
     def hasProperties(self):
@@ -288,6 +288,24 @@ class ECVariable(ECObject):
     # Get a specific property
     def getProperty(self, name):
         return self.properties[name]
+
+###############################################################################
+# A string or int variable
+class ECVariable(ECValueHolder):
+    def __init__(self):
+        super().__init__()
+
+###############################################################################
+# A dictionary variable
+class ECDictionary(ECValueHolder):
+    def __init__(self):
+        super().__init__()
+
+###############################################################################
+# A list variable
+class ECList(ECValueHolder):
+    def __init__(self):
+        super().__init__()
 
 ###############################################################################
 # A file variable

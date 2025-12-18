@@ -11,6 +11,8 @@ from .ec_classes import (
     NoValueRuntimeError,
     ECObject,
     ECVariable,
+    ECDictionary,
+    ECList,
     ECFile,
     ECStack,
     ECSSH,
@@ -347,6 +349,15 @@ class Core(Handler):
             value.setContent(content)
             self.putSymbolValue(record, value)
         return self.nextPC()
+
+    # Declare a dictionary variable
+    def k_dictionary(self, command):
+        self.compiler.addValueType()
+        return self.compileVariable(command, 'ECDictionary')
+
+    def r_dictionary(self, command):
+        return self.nextPC()
+
 
     # Arithmetic divide
     # divide {variable} by {value}
@@ -698,6 +709,14 @@ class Core(Handler):
         prompt = command['prompt'].getValue()
         value = ECValue(domain=self.getName(), type='str', content=prompt+input(prompt))
         self.putSymbolValue(record, value)
+        return self.nextPC()
+
+    # Declare a list variable
+    def k_list(self, command):
+        self.compiler.addValueType()
+        return self.compileVariable(command, 'ECList')
+
+    def r_list(self, command):
         return self.nextPC()
 
     # 1 Load a plugin. This is done at compile time.
@@ -1061,19 +1080,24 @@ class Core(Handler):
         stackRecord['object'].push(value)
         return self.nextPC()
 
-    # put {value} into {variable}
+    # put {value} into {variable/dictionary/list}
     def k_put(self, command):
         value = self.nextValue()
         if value != None:
             command['value'] = value
+            valueType = value.getType()
             if self.nextIs('into'):
                 if self.nextIsSymbol():
                     record = self.getSymbolRecord()
                     command['target'] = record['name']
-                    self.checkObjectType(self.getObject(record), ECVariable)
-                    command['or'] = None
-                    self.processOr(command, self.getCodeSize())
-                    return True
+                    object = self.getObject(record)
+                    self.checkObjectType(object, (ECVariable, ECDictionary, ECList))
+                    if (isinstance(object, ECVariable) and valueType in ('str', 'int', 'float', 'bool') or
+                        isinstance(object, ECDictionary) and valueType in ('dict', 'json') or
+                        isinstance(object, ECList) and valueType in ('list', 'json')):
+                        command['or'] = None
+                        self.processOr(command, self.getCodeSize())
+                        return True
                 else:
                     FatalError(self.compiler, f'Symbol {self.getToken()} is not a variable')
         return False
@@ -1908,7 +1932,7 @@ class Core(Handler):
             if self.nextToken() == 'of':
                 if self.nextIsSymbol():
                     record = self.getSymbolRecord()
-                    self.checkObjectType(record['object'], ECVariable)
+                    self.checkObjectType(record['object'], ECList)
                     value.target = ECValue(domain=self.getName(), type='symbol', content=record['name'])
                     return value
             return None
@@ -1919,7 +1943,7 @@ class Core(Handler):
                 if self.nextIsSymbol():
                     record = self.getSymbolRecord()
                     object = record['object']
-                    self.checkObjectType(object, ECObject)
+                    self.checkObjectType(object, ECDictionary)
                     if hasattr(object, 'name'):
                         value.target = ECValue(domain=self.getName(), type='symbol', content=object.name) # type: ignore
                         return value
@@ -2175,8 +2199,8 @@ class Core(Handler):
         index = self.textify(v.index)
         targetName = v.target
         target = self.getVariable(targetName.getContent())
-        variable = target['object']
-        self.checkObjectType(variable, ECObject)
+        variable = self.getObject(target)
+        self.checkObjectType(variable, ECList)
         content = variable.getContent()
         if not type(content) == list:
             RuntimeError(self.program, f'{targetName} is not a list')
@@ -2340,11 +2364,10 @@ class Core(Handler):
         propertyName = v.name
         propertyValue = self.textify(propertyName)
         targetName = v.target
-        targetValue = self.textify(targetName)
-        try:
-            targetObject = json.loads(targetValue)
-        except:
-            targetObject = targetValue
+        target = self.getVariable(targetName.getContent())
+        variable = self.getObject(target)
+        self.checkObjectType(variable, ECDictionary)
+        targetObject = variable.getContent()
         if type(targetObject) != dict:
             RuntimeError(self.program, f'{targetName} is not a dictionary')
         if not propertyValue in targetObject:
