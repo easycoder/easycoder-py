@@ -1,0 +1,366 @@
+!   rbrconf.ecs
+
+    script RBRConfigurator
+
+    use graphics
+
+!    debug compile
+
+    window HostWindow
+    window Window
+    window Dialog
+    layout MainPanel
+    layout LeftPanel
+    layout RightPanel
+    layout DeviceHPanel
+    layout DeviceButtonPanel
+    layout OuterLayout
+    layout Layout
+    layout VLayout
+    layout HLayout
+    layout Panel
+    group Group
+    label Label
+    label RelayStateLabel
+    label StatusLabel
+    label UptimeLabel
+    label TemperatureLabel
+    pushbutton ResetConfigButton
+    pushbutton ScanDevicesButton
+    pushbutton ClearSystemButton
+    pushbutton ReconnectMasterButton
+    pushbutton RemoveSlaveButton
+    pushbutton UpdateFileButton
+    pushbutton UpdateAllFilesButton
+    pushbutton DeleteFileButton
+    pushbutton ExitButton
+    pushbutton ScanSystemsButton
+    pushbutton RemoveSystemButton
+    pushbutton MasterDeviceButton
+    pushbutton RelayToggleButton
+    pushbutton UpdateWidgetDataButton
+    pushbutton ResetDeviceButton
+    pushbutton TemperatureButton
+    pushbutton OKButton
+    pushbutton CancelButton
+    lineinput HostInput
+    lineinput UserInput
+    lineinput PasswordInput
+    lineinput LineInput
+    lineinput DeviceNameInput
+    lineinput LEDPinInput
+    lineinput RelayPinInput
+    lineinput DHT22PinInput
+    lineinput PathInput
+    listbox ListBox
+    listbox SlaveList
+    combobox SystemsCombo
+    checkbox LEDInvertCheckbox
+    checkbox RelayInvertCheckbox
+    messagebox MessageBox
+
+!    debug step
+
+    log `Starting`
+
+    create MainPanel type QHBoxLayout
+
+    ! Do the left-hand panel
+
+    create LeftPanel type QVBoxLayout
+    add LeftPanel to MainPanel
+
+    add stretch to LeftPanel
+
+    create ResetConfigButton text `Reset everything`
+    on click ResetConfigButton go to ResetConfigFileClick
+    add ResetConfigButton to LeftPanel
+
+    create ClearSystemButton text `Clear the selected system`
+    on click ClearSystemButton go to ClearSystemClick
+    add ClearSystemButton to LeftPanel
+
+    create ReconnectMasterButton text `Reconnect the master`
+    on click ReconnectMasterButton go to ReconnectMasterClick
+    add ReconnectMasterButton to LeftPanel
+
+    add stretch to LeftPanel
+
+    create ScanDevicesButton text `Scan for devices`
+    on click ScanDevicesButton go to ScanForDevicesClick
+    add ScanDevicesButton to LeftPanel
+
+    create UpdateFileButton text `Update one file`
+    on click UpdateFileButton go to UpdateFileClick
+    add UpdateFileButton to LeftPanel
+
+    create UpdateAllFilesButton text `Update all files`
+    on click UpdateAllFilesButton go to UpdateAllFilesClick
+    add UpdateAllFilesButton to LeftPanel
+
+    create DeleteFileButton text `Delete file`
+    add DeleteFileButton to LeftPanel
+    on click DeleteFileButton go to DeleteFileClick
+
+    create RemoveSlaveButton text `Remove slave`
+    add RemoveSlaveButton to LeftPanel
+    on click RemoveSlaveButton go to RemoveSlaveClick
+
+    add stretch to LeftPanel
+
+    create ExitButton text `Exit`
+    add ExitButton to LeftPanel
+    on click ExitButton go to ExitClick
+
+    ! Now do the right-hand panel
+
+    create RightPanel type QVBoxLayout
+    add stretch RightPanel to MainPanel
+
+    ! Create the system name group
+    create Group title `Systems`
+    set the height of Group to 50
+    add Group to RightPanel
+    create Layout type QHBoxLayout
+    add Layout to Group
+    create SystemsCombo
+    add stretch SystemsCombo to Layout
+    create ScanSystemsButton text `System Scan`
+    disable ScanSystemsButton
+    on click ScanSystemsButton go to ScanSystemsClick
+    add ScanSystemsButton to Layout
+    create RemoveSystemButton text `Remove`
+    disable RemoveSystemButton
+    on click RemoveSystemButton go to RemoveSystemClick
+    add RemoveSystemButton to Layout
+
+    ! Create the Master Device group
+    create Group title `Master device`
+    set the height of Group to 50
+    add Group to RightPanel
+    create Layout type QHBoxLayout
+    add Layout to Group
+    create MasterDeviceButton text ``
+    add MasterDeviceButton to Layout
+    on click MasterDeviceButton go to MasterDeviceClick
+
+    ! Create the Slave Devices group
+    create Group title `Slave devices`
+    set the height of Group to 150
+    add Group to RightPanel
+    create Layout type QHBoxLayout
+    add Layout to Group
+    create SlaveList
+    add SlaveList to Layout
+    on select SlaveList go to SlaveDeviceClick
+
+    ! Create the Selected Device group
+    create Group title `Selected device`
+    set the height of Group to 150
+    add Group to RightPanel
+
+    create DeviceHPanel type QHBoxLayout
+    add DeviceHPanel to Group
+
+    create OuterLayout type QVBoxLayout
+    add OuterLayout to DeviceHPanel
+
+    create Layout type QHBoxLayout
+    add Layout to OuterLayout
+    create Label text `Name:`
+    add Label to Layout
+    create DeviceNameInput size 40
+    add DeviceNameInput to Layout
+    create Label text `Uptime:`
+    add Label to Layout
+    create UptimeLabel text `0`
+    add UptimeLabel to Layout
+    add stretch to Layout
+
+    create Layout type QHBoxLayout
+    add Layout to OuterLayout
+    create Label text `LED Pin:`
+    add Label to Layout
+    create LEDPinInput size 5
+    add LEDPinInput to Layout
+    create LEDInvertCheckbox text `Inverted`
+    add LEDInvertCheckbox to Layout
+    add stretch to Layout
+
+    create Layout type QHBoxLayout
+    add Layout to OuterLayout
+    create Label text `Relay Pin:`
+    add Label to Layout
+    create RelayPinInput size 5
+    add RelayPinInput to Layout
+    create RelayInvertCheckbox text `Inverted`
+    add RelayInvertCheckbox to Layout
+    create RelayToggleButton size 5 text `Toggle`
+    on click RelayToggleButton go to RelayToggleClick
+    add RelayToggleButton to Layout
+    create RelayStateLabel size 5 text empty
+    add RelayStateLabel to Layout
+    add stretch to Layout
+
+    create Layout type QHBoxLayout
+    add Layout to OuterLayout
+    create Label text `DHT22 Pin:`
+    add Label to Layout
+    create DHT22PinInput size 5
+    add DHT22PinInput to Layout
+    add stretch to Layout
+
+    create Layout type QHBoxLayout
+    add Layout to OuterLayout
+    create Label text `Path:`
+    add Label to Layout
+    create PathInput size 60
+    set the width of PathInput to 250
+    add PathInput to Layout
+    add stretch to Layout
+
+    create Layout type QHBoxLayout
+    add Layout to OuterLayout
+    create Label text `Temperature:`
+    add Label to Layout
+    create TemperatureLabel text ``
+    add TemperatureLabel to Layout
+    add stretch to Layout
+
+    ! The 'Update' and 'Reset' ManageButtons
+    create DeviceButtonPanel type QVBoxLayout
+    add stretch to DeviceButtonPanel
+    create UpdateWidgetDataButton text `Update`
+    on click UpdateWidgetDataButton go to UpdateWidgetDataClick
+    add UpdateWidgetDataButton to DeviceButtonPanel
+    create ResetDeviceButton text `Reset`
+    on click ResetDeviceButton go to ResetDeviceButtonClick
+    add ResetDeviceButton to DeviceButtonPanel
+    create TemperatureButton text `Get temperature`
+    on click TemperatureButton go to TemperatureButtonClick
+    add TemperatureButton to DeviceButtonPanel
+    add stretch to DeviceButtonPanel
+    add DeviceButtonPanel to DeviceHPanel
+
+    add stretch to RightPanel
+
+    create StatusLabel text `` align right
+    add StatusLabel to RightPanel
+
+    create Window title `RBR-Now configurator` size 700 500
+    set the layout of Window to MainPanel
+    show Window
+
+    ! Verify multitasking
+    while true
+    begin
+        print `Tick`
+        wait 1 second
+        print `Tock`
+        wait 1 second
+    end
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Reset the entire system
+ResetConfigFileClick:
+    log `ResetConfigFileClick`
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Scan the local network for system controllers
+ScanSystemsClick:
+    log `ScanSystemsClick`
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Remove a system from the combo box
+RemoveSystemClick:
+    log `RemoveSystemClick`
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Clear all the data for the selected system
+ClearSystemClick:
+    log `ClearSystemClick`
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Reconnect the master after a network change
+ReconnectMasterClick:
+    log `ReconnectMasterClick`
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Scan the local network for new devices
+ScanForDevicesClick:
+    log `ScanForDevicesClick`
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Handle a click on the MasterDeviceButton
+MasterDeviceClick:
+    log `MasterDeviceClick`
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Show information about a slave device
+SlaveDeviceClick:
+    log `SlaveDeviceClick`
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Update a file
+UpdateFileClick:
+    log `UpdateFileClick`
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Update all files
+UpdateAllFilesClick:
+    log `UpdateAllFilesClick`
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Delete a file
+DeleteFileClick:
+    log `DeleteFileClick`
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Remove a slave device from the list
+RemoveSlaveClick:
+    log `RemoveSlaveClick`
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Update widget data
+UpdateWidgetDataClick:
+    log `UpdateWidgetDataClick`
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Reset a device
+ResetDeviceButtonClick:
+    log `ResetDeviceButtonClick`
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Get the temperature
+TemperatureButtonClick:
+    log `TemperatureButtonClick`
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Toggle a relay
+RelayToggleClick:
+    log `RelayToggleClick`
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Close the application and exit
+ExitClick:
+    log `Exit the configurator`
+    close Window
+    exit
+

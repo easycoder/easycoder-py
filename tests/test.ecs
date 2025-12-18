@@ -1,0 +1,16 @@
+!   test.ecs
+
+    script Test
+    
+!    debug step
+
+    variable T1
+
+    put `14` into T1
+    print T1
+    multiply T1 by 10
+    print T1
+
+    wait 5
+
+    exit
