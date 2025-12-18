@@ -69,18 +69,6 @@ class Value:
 				items.append(element) # pyright: ignore[reportOptionalMemberAccess]
 		return items
 
-	# Get something starting following 'the'
-	def getTheSomething(self):
-		self.nextToken()  # consume 'the'
-		if self.getToken() == 'cat':
-			self.nextToken()  # consume 'cat'
-			self.skip('of')
-			self.nextToken()
-			items = self.getCatItems()
-			value = ECValue(domain='core', type='cat', content=items)
-			return value
-		raise FatalError(self.compiler, 'Expected "the cat of ..."')
-
 	# Check if any domain has something to add to the value
 	def checkDomainAdditions(self, value):
 		for domain in self.compiler.program.getDomains():
