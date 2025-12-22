@@ -84,7 +84,7 @@ class Value:
 			self.skip('of')
 			self.nextToken()
 			items = self.getCatItems()
-			value = ECValue(domain='core', type='cat', content=items)
+			value = ECValue(type='cat', content=items)
 			return self.checkDomainAdditions(value)
 
 		# Otherwise, consume any leading articles before normal parsing
@@ -104,7 +104,7 @@ class Value:
 			self.nextToken()
 			items = self.getCatItems()
 			if items != None: items.insert(0, item)
-			value = ECValue(domain='core', type='cat', content=items)
+			value = ECValue(type='cat', content=items)
 		else:
 			value = item
 
