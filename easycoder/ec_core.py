@@ -2645,10 +2645,16 @@ class Core(Handler):
         return False
 
     def c_empty(self, condition):
+        if condition.value1.getType() == 'symbol':
+            record = self.getVariable(condition.value1.content)
+            variable = self.getObject(record)
+            if isinstance(variable, (ECList, ECDictionary)):
+                comparison = variable.isEmpty()
+                return not comparison if condition.negate else comparison
         value = self.textify(condition.value1)
         if value == None:
             comparison = True
-        elif type(value) == str or type(value) == list or type(value) == dict:
+        elif isinstance(value, str):
             comparison = len(value) == 0
         else:
             domainName = condition.value1.domain

@@ -210,10 +210,16 @@ class Program:
 	def checkObjectType(self, object, classes):
 		if isinstance(object, dict): return
 		if not isinstance(object, classes):
-			if self.running:
-				raise RuntimeError(self, f"Objects of type {type(object)} are not instances of {classes}")
+			if isinstance(classes, tuple):
+				class_names = ", ".join([c.__name__ for c in classes])
+				message = f"Variable {object.name} should be one of {class_names}"
 			else:
-				raise FatalError(self.compiler, f"Objects of type {type(object)} are not instances of {classes}")
+				class_names = classes.__name__
+				message = f"Variable {object.name} should be {class_names}"
+			if self.running:
+				raise RuntimeError(self, message)
+			else:
+				raise FatalError(self.compiler, message)
 
 	# Get the inner (non-EC) object from a name, record or object
 	def getInnerObject(self, object):

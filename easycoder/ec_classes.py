@@ -362,6 +362,10 @@ class ECDictionary(ECValueHolder):
         if content is None:
             return []
         return list(content.keys()) 
+    
+    # Check if the dictionary is empty
+    def isEmpty(self):
+        return len(self.keys()) == 0
 
 ###############################################################################
 # A list variable
@@ -385,12 +389,23 @@ class ECList(ECValueHolder):
         content = self.getContent()
         content.append(item) # type: ignore
     
+    # Return the number of items in the list
+    def getItemCount(self):
+        content = self.getContent()
+        if content is None:
+            return 0
+        return len(content)
+    
     # Get an item from the list
     def getItem(self, index):
         content = self.getContent()
         if content is None:
             return None
         return content[index]
+    
+    # Check if the list is empty
+    def isEmpty(self):
+        return self.getItemCount() == 0
 
 ###############################################################################
 # A file variable
