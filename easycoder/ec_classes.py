@@ -315,7 +315,8 @@ class ECDictionary(ECValueHolder):
             content = value.getContent()
             if varType == 'str':
                 try:
-                    content = json.loads(content)
+                    if content in ('', None): content = {}
+                    else: content = json.loads(content)
                 except:
                     raise RuntimeError(None, 'ECDictionary string value is not valid JSON') # type: ignore
         elif varType == None:

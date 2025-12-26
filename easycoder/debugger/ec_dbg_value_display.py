@@ -1,13 +1,6 @@
 """ValueDisplay widget for displaying variable values in the EasyCoder debugger"""
 
-from PySide6.QtWidgets import (
-    QWidget,
-    QFrame,
-    QVBoxLayout,
-    QLabel,
-    QScrollArea,
-)
-from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QLabel
 
 
 class ValueDisplay(QLabel):
@@ -15,9 +8,17 @@ class ValueDisplay(QLabel):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-    
-    def setValue(self, program, symbol_name):
+
+    @staticmethod
+    def render_text(program, symbol_name):
         record = program.getVariable(symbol_name)
         value = program.textify(record)
-        self.setText(str(value))
+        return None if value is None else str(value)
+
+    def setValue(self, program, symbol_name):
+        try:
+            rendered = self.render_text(program, symbol_name)
+        except Exception as exc:
+            rendered = f"<error: {exc}>"
+        self.setText(rendered if rendered is not None else "")
 

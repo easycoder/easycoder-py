@@ -856,7 +856,7 @@ class Debugger(QMainWindow):
         if should_halt:
             self.scrollTo(lino)
             self._clearHighlights()
-            self.setBackground(lino, 'LightYellow')
+            self.setBackground(lino, 'Yellow')
             # Refresh variable values when halted
             self.refreshVariables()
             # Save the current queue state to preserve forked threads

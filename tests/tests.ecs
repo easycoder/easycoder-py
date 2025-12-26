@@ -5,7 +5,8 @@
 	use psutil
 
 	dictionary D
-	list L
+	dictionary D2
+	list List
 	variable Data
 	variable E
 	variable M
@@ -64,8 +65,15 @@
 	
 	put json `{}` into D
 	set entry `one` of D to 10
+	set entry `two` of D to 20
+	set entry `three` of D to 30
 	put ` ` cat entry `one` of D into X
 	assert X is 10
+
+	put D into D2
+	reset D
+	log D
+	log D2
 
 	set X 6
 	set Y to 20
@@ -105,19 +113,20 @@
 	assert right 3 of X is `dog`
 	assert from 31 of X is `the lazy dog`
 
-	reset L
-	put 1 into N
+	reset List
+	put 0 into N
 	while N is less than 6
 	begin
-		append N to L
+		append N to List
 		increment N
 	end
-	log L
-	assert element 2 of L is 3
+	log List
+	assert the count of List is 6
+	assert element 2 of List is 2
 
-	set element 2 of L to `Some data`
-	assert element 2 of L is `Some data`
-	assert element 2 of L is string
+	set element 2 of List to `Some data`
+	assert element 2 of List is `Some data`
+	assert element 2 of List is string
 	assert N is numeric
 
 	set Y

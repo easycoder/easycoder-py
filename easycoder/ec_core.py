@@ -238,7 +238,7 @@ class Core(Handler):
             self.compiler.debugCompile = True
             self.nextToken()
             return True
-        elif token in ['step', 'stop', 'breakpoint', 'program', 'custom']:
+        elif token in ['step', 'stop', 'skip', 'breakpoint', 'program', 'custom']:
             command['mode'] = token
             self.nextToken()
         elif token == 'stack':
@@ -264,6 +264,8 @@ class Core(Handler):
             self.program.debugStep = True
         elif command['mode'] == 'stop':
             self.program.debugStep = False
+        elif command['mode'] == 'skip':
+            self.program.debugSkip = True
         elif command['mode'] == 'breakpoint':
             self.program.breakpoint = True
         elif command['mode'] == 'program':
@@ -511,7 +513,7 @@ class Core(Handler):
         retval = ECValue(type='str')
         url = self.textify(command['url'])
         target = self.getVariable(command['target'])
-        response = json.loads('{}')
+        response = {}
         try:
             timeout = self.textify(command['timeout'])
             response = requests.get(url, auth = ('user', 'pass'), timeout=timeout)
@@ -1201,6 +1203,7 @@ class Core(Handler):
         return True
 
     def r_return(self, command):
+        self.program.debugSkip = False
         return self.stack.pop()
 
     # Compile and run a script
@@ -2376,7 +2379,7 @@ class Core(Handler):
 
     def v_prettify(self, v):
         item = self.textify(v.getContent())
-        item = json.loads(item)
+        if isinstance(item, str): item = json.loads(item)
         return ECValue(type='str', content=json.dumps(item, indent=4))
 
     def v_property(self, v):

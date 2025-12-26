@@ -51,6 +51,7 @@ class Program:
 		self.symbols = {}
 		self.onError = 0
 		self.debugStep = False
+		self.debugSkip = False
 		self.stack = []
 		self.script = Script(source)
 		self.compiler = Compiler(self)
@@ -463,7 +464,7 @@ class Program:
 				self.pc += 1
 			else:
 				keyword = command['keyword']
-				if self.debugStep and 'debug' in command:
+				if self.debugStep and not self.debugSkip and 'debug' in command:
 					lino = command['lino'] + 1
 					line = self.script.lines[command['lino']].strip()
 					print(f'{self.name}: Line {lino}: {domainName}:{keyword}:  {line}')

@@ -66,7 +66,7 @@ As with spoken or written English, such constructs can be ambiguous, depending i
 
 The compiler will deal with `cat` before `the size of`, which may not be what was intended. Since parentheses are not currently available in the language, complex expressions are best broken up into component parts and evaluated one by one.
 
-## Variables, dictionaries, lists, arrays and properties
+## Dictionaries, lists and arrays
 
 ***EasyCoder*** has several ways to handle values that have more than one element. There are 3 basic variable types:
 
@@ -82,8 +82,6 @@ This is a wrapper for a Python `dict`, which holds a set of key-value pairs. As 
 
 This is a wrapper for a Python `list`, which holds an array of items, any of which can be simple vaiable types, dictionaries or other lists.
 
-### array
-
 As well as all this, every ***EasyCoder*** variable can have multiple elements. Every variable has an internal `index` value that identifies which of its elements is current. All operations using the variable take place on that selected element, avoiding the need to identify it each time. This is a little like the way SQL handles cursors.
 
 A typical use for this might be where you have a set of employees, each with name, age, address, payroll number and so on held as a dictionary. To hold the comple set of employees you might put them into a list, or use a dictionary to hold each one with their name or payroll number being the key. Alternatively you can use
@@ -91,7 +89,9 @@ A typical use for this might be where you have a set of employees, each with nam
 ```
 set the elements of Employees to 50
 ```
+
 and use an index variable to access them in turn:
+
 ```
 set N to 0
 while N is less than 50
@@ -103,18 +103,7 @@ begin
    increment N
 end
 ```
-This feature can be used with any kind of variable, including graphic objects and special entities defined in language plugins. Such items cannot usually be included in lists or dictionaries other than by serializing them.
-
-### properties ###
-
-Each variable has a built-in dictionary to hold arbitrary properties of any kind. So for example, if we have a custom `room` variable type to hold information about a room, the type will come with a set of attributes and behaviours, but these may not include holding the current temperature. We can add this dynamically using something like
-```
-set property `temperature` of Kitchen to Temperature
-```
-where `Kitchen` is a variable of type `room` and `Temperature` is an ordinary numeric value or a string. Then later we can say
-```
-print property `temperature` of Kitchen
-```
+This feature can be used with any kind of variable, including graphic objects and special entities defined in language plugins. Such items can not be included in dictionaries or lists if they cannot be serialized, but this feature allows them to be handled as arrays, where each element is a discrete entity selected via its index value.
 
 ## Synonyms and syntactic noise
 
@@ -170,6 +159,6 @@ All this may sound most inefficient, but in fact it's remarkably quick, allowing
 
 'Packages' are components of the ***EasyCoder*** system that deal with specific groups of language features. Those included or available from the repository are
 
-[core](core/README.md) contains all the language features needed to construct command-line applications to run on any computer equipped with Python.
+[core](/tmp/.mount_JoplinoKd8hh/resources/app.asar/core/README.md "core/README.md") contains all the language features needed to construct command-line applications to run on any computer equipped with Python.
 
-[graphics](graphics/README.md) contains a growing selection of graphical language features, to construct applications that will run on a computer with a graphical user interface; Windows, Mac or Linux.
+[graphics](/tmp/.mount_JoplinoKd8hh/resources/app.asar/graphics/README.md "graphics/README.md") contains a growing selection of graphical language features, to construct applications that will run on a computer with a graphical user interface; Windows, Mac or Linux.
