@@ -333,7 +333,12 @@ class ECDictionary(ECValueHolder):
         content = self.getValue()
         if content is None:
             return
-        content[key] = str(value) # type: ignore
+        if isinstance(value, str):
+             try:
+                 value = json.loads(value)
+             except Exception:
+                 pass
+        content[key] = value # type: ignore
     
     # Test if an entry exists in the dictionary
     def hasEntry(self, key):
@@ -388,6 +393,13 @@ class ECList(ECValueHolder):
     # Add an item to the list
     def addItem(self, item):
         content = self.getContent()
+        if content is None:
+            return
+        if isinstance(item, str):
+             try:
+                 item = json.loads(item)
+             except Exception:
+                  pass
         content.append(item) # type: ignore
     
     # Return the number of items in the list

@@ -469,9 +469,10 @@ class Debugger(QMainWindow):
         left.setFrameShape(QFrame.Shape.StyledPanel)
         left_layout = QVBoxLayout(left)
         left_layout.setContentsMargins(8, 8, 8, 8)
+        left_layout.setSpacing(0)
         self.leftColumn = self.MainLeftColumn(self)
-        left_layout.addWidget(self.leftColumn)
-        left_layout.addStretch()
+        self.leftColumn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        left_layout.addWidget(self.leftColumn, 1)
 
         # Right pane
         right = QFrame()

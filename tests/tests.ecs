@@ -104,6 +104,8 @@
 	put Y modulo 10 into Z
 	assert Z is 5
 
+	assert Z is not -1
+
 	reset D
 	set entry `name` of D to `Fred`
 	assert entry `name` of D is `Fred`

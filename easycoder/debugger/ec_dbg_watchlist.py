@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QPlainTextEdit,
     QFrame,
+    QSplitter,
 )
 from PySide6.QtCore import Qt
 from easycoder.ec_classes import ECVariable, ECDictionary, ECList, ECValue
@@ -35,7 +36,12 @@ class WatchListWidget(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(6)
 
+        self.splitter = QSplitter(Qt.Orientation.Vertical, self)
+        self.splitter.setHandleWidth(6)
+        self.splitter.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
         list_container = QWidget(self)
+        list_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         # Outer layout: scrollable labels (left) and fixed button column (right)
         outer = QHBoxLayout(list_container)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -64,16 +70,24 @@ class WatchListWidget(QWidget):
         self.buttons_column.addStretch(1)
         outer.addLayout(self.buttons_column)
 
-        main_layout.addWidget(list_container, 1)
+        self.splitter.addWidget(list_container)
 
-        self._build_expanded_panel(main_layout)
+        self._build_expanded_panel()
+
+        main_layout.addWidget(self.splitter, 1)
+        # Give the list more space by default
+        try:
+            self.splitter.setStretchFactor(0, 3)
+            self.splitter.setStretchFactor(1, 2)
+        except Exception:
+            pass
 
         self._show_placeholder()
 
-    def _build_expanded_panel(self, parent_layout):
+    def _build_expanded_panel(self):
         self.expanded_frame = QFrame(self)
         self.expanded_frame.setFrameShape(QFrame.Shape.StyledPanel)
-        self.expanded_frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.expanded_frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         expanded_layout = QVBoxLayout(self.expanded_frame)
         expanded_layout.setContentsMargins(6, 6, 6, 6)
@@ -87,10 +101,9 @@ class WatchListWidget(QWidget):
         self.expanded_body.setReadOnly(True)
         self.expanded_body.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
         self.expanded_body.setStyleSheet("font-family: monospace; background-color: #fafafa;")
-        self.expanded_body.setMinimumHeight(120)
         expanded_layout.addWidget(self.expanded_body)
 
-        parent_layout.addWidget(self.expanded_frame, 0)
+        self.splitter.addWidget(self.expanded_frame)
         self._clear_expanded_panel()
 
     def _show_placeholder(self):

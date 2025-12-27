@@ -6,14 +6,8 @@
     debug step
 
     variable V
-    dictionary D
-    list L
 
-    put `Hello` into V
-    put `{}` into V
-    put json `{"name": "fred"}` into D
-    put json `[1, 2, 3]` into L
-    log property `name` of D
-    log element 1 of L
+    put 5 into V
+    if V is not -1 print `OK`
 
     exit

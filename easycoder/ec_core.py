@@ -313,6 +313,7 @@ class Core(Handler):
             self.skip('of')
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
+                command['variable'] = record['name']
                 if token == 'entry':
                     self.checkObjectType(self.getObject(record), ECDictionary)
                 self.add(command)
@@ -330,9 +331,10 @@ class Core(Handler):
                 if os.path.isfile(filename): os.remove(filename)
         elif type == 'entry':
             key = self.textify(command['key'])
-            record = self.getVariable(command['var'])
+            record = self.getVariable(command['variable'])
             self.getObject(record).deleteEntry(key)
         elif type == 'property':
+            raise NotImplementedError('Core.delete property not implemented yet')
             key = self.textify(command['key'])
             record = self.getVariable(command['var'])
             value = self.getSymbolValue(record)
@@ -342,7 +344,7 @@ class Core(Handler):
             self.putSymbolValue(record, value)
         elif type == 'element':
             key = self.textify(command['key'])
-            record = self.getVariable(command['var'])
+            record = self.getVariable(command['variable'])
             value = self.getSymbolValue(record)
             content = value.getContent()
             if isinstance(key, int):
@@ -2020,6 +2022,7 @@ class Core(Handler):
                     if self.peek() == 'in':
                         value.value = None # type: ignore
                         value.setType('indexOf')
+                        self.nextToken()
                         if self.nextIsSymbol():
                             value.target = self.getSymbolRecord()['name'] # type: ignore
                             return value
@@ -2307,13 +2310,17 @@ class Core(Handler):
     def v_indexOf(self, v):
         value = v.value
         if value == None:
-            value = self.getSymbolValue(v.variable).getContent()
+            var = self.getObject(self.getVariable(v.variable))
+            value = var.getContent()
         else:
             value = self.textify(value)
-        target = self.getVariable(v.target)
-        data = self.getSymbolValue(target).getContent()
-        try: index = data.index(value)
-        except: index = -1
+        target = self.getObject(self.getVariable(v.target))
+        if hasattr(target, 'getIndexOf'):
+            index = target.getIndexOf(value)
+        else:
+            data = target.getContent()
+            try: index = data.index(value)
+            except: index = -1
         return ECValue(type='int', content=index)
 
     def v_integer(self, v):
