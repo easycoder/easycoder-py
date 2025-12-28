@@ -43,6 +43,14 @@ class Debugger(QMainWindow):
             if not text:
                 return
             
+            # Echo all output to original stdout with proper line breaks
+            try:
+                if self.debugger._orig_stdout:
+                    self.debugger._orig_stdout.write(text)
+                    self.debugger._orig_stdout.flush()
+            except Exception:
+                pass
+            
             # Check if this looks like an error message - if so, also write to original stderr
             if any(err_marker in text for err_marker in ['Error', 'Traceback', 'Exception']):
                 try:

@@ -532,7 +532,7 @@ class Core(Handler):
                 return command['or']
             else:
                 RuntimeError(self.program, f'Error: {errorReason}')
-        retval.setContent(response.text)
+        retval.setContent(response.text) # type: ignore
         self.program.putSymbolValue(target, retval)
         return self.nextPC()
 
