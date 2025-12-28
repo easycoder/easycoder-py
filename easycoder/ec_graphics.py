@@ -1367,15 +1367,16 @@ class Graphics(Handler):
             keyword = record['keyword']
             setText = getattr(widget, "setText", None)
             if callable(setText):
-                widget.setText(text)  # type: ignore
+                widget.setText(str(text))  # type: ignore
             elif self.isObjectType(record, ECMultiline):
-                widget.setPlainText(text)  # type: ignore
+                widget.setPlainText(str(text))  # type: ignore
             if self.isObjectType(record, ECPushButton):
-                widget.setAccessibleName(text)  # type: ignore
+                widget.setAccessibleName(str(text))  # type: ignore
         elif what == 'state':
             record = self.getVariable(command['name'])
             if self.isObjectType(record, ECCheckBox):
                 state = self.textify(command['value'])
+                state = False if state == None else True
                 self.getInnerObject(record).setChecked(state)  # type: ignore
         elif what == 'alignment':
             widget = self.getVariable(command['name'])['widget']
