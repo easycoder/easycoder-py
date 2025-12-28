@@ -32,7 +32,6 @@
     while Index is less than NPrimes
     begin
         multiply Candidate by 10 giving C10
-
         put 0 into N
         while N is less than Index
         begin

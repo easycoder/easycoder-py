@@ -1,6 +1,6 @@
-# How it works #
+# How it works
 
-**_EasyCoder_** is a combined compiler and runtime for a high-level English-like script. Compilation is very quick - typically of the order of 10 lines per millisecond - so there is no need to run the compiler as a separate pass.
+***EasyCoder*** is a combined compiler and runtime for a high-level English-like script. Compilation is very quick - typically of the order of 10 lines per millisecond - so there is no need to run the compiler as a separate pass.
 
 ## The tokeniser
 
@@ -66,9 +66,48 @@ As with spoken or written English, such constructs can be ambiguous, depending i
 
 The compiler will deal with `cat` before `the size of`, which may not be what was intended. Since parentheses are not currently available in the language, complex expressions are best broken up into component parts and evaluated one by one.
 
+## Dictionaries, lists and arrays
+
+***EasyCoder*** has several ways to handle values that have more than one element. There are 3 basic variable types:
+
+### variable
+
+This can contain any simple item such as a string, a numeric value or a boolean.
+
+### dictionary
+
+This is a wrapper for a Python `dict`, which holds a set of key-value pairs. As its name suggests, items can be searched for by their keys. You can also get a list of all the keys in a dictionary, so they can be iterated. Dictionaries can hold any form of data, including other dictionaries or lists, so they can at times represent very complex data structures.
+
+### list
+
+This is a wrapper for a Python `list`, which holds an array of items, any of which can be simple vaiable types, dictionaries or other lists.
+
+As well as all this, every ***EasyCoder*** variable can have multiple elements. Every variable has an internal `index` value that identifies which of its elements is current. All operations using the variable take place on that selected element, avoiding the need to identify it each time. This is a little like the way SQL handles cursors.
+
+A typical use for this might be where you have a set of employees, each with name, age, address, payroll number and so on held as a dictionary. To hold the comple set of employees you might put them into a list, or use a dictionary to hold each one with their name or payroll number being the key. Alternatively you can use
+
+```
+set the elements of Employees to 50
+```
+
+and use an index variable to access them in turn:
+
+```
+set N to 0
+while N is less than 50
+begin
+   index Employees to N
+   ! Do something with this employee record
+   print entry `name` of Employees
+   ...
+   increment N
+end
+```
+This feature can be used with any kind of variable, including graphic objects and special entities defined in language plugins. Such items can not be included in dictionaries or lists if they cannot be serialized, but this feature allows them to be handled as arrays, where each element is a discrete entity selected via its index value.
+
 ## Synonyms and syntactic noise
 
-At the current stage of development there is usually just one way to process a given command. English is replete with alternatives that all mean the same thing and additional words that carry no actual meaning but make a sentence easier to read, and there is no reason why many of these cannot be implemented in **_EasyCoder_** as a means to make scripts more readable. An example might be
+At the current stage of development there is usually just one way to express a given function. English is replete with alternatives that all mean the same thing and additional words that carry no actual meaning but make a sentence easier to read, and there is no reason why many of these cannot be implemented in ***EasyCoder*** as a means to make scripts more readable. An example might be
 
 ```
 create Label text `Summary` in Panel
@@ -82,7 +121,7 @@ create Label with text `Summary` and add to Panel
 
 where `with`, `in` and `and add to` are "syntactic noise" that has no effect on the code produced by the compiler but may make reading a script simpler. Careful use of such as this makes scripts look more like English without adding any noticeable performance handicap.
 
-English is highly object-oriented. A horse is not the same as a car; each has its own particular attributes and behaviours, but they may share use of the same words. A slightly humourous example is to compare instructions given to junior and senior citizens:
+English is highly object-oriented. A horse is not the same as a car; each has its own particular attributes and behaviours, but they may share use of the same words. A slightly humorous example is to compare instructions given to junior and senior citizens:
 
 ```
 brush your teeth and put out the cat
@@ -90,7 +129,7 @@ brush your teeth and put out the cat
 brush the cat and put out your teeth
 ```
 
-Commands that do something with one particular object may do something completely different when applied to another object, or they may make no sense at all. **_EasyCoder_** behaves the same way and many words appear in different contexts. The language is organised into packages where the same command keyword may appear in more than one, to avoid the need for one function to handle all possible cases.
+Commands that do something with one particular object may do something completely different when applied to another object, or they may make no sense at all. ***EasyCoder*** behaves the same way and many words appear in different contexts. The language is organised into packages where the same command keyword may appear in more than one, to avoid the need for one function to handle all possible cases.
 
 ## Compiler strategy
 
@@ -116,10 +155,10 @@ If at any time we find something that doesn't make sense, the strategy is to bac
 
 All this may sound most inefficient, but in fact it's remarkably quick, allowing compilation to proceed at speeds of 10 lines or more per millisecond. This removes any real need to precompile and save the intermediate code, as a user will never notice the delay in compiling a module before it runs. It also avoids the need to deal with version updates that might break previously compiled code. As an added bonus, the output code is a Python dictionary where all the elements can be text, therefore serializable and portable, just in case that's ever a requirement.
 
-## _EasyCoder_ packages ##
+## *EasyCoder* packages
 
-'Packages' are components of the **_EasyCoder_** system that deal with specific groups of language features. Those included or available from the repository are
+'Packages' are components of the ***EasyCoder*** system that deal with specific groups of language features. Those included or available from the repository are
 
-[core](core/README.md) contains all the language features needed to construct command-line applications to run on any computer equipped with Python.
+[core](/tmp/.mount_JoplinoKd8hh/resources/app.asar/core/README.md "core/README.md") contains all the language features needed to construct command-line applications to run on any computer equipped with Python.
 
-[graphics](graphics/README.md) contains a growing selection of graphical language features, to construct applications that will run on a computer with a graphical user interface; Windows, Mac or Linux.
+[graphics](/tmp/.mount_JoplinoKd8hh/resources/app.asar/graphics/README.md "graphics/README.md") contains a growing selection of graphical language features, to construct applications that will run on a computer with a graphical user interface; Windows, Mac or Linux.

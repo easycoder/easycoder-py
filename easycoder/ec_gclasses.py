@@ -146,21 +146,26 @@ class ECListBox(ECCoreWidget):
     def isClearable(self):
          return True
     
+    # Get the selected item in the list box
+    def getContent(self):
+        widget = self.getValue() # type: ignore
+        content = widget.selectedItems()[0].text() if widget.selectedItems() else None # type: ignore
+        return content
+    
+    # Get the text of the widget
+    def getText(self):
+        return self.getContent() # type: ignore
+    
     # Get the count of items in the list box
     def getCount(self):
         v = self.getContent().count() # type: ignore
         return v
     
-    # Get the selected item in the list box
-    def getContent(self):
-        widget = self.getValue().getContent() # type: ignore
-        content = widget.selectedItems()[0].text() if widget.selectedItems() else None
-        return content
-    
-    # Get the text of the widget
-    def getText(self):
-        return self.getValue().getContent().text() # type: ignore
-
+    # Get the index of the selected item
+    def getIndex(self):
+        widget = self.getValue() # type: ignore
+        index = widget.currentRow() # type: ignore
+        return index
 
 ###############################################################################
 # A combo box variable

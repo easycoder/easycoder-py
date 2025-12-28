@@ -43,6 +43,14 @@ class Debugger(QMainWindow):
             if not text:
                 return
             
+            # Echo all output to original stdout with proper line breaks
+            try:
+                if self.debugger._orig_stdout:
+                    self.debugger._orig_stdout.write(text)
+                    self.debugger._orig_stdout.flush()
+            except Exception:
+                pass
+            
             # Check if this looks like an error message - if so, also write to original stderr
             if any(err_marker in text for err_marker in ['Error', 'Traceback', 'Exception']):
                 try:
@@ -420,6 +428,7 @@ class Debugger(QMainWindow):
         self.skip_next_breakpoint = False  # Flag to skip breakpoint check on resume
         self.saved_queue = []  # Save queue state when stopped to preserve forked threads
         self._highlighted: set[int] = set()
+        self.step_from_line: int | None = None  # Track source line when stepping
 
         # try to load saved geometry from ~/.ecdebug.conf
         cfg_path = os.path.join(os.path.expanduser("~"), ".ecdebug.conf")
@@ -469,9 +478,10 @@ class Debugger(QMainWindow):
         left.setFrameShape(QFrame.Shape.StyledPanel)
         left_layout = QVBoxLayout(left)
         left_layout.setContentsMargins(8, 8, 8, 8)
+        left_layout.setSpacing(0)
         self.leftColumn = self.MainLeftColumn(self)
-        left_layout.addWidget(self.leftColumn)
-        left_layout.addStretch()
+        self.leftColumn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        left_layout.addWidget(self.leftColumn, 1)
 
         # Right pane
         right = QFrame()
@@ -842,10 +852,17 @@ class Debugger(QMainWindow):
         if is_first_command:
             should_halt = True
             self.stopped = True
+            self.step_from_line = None
             print(f"Program ready at line {lino + 1}")
         # If we're in stopped (step) mode, halt after each command
         elif self.stopped:
-            should_halt = True
+            # If stepping, only halt when we reach a different source line
+            if self.step_from_line is not None:
+                if lino != self.step_from_line:
+                    should_halt = True
+                    self.step_from_line = None
+            else:
+                should_halt = True
         # If there's a breakpoint on this line, halt
         elif bp:
             print(f"Hit breakpoint at line {lino + 1}")
@@ -856,7 +873,7 @@ class Debugger(QMainWindow):
         if should_halt:
             self.scrollTo(lino)
             self._clearHighlights()
-            self.setBackground(lino, 'LightYellow')
+            self.setBackground(lino, 'Yellow')
             # Refresh variable values when halted
             self.refreshVariables()
             # Save the current queue state to preserve forked threads
@@ -905,6 +922,7 @@ class Debugger(QMainWindow):
         
         # Switch to free-running mode
         self.stopped = False
+        self.step_from_line = None
         
         # Skip the breakpoint check for the current instruction (the one we're resuming from)
         self.skip_next_breakpoint = True
@@ -927,6 +945,8 @@ class Debugger(QMainWindow):
         
         # Stay in stopped mode (will halt after next instruction)
         self.stopped = True
+        # Remember the line we're stepping from - don't halt until we reach a different line
+        self.step_from_line = lino
         
         # Skip the breakpoint check for the current instruction (the one we're stepping from)
         self.skip_next_breakpoint = True

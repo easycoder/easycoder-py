@@ -1,4 +1,4 @@
-import sys, paramiko
+import sys, paramiko, json
 from typing import Optional, Any
 
 class FatalError(BaseException):
@@ -64,7 +64,7 @@ class Token:
 ###############################################################################
 # A multipurpose value object. Holds a single value, with domain and type information
 class ECValue():
-    def __init__(self, domain: Optional[str] = None, type: Optional[str] = None, 
+    def __init__(self, domain: Optional[str] = 'core', type: Optional[str] = None, 
                  content: Any = None, name: Optional[str] = None):
         object.__setattr__(self, 'domain', domain)
         object.__setattr__(self, 'type', type)
@@ -137,6 +137,7 @@ class ECObject():
         self.index: Optional[int] = None
         self.values: Optional[list] = None
         self.name: Optional[str] = None
+        self.properties = {}
 
     # Set the index for the variable
     def setIndex(self, index: int) -> None:
@@ -229,16 +230,23 @@ class ECObject():
     def getName(self):
         return self.name
     
-    # Check if the object can have properties
-    def hasProperties(self):
-        return False
+    # Set a specific property on the object
+    def setProperty(self, name, value):
+        self.properties[name] = value
+    
+    # Check if the object has a specific property
+    def hasProperty(self, name):
+        return name in self.properties
+    
+    # Get a specific property
+    def getProperty(self, name):
+        return self.properties[name]
 
 ###############################################################################
 # A generic variable object that can hold a mutable value
-class ECVariable(ECObject):
+class ECValueHolder(ECObject):
     def __init__(self):
         super().__init__()
-        self.properties = {}
 
     # Set the content of the value at the current index
     def setContent(self, content):
@@ -271,23 +279,146 @@ class ECVariable(ECObject):
 
     # Reset the object to empty state
     def reset(self):
-        self.setValue(ECValue())
+        self.setValue(ECValue(content=None))
+
+###############################################################################
+# A string or int variable
+class ECVariable(ECValueHolder):
+    def __init__(self):
+        super().__init__()
+
+    # Reset the object to an empty string
+    def reset(self):
+        self.setValue(ECValue(type='str', content=''))
+
+    # Set the value to a given ECValue
+    def setValue(self, value):
+        if value.getType() not in ('str', 'int', 'float', 'boolean'):
+            raise RuntimeError(None, 'ECVariable can only hold str, int, float, or bool values') # type: ignore
+        super().setValue(value)
+
+###############################################################################
+# A dictionary variable
+class ECDictionary(ECValueHolder):
+    def __init__(self):
+        super().__init__()
+        self.reset()
+
+    # Reset the object to empty state
+    def reset(self):
+        self.setValue(ECValue(content={}))
+
+    # Set the value to an ECValue
+    def setValue(self, value):
+        varType = value.getType()
+        if varType in ('str', 'dict'):
+            content = value.getContent()
+            if varType == 'str':
+                try:
+                    if content in ('', None): content = {}
+                    else: content = json.loads(content)
+                except:
+                    raise RuntimeError(None, 'ECDictionary string value is not valid JSON') # type: ignore
+        elif varType == None:
+             content = {}
+        else:
+            raise RuntimeError(None, 'ECDictionary can only hold dict values or None') # type: ignore
+        super().setValue(content)
     
-    # Check if the object can have properties
-    def hasProperties(self):
-        return True
+    def getValue(self):
+        return super().getValue()
     
-    # Set a specific property on the object
-    def setProperty(self, name, value):
-        self.properties[name] = value
+    # Set an entry in the dictionary
+    def setEntry(self, key, value):
+        content = self.getValue()
+        if content is None:
+            return
+        if isinstance(value, str):
+             try:
+                 value = json.loads(value)
+             except Exception:
+                 pass
+        content[key] = value # type: ignore
     
-    # Check if the object has a specific property
-    def hasProperty(self, name):
-        return name in self.properties
+    # Test if an entry exists in the dictionary
+    def hasEntry(self, key):
+        content = self.getValue()
+        if content is None:
+            return False
+        return key in content
     
-    # Get a specific property
-    def getProperty(self, name):
-        return self.properties[name]
+    # Get an entry from the dictionary
+    def getEntry(self, key):
+        content = self.getValue()
+        if content is None:
+            return None
+        return content.get(key, None)
+
+    # Delete an entry from the dictionary
+    def deleteEntry(self, key):
+        content = self.getValue()
+        if content is None:
+            return
+        if key in content:
+            del content[key]
+    
+    # Get the keys of the dictionary
+    def keys(self):
+        content = self.getValue()
+        if content is None:
+            return []
+        return list(content.keys()) 
+    
+    # Check if the dictionary is empty
+    def isEmpty(self):
+        return len(self.keys()) == 0
+
+###############################################################################
+# A list variable
+class ECList(ECValueHolder):
+    def __init__(self):
+        super().__init__()
+        self.reset()
+
+    # Reset the object to empty state
+    def reset(self):
+        self.setValue(ECValue(content=[]))
+
+    # Set the value to a given ECValue
+    def setValue(self, value):
+        if value.getType() not in ('list', None):
+            raise RuntimeError(None, 'ECList can only hold list values or None') # type: ignore
+        super().setValue(value)
+    
+    # Add an item to the list
+    def addItem(self, item):
+        content = self.getContent()
+        if content is None:
+            return
+        if isinstance(item, str):
+             try:
+                 item = json.loads(item)
+             except Exception:
+                  pass
+        content.append(item) # type: ignore
+    
+    # Return the number of items in the list
+    def getItemCount(self):
+        content = self.getContent()
+        if content is None:
+            return 0
+        return len(content)
+    
+    # Get an item from the list
+    def getItem(self, index):
+        content = self.getContent()
+        if content is None:
+            return None
+        return content[index]
+    
+    # Check if the list is empty
+    def isEmpty(self):
+        return self.getItemCount() == 0
 
 ###############################################################################
 # A file variable

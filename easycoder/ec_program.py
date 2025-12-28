@@ -1,4 +1,4 @@
-import time, sys
+import time, sys, json
 from copy import deepcopy
 from collections import deque
 from .ec_classes import (
@@ -51,6 +51,7 @@ class Program:
 		self.symbols = {}
 		self.onError = 0
 		self.debugStep = False
+		self.debugSkip = False
 		self.stack = []
 		self.script = Script(source)
 		self.compiler = Compiler(self)
@@ -163,6 +164,16 @@ class Program:
 				object.setIndex(i) # type: ignore
 				self.run(goto)
 				return
+	
+	# Ensure the program is running
+	def ensureRunning(self):
+		if not self.running:
+			raise RuntimeError(self, 'Improper use of runtime function')
+	
+	# Ensure the program is not running
+	def ensureNotRunning(self):
+		if self.running:
+			raise RuntimeError(self, 'Improper use of non-runtime function')
 
 	# Get the domain list
 	def getDomains(self):
@@ -173,6 +184,7 @@ class Program:
 
 	# Get the symbol record for a given name
 	def getVariable(self, name):
+		self.ensureRunning()
 		if isinstance(name, dict): name = name['name']
 		try:
 			target = self.code[self.symbols[name]]
@@ -199,10 +211,16 @@ class Program:
 	def checkObjectType(self, object, classes):
 		if isinstance(object, dict): return
 		if not isinstance(object, classes):
-			if self.running:
-				raise RuntimeError(self, f"Objects of type {type(object)} are not instances of {classes}")
+			if isinstance(classes, tuple):
+				class_names = ", ".join([c.__name__ for c in classes])
+				message = f"Variable {object.name} should be one of {class_names}"
 			else:
-				raise FatalError(self.compiler, f"Objects of type {type(object)} are not instances of {classes}")
+				class_names = classes.__name__
+				message = f"Variable {object.name} should be {class_names}"
+			if self.running:
+				raise RuntimeError(self, message)
+			else:
+				raise FatalError(self.compiler, message)
 
 	# Get the inner (non-EC) object from a name, record or object
 	def getInnerObject(self, object):
@@ -247,6 +265,7 @@ class Program:
 	# Runtime function to evaluate an ECObject or ECValue. Returns another ECValue
 	# This function may be called recursively by value handlers.
 	def evaluate(self, item):
+		self.ensureRunning()
 		if isinstance(item, ECObject):
 			value = item.getValue()
 			if value == None:
@@ -258,7 +277,7 @@ class Program:
 			RuntimeError(self, 'Value does not hold a valid ECValue')
 		result = ECValue(type=valType)
 	
-		if valType in ('str', 'int', 'boolean', 'list', 'dict'):
+		if valType in ('str', 'int', 'boolean', 'list', 'dict', None):
 			# Simple value - just return the content
 			result.setContent(value.getContent()) # type: ignore
 		
@@ -276,13 +295,14 @@ class Program:
 			result = variable.getValue() # type: ignore
 			if isinstance(result, ECValue): return self.evaluate(result)
 			if isinstance(result, ECObject): return result.getValue()
-			else:
-				# See if one of the domains can handle this value
-				value = result
-				result = None
-				for domain in self.domains:
-					result = domain.getUnknownValue(value)
-					if result != None: break
+			if isinstance(result, dict) or isinstance(result, list):
+				return result
+			# See if one of the domains can handle this value
+			value = result
+			result = None
+			for domain in self.domains:
+				result = domain.getUnknownValue(value)
+				if result != None: break
 				
 		elif valType == 'cat':
 			# Handle concatenation
@@ -307,6 +327,7 @@ class Program:
 
 	# Get the runtime value of a value object (as a string or integer)
 	def textify(self, value):
+		self.ensureRunning()
 		if value is None:
 			return None
 		
@@ -323,6 +344,8 @@ class Program:
 			if v.getType() == 'object':
 				return value.getContent() # type: ignore
 			return v.getContent() 
+		if isinstance(v, (dict, list)): 
+			return json.dumps(v)
 		return v
 
 	# Get the content of a symbol
@@ -334,6 +357,7 @@ class Program:
 
 	# Get the value of a symbol as an ECValue
 	def getSymbolValue(self, record):
+		self.ensureRunning()
 		object = self.getObject(record)
 		self.checkObjectType(object, ECObject)
 		value = object.getValue() # type: ignore
@@ -440,7 +464,7 @@ class Program:
 				self.pc += 1
 			else:
 				keyword = command['keyword']
-				if self.debugStep and 'debug' in command:
+				if self.debugStep and not self.debugSkip and 'debug' in command:
 					lino = command['lino'] + 1
 					line = self.script.lines[command['lino']].strip()
 					print(f'{self.name}: Line {lino}: {domainName}:{keyword}:  {line}')
@@ -449,9 +473,9 @@ class Program:
 				if handler:
 					command = self.code[self.pc]
 					command['program'] = self
-					if self.breakpoint:
-						pass	# Place a breakpoint here for a debugger to catch
 					try:
+						if self.breakpoint:
+							pass	# Place a breakpoint here for a debugger to catch
 						self.pc = handler(command)
 					except Exception as e:
 						raise RuntimeError(self, f'Error during execution of {domainName}:{keyword}: {str(e)}')

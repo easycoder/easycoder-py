@@ -1367,15 +1367,16 @@ class Graphics(Handler):
             keyword = record['keyword']
             setText = getattr(widget, "setText", None)
             if callable(setText):
-                widget.setText(text)  # type: ignore
+                widget.setText(str(text))  # type: ignore
             elif self.isObjectType(record, ECMultiline):
-                widget.setPlainText(text)  # type: ignore
+                widget.setPlainText(str(text))  # type: ignore
             if self.isObjectType(record, ECPushButton):
-                widget.setAccessibleName(text)  # type: ignore
+                widget.setAccessibleName(str(text))  # type: ignore
         elif what == 'state':
             record = self.getVariable(command['name'])
             if self.isObjectType(record, ECCheckBox):
                 state = self.textify(command['value'])
+                state = False if state == None else True
                 self.getInnerObject(record).setChecked(state)  # type: ignore
         elif what == 'alignment':
             widget = self.getVariable(command['name'])['widget']
@@ -1529,6 +1530,7 @@ class Graphics(Handler):
                     self.skip('of')
                 elif token in ['current', 'selected']:
                     token = self.nextToken()
+                    value.option = token
                     if token == 'item': self.skip('in')
                     elif token == 'index': self.skip('of')
                 if self.nextIsSymbol():
@@ -1550,6 +1552,14 @@ class Graphics(Handler):
                     if (
                         self.isObjectType(record, (ECLabel, ECPushButton, ECMultiline, ECLineInput))
                     ): # type: ignore
+                        value.setContent(ECValue(domain=self.getName(), type='object', content=record['name']))
+                        return value
+            elif token == 'index':
+                self.skip('of')
+                value.element = self.getValue()
+                if self.nextIsSymbol():
+                    record = self.getSymbolRecord()
+                    if self.isObjectType(record, (ECListBox, ECComboBox)): # type: ignore
                         value.setContent(ECValue(domain=self.getName(), type='object', content=record['name']))
                         return value
         return None
@@ -1613,14 +1623,16 @@ class Graphics(Handler):
         content = v.getContent()
         if isinstance(content, ECValue) and content.getType() == 'object':
             record = self.getVariable(content.getContent())
-            keyword = record['keyword']
             object = self.getObject(record)
-            widget = self.getInnerObject(object)
-            if isinstance(widget, (QListWidget)):
-                content = widget.currentItem().text()  # type: ignore
+            option = v.option
+            if isinstance(object, (ECListBox)):
+                if option == 'item':
+                    content = object.getText()  # type: ignore
+                elif option == 'index':
+                    content = object.getIndex()  # type: ignore
                 return ECValue(domain=self.getName(), type='int', content=content)
-            elif isinstance(widget, (QComboBox)):
-                content = str(widget.currentText())  # type: ignore
+            elif isinstance(object, (ECComboBox)):
+                content = str(object.currentText())  # type: ignore
                 return ECValue(domain=self.getName(), type='int', content=content)
             else: raise RuntimeError(self.program, f"Object is not a listbox or combobox")
     

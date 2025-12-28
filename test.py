@@ -3,5 +3,5 @@
 import os
 from easycoder import Program
 
-os.chdir('/home/graham/dev/easycoder/easycoder-py/AI/examples/primes')
-Program('primes.ecs').start()
+os.chdir('/home/graham/dev/easycoder/easycoder-py/tests')
+Program('test.ecs').start()

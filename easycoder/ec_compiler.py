@@ -56,10 +56,12 @@ class Compiler:
 
 	# Get a value
 	def getValue(self):
+		self.program.ensureNotRunning()
 		return self.value.compileValue()
 
 	# Get the next value
 	def nextValue(self):
+		self.program.ensureNotRunning()
 		self.index += 1
 		return self.value.compileValue()
 
@@ -147,6 +149,7 @@ class Compiler:
 
 	# Get the symbol record for the current token (assumes it is a symbol name)
 	def getSymbolRecord(self, name=None):
+		self.program.ensureNotRunning()
 		if name == None: name = self.getToken()
 		if not name in self.symbols:
 			FatalError(self, f'Undefined symbol name "{name}"')
@@ -159,7 +162,15 @@ class Compiler:
 
 	# Add a value type
 	def addValueType(self):
-		self.valueTypes[self.getToken()] = True
+		name = self.peek()
+		record = None
+		try:
+			record = self.symbols[name]
+		except:
+			pass
+		if record != None:
+			raise FatalError(self, f'Duplicate symbol name "{name}"')
+		self.valueTypes[name] = True
 
 	# Test if a given value is in the value types list
 	def hasValue(self, type):
@@ -192,10 +203,10 @@ class Compiler:
 
 	# Compile a symbol
 	def compileSymbol(self, command, name, classname):
-		try:
-			self.symbols[name]
-			raise FatalError(self, f'Duplicate symbol name "{name}"')
-		except: pass
+		# try:
+		# 	self.symbols[name]
+		# 	raise FatalError(self, f'Duplicate symbol name "{name}"')
+		# except: pass
 		command['name'] = name
 		command['classname'] = classname
 		command['program'] = self.program
@@ -261,9 +272,7 @@ class Compiler:
 		self.index = index
 		while True:
 			token = self.tokens[self.index]
-#			keyword = token.token
 			if self.debugCompile: print(f'{token.lino + 1}: {self.script.lines[token.lino]}')
-#			if keyword != 'else':
 			if self.compileOne() == True:
 				if self.index == len(self.tokens) - 1:
 					return True
