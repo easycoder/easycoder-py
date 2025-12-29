@@ -114,8 +114,8 @@ class Core(Handler):
         self.putSymbolValue(target, targetValue)
         return self.nextPC()
 
-    # Append a value to an array
-    # append {value} to {array}
+    # Append a value to an list
+    # append {value} to {list}
     def k_append(self, command):
         command['value'] = self.nextValue()
         if self.nextIs('to'):
@@ -129,13 +129,8 @@ class Core(Handler):
 
     def r_append(self, command):
         value = self.textify(command['value'])
-        target = self.getVariable(command['target'])
-        content = target['object'].getContent()
-        items = [] if content == None else content
-        if not type(items) == list:
-            RuntimeError(self.program, f'{command["target"]} is not a JSON list')
-        items.append(value)
-        self.putSymbolValue(target, items)
+        target = self.getObject(self.getVariable(command['target']))
+        target.append(value)
         return self.nextPC()
 
     #assert {condition} [with {message}]
@@ -1338,7 +1333,7 @@ class Core(Handler):
     # set {variable} to {value}
     # set {ssh} host {host} user {user} password {password}
     # set the elements of {variable} to {value}
-    # set element/entry/property of {variable} to {value}
+    # set item/entry/property of {variable} to {value}
     # set breakpoint
     def k_set(self, command):
         if self.nextIsSymbol():
@@ -1419,7 +1414,7 @@ class Core(Handler):
                         self.add(command)
                         return True
 
-        elif token == 'element':
+        elif token == 'item':
             command['index'] = self.nextValue()
             if self.nextIs('of'):
                 if self.nextIsSymbol():
@@ -1462,19 +1457,13 @@ class Core(Handler):
             object.setElements(elements)
             return self.nextPC()
 
-        elif cmdType == 'element':
-            value = self.textify(command['value'])
+        elif cmdType == 'item':
             index = self.textify(command['index'])
-            target = self.getVariable(command['target'])
-            val = self.getSymbolValue(target)
-            content = val.getContent()
-            if content == '':
-                content = []
-            # else:
-            # 	content = json.loads(content)
-            content[index] = value
-            val.setContent(content)
-            self.putSymbolValue(target, val)
+            value = self.textify(command['value'])
+            record = self.getVariable(command['target'])
+            self.checkObjectType(self.getObject(record), ECList)
+            variable = self.getObject(record)
+            variable.setItem(index, value)
             return self.nextPC()
 
         elif cmdType == 'encoding':
@@ -1946,7 +1935,7 @@ class Core(Handler):
                 value.format = None
             return value
 
-        if token == 'element':
+        if token == 'item':
             value.index = self.nextValue()
             if self.nextToken() == 'of':
                 if self.nextIsSymbol():
@@ -2010,7 +1999,7 @@ class Core(Handler):
                 if self.nextIsSymbol():
                     record = self.getSymbolRecord()
                     object = record['object']
-                    if isinstance(object, (ECVariable, ECList)):
+                    if isinstance(object, ECList):
                         value.setContent(record['name'])
                         return value
             return None
@@ -2184,9 +2173,8 @@ class Core(Handler):
         return ECValue(type='int', content=round(math.cos(angle * 0.01745329) * radius))
 
     def v_count(self, v):
-        content = self.textify(self.getVariable(v.getContent()))
-        if content == None: raise RuntimeError(self.program, 'Count: No value provided')
-        return ECValue(type='int', content=len(content))
+        variable = self.getObject(self.getVariable(v.getContent()))
+        return ECValue(type='int', content=variable.getItemCount())
 
     def v_datime(self, v):
         ts = self.textify(v.timestamp)
@@ -2213,22 +2201,6 @@ class Core(Handler):
         else:
             value = v
         return value
-
-    def v_element(self, v):
-        index = self.textify(v.index)
-        targetName = v.target
-        target = self.getVariable(targetName.getContent())
-        variable = self.getObject(target)
-        self.checkObjectType(variable, ECList)
-        content = variable.getContent()
-        if not type(content) == list:
-            RuntimeError(self.program, f'{targetName} is not a list')
-        if index >= len(content):
-            RuntimeError(self.program, f'Index out of range in {targetName}')
-        targetValue = content[index]
-        if isinstance(targetValue, ECValue):
-            targetValue = self.textify(targetValue)
-        return targetValue
 
     def v_elements(self, v):
         var = self.getVariable(v.name)
@@ -2326,6 +2298,17 @@ class Core(Handler):
     def v_integer(self, v):
         val = self.textify(v.getValue())
         return ECValue(type='int', content=int(val))
+
+    def v_item(self, v):
+        index = self.textify(v.index)
+        targetName = v.target
+        target = self.getVariable(targetName.getContent())
+        variable = self.getObject(target)
+        self.checkObjectType(variable, ECList)
+        if index >= variable.getItemCount():
+            RuntimeError(self.program, f'Index out of range in {targetName}')
+        targetValue = variable.getItem(index)
+        return targetValue
 
     def v_json(self, v):
         item = self.textify(v.getContent())

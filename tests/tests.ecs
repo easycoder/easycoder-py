@@ -2,6 +2,7 @@
 
 	script Tests
 
+	debug compile
 	use psutil
 
 	dictionary D
@@ -18,7 +19,6 @@
 	stack Stack
 	file File
 
-	debug compile
 	debug step
 
 	log `FOR loop counting to 10`
@@ -127,11 +127,12 @@
 	end
 	log List
 	assert the count of List is 6
-	assert element 2 of List is 2
+	assert item 2 of List is 2
+	assert List is `[0, 1, 2, 3, 4, 5]`
 
-	set element 2 of List to `Some data`
-	assert element 2 of List is `Some data`
-	assert element 2 of List is string
+	set item 2 of List to `Some data`
+	assert item 2 of List is `Some data`
+	assert item 2 of List is string
 	assert N is numeric
 
 	set Y

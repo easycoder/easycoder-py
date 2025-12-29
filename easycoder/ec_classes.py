@@ -209,7 +209,7 @@ class ECObject():
         if not self.hasRuntimeValue(): return None
         v = self.getValue()
         if v is None: return None
-        return v.getContent()
+        return v
     
     # Get the type of the value at the current index
     def getType(self):
@@ -386,14 +386,28 @@ class ECList(ECValueHolder):
     def reset(self):
         self.setValue(ECValue(content=[]))
 
-    # Set the value to a given ECValue
+    # Set the value to an ECValue
     def setValue(self, value):
-        if value.getType() not in ('list', None):
-            raise RuntimeError(None, 'ECList can only hold list values or None') # type: ignore
-        super().setValue(value)
+        varType = value.getType()
+        if varType in ('str', 'list'):
+            content = value.getContent()
+            if varType == 'str':
+                try:
+                    if content in ('', None): content = []
+                    else: content = json.loads(content)
+                except:
+                    raise RuntimeError(None, 'ECList string value is not valid JSON') # type: ignore
+        elif varType == None:
+             content = []
+        else:
+            raise RuntimeError(None, 'ECDictionary can only hold dict values or None') # type: ignore
+        super().setValue(content)
     
-    # Add an item to the list
-    def addItem(self, item):
+    def getValue(self):
+        return super().getValue()
+    
+    # Append an item to the list
+    def append(self, item):
         content = self.getContent()
         if content is None:
             return
@@ -403,6 +417,19 @@ class ECList(ECValueHolder):
              except Exception:
                   pass
         content.append(item) # type: ignore
+        self.setContent(content)
+    
+    # Set an item in the list
+    def setItem(self, index, value):
+        content = self.getValue()
+        if content is None:
+            return
+        if isinstance(value, str):
+             try:
+                 value = json.loads(value)
+             except Exception:
+                 pass
+        content[index] = value # type: ignore
     
     # Return the number of items in the list
     def getItemCount(self):
