@@ -293,7 +293,9 @@ class ECVariable(ECValueHolder):
 
     # Set the value to a given ECValue
     def setValue(self, value):
-        if value.getType() not in ('str', 'int', 'float', 'boolean'):
+        if value.getType() in ('dict', 'list'):
+             value.setContent(json.dumps(value.getContent()))
+        elif value.getType() not in ('str', 'int', 'float', 'boolean'):
             raise RuntimeError(None, 'ECVariable can only hold str, int, float, or bool values') # type: ignore
         super().setValue(value)
 

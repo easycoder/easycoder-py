@@ -69,6 +69,9 @@
 	set entry `three` of D to 30
 	put ` ` cat entry `one` of D into X
 	assert X is 10
+	put D into X
+	log X
+	assert X is `{"one": 10, "two": 20, "three": 30}`
 
 	put D into D2
 	reset D
