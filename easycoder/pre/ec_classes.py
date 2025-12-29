@@ -289,11 +289,11 @@ class ECVariable(ECValueHolder):
 
     # Reset the object to an empty string
     def reset(self):
-        self.setValue(ECValue(type='str', content=''))
+        self.setValue(ECValue(type=str, content=''))
 
     # Set the value to a given ECValue
     def setValue(self, value):
-        if value.getType() not in ('str', 'int', 'float', 'boolean'):
+        if value.getType() not in (str, int, float, bool):
             raise RuntimeError(None, 'ECVariable can only hold str, int, float, or bool values') # type: ignore
         super().setValue(value)
 
@@ -311,9 +311,9 @@ class ECDictionary(ECValueHolder):
     # Set the value to an ECValue
     def setValue(self, value):
         varType = value.getType()
-        if varType in ('str', 'dict'):
+        if varType in (str, 'dict'):
             content = value.getContent()
-            if varType == 'str':
+            if varType == str:
                 try:
                     if content in ('', None): content = {}
                     else: content = json.loads(content)

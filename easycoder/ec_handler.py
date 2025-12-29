@@ -1,5 +1,5 @@
 import sys, json
-from .ec_classes import FatalError, ECValue
+from .ec_classes import normalize_type
 
 class Handler:
 
@@ -72,7 +72,7 @@ class Handler:
 
 	# Get a condition handler
 	def conditionHandler(self, name):
-		return getattr(self, f'c_{name}')
+		return getattr(self, f'c_{normalize_type(name)}')
 
 	# Get the value of an unknown item (domain-specific)
 	def getUnknownValue(self, value):

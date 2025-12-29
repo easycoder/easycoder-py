@@ -235,13 +235,13 @@ class Program:
 
 	def constant(self, content, numeric):
 		result = {}
-		result['type'] = 'int' if numeric else 'str'
+		result['type'] = int if numeric else str
 		result['content'] = content
 		return result
 	
 	# Test if an item is a string or a number
 	def getItemType(self, value):
-		return 'int' if isinstance(value, int) else 'str'
+		return int if isinstance(value, int) else str
 	
 	# Get the value of an item that may be an ECValue or a raw value. Return as an ECValue
 	def getValueOf(self, item):
@@ -252,11 +252,11 @@ class Program:
 			else: value = item
 		else:
 			varType = type(item).__name__
-			if varType in ['int', 'str', 'bool', 'float', 'list', 'dict']:
-				if varType == 'int': value.setValue(type='int', content=item)
-				elif varType == 'str': value.setValue(type='str', content=item)
-				elif varType == 'bool': value.setValue(type='boolean', content=item)
-				elif varType == 'float': value.setValue(type='str', content=str(item))
+			if varType in [int, str, 'bool', float, 'list', 'dict']:
+				if varType == int: value.setValue(type=int, content=item)
+				elif varType == str: value.setValue(type=str, content=item)
+				elif varType == 'bool': value.setValue(type=bool, content=item)
+				elif varType == float: value.setValue(type=str, content=str(item))
 				elif varType == 'list': value.setValue(type='list', content=item)
 				elif varType == 'dict': value.setValue(type='dict', content=item)
 				else: value.setValue(None)
@@ -277,7 +277,7 @@ class Program:
 			RuntimeError(self, 'Value does not hold a valid ECValue')
 		result = ECValue(type=valType)
 	
-		if valType in ('str', 'int', 'boolean', 'list', 'dict', None):
+		if valType in (str, int, bool, 'list', 'dict', None):
 			# Simple value - just return the content
 			result.setContent(value.getContent()) # type: ignore
 		
@@ -313,7 +313,7 @@ class Program:
 					if isinstance(val, ECValue): val = str(val.getContent())
 					if val == None: val = ''
 					else: content += str(val)
-			result.setValue(type='str', content=content)
+			result.setValue(type=str, content=content)
 	
 		else:
 			# Call the given domain to handle a value

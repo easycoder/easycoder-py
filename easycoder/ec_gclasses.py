@@ -112,6 +112,12 @@ class ECLineInput(ECTextWidget):
     def hasRuntimeValue(self):
         return True
     
+    # Set the text of the widget
+    def setText(self, text):
+        v = self.getValue()
+        if v is None: return
+        v.getContent().setText(str(text)) # type: ignore
+    
     # Get the text of the widget
     def getText(self):
         return self.getValue().getContent().text() # type: ignore

@@ -105,7 +105,7 @@ class SQL(Handler):
                             output.append('  id BIGSERIAL PRIMARY KEY,')
                         item.append(self.textify(key['name']))
                         vartype = key['type']
-                        if vartype == 'string': vartype = 'str'
+                        if vartype == 'string': vartype = str
                         elif vartype == 'datetime': vartype = 'timestamptz'
                         elif vartype == 'u64': vartype = 'bigint'
                         item.append(vartype.upper())
@@ -129,7 +129,7 @@ class SQL(Handler):
                     output.append(item)
                 output.append('};')
                 # -------------------------------------------------------------
-            v = ECValue(domain='sql', type='str', content='\n'.join(output))
+            v = ECValue(domain='sql', type=str, content='\n'.join(output))
             self.putSymbolValue(target, v)
         return self.nextPC()
 

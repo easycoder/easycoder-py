@@ -77,7 +77,7 @@ class Points(Handler):
         dx = point2['x'] - point1['x']
         dy = point2['y'] - point1['y']
         value = {}
-        value['type'] = 'int'
+        value['type'] = int
         value['content'] = int(math.sqrt(dx*dx + dy*dy))
         return value
 

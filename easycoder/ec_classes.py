@@ -1,5 +1,37 @@
 import sys, paramiko, json
-from typing import Optional, Any
+from typing import Optional, Any, Union
+
+###############################################################################
+# Type normalization: support both Python types and string type names
+def normalize_type(t: Union[type, str, None]) -> Optional[str]:
+	"""Convert a type to its string representation. Supports both Python types and string names."""
+	if t is None:
+		return None
+	if isinstance(t, str):
+		return t
+	# Map Python types to string names
+	type_map = {
+		str: 'str',
+		int: 'int',
+		float: 'float',
+		bool: 'bool',
+		dict: 'dict',
+		list: 'list',
+		object: 'object',
+	}
+	return type_map.get(t, str(t) if t else None)
+
+def types_equal(t1: Union[type, str, None], t2: Union[type, str, None]) -> bool:
+	"""Compare two types, normalizing both to strings first."""
+	return normalize_type(t1) == normalize_type(t2)
+
+def type_in(t: Union[type, str, None], types: tuple) -> bool:
+	"""Check if a type is in a tuple of types, normalizing both."""
+	normalized = normalize_type(t)
+	for typ in types:
+		if normalize_type(typ) == normalized:
+			return True
+	return False
 
 class FatalError(BaseException):
 	def __init__(self, compiler, message):
@@ -64,8 +96,8 @@ class Token:
 ###############################################################################
 # A multipurpose value object. Holds a single value, with domain and type information
 class ECValue():
-    def __init__(self, domain: Optional[str] = 'core', type: Optional[str] = None, 
-                 content: Any = None, name: Optional[str] = None):
+    def __init__(self, domain = 'core', type = None, content: Any = None, name = None):
+        if type == None: type = str
         object.__setattr__(self, 'domain', domain)
         object.__setattr__(self, 'type', type)
         object.__setattr__(self, 'content', content)
@@ -95,10 +127,10 @@ class ECValue():
         return self.domain
     
     def setType(self, type):
-        self.type = type
+        self.type = normalize_type(type)
     
     def getType(self):
-        return self.type
+        return normalize_type(self.type)
     
     def setContent(self, content):
         self.content = content
@@ -289,13 +321,14 @@ class ECVariable(ECValueHolder):
 
     # Reset the object to an empty string
     def reset(self):
-        self.setValue(ECValue(type='str', content=''))
+        self.setValue(ECValue(type=str, content=''))
 
     # Set the value to a given ECValue
     def setValue(self, value):
-        if value.getType() in ('dict', 'list'):
+        val_type = value.getType()
+        if type_in(val_type, ('dict', 'list')):
              value.setContent(json.dumps(value.getContent()))
-        elif value.getType() not in ('str', 'int', 'float', 'boolean'):
+        elif not type_in(val_type, (str, int, float, bool)):
             raise RuntimeError(None, 'ECVariable can only hold str, int, float, or bool values') # type: ignore
         super().setValue(value)
 
@@ -313,11 +346,11 @@ class ECDictionary(ECValueHolder):
     # Set the value to an ECValue
     def setValue(self, value):
         varType = value.getType()
-        if varType in ('str', 'dict'):
+        if type_in(varType, (str, 'dict')):
             content = value.getContent()
-            if varType == 'str':
+            if types_equal(varType, str):
                 try:
-                    if content in ('', None): content = {}
+                    if content in ('', {}, None): content = {}
                     else: content = json.loads(content)
                 except:
                     raise RuntimeError(None, 'ECDictionary string value is not valid JSON') # type: ignore
@@ -389,18 +422,18 @@ class ECList(ECValueHolder):
     # Set the value to an ECValue
     def setValue(self, value):
         varType = value.getType()
-        if varType in ('str', 'list'):
+        if type_in(varType, (str, 'list')):
             content = value.getContent()
-            if varType == 'str':
+            if types_equal(varType, str):
                 try:
-                    if content in ('', None): content = []
+                    if content in ('', [], None): content = []
                     else: content = json.loads(content)
                 except:
                     raise RuntimeError(None, 'ECList string value is not valid JSON') # type: ignore
         elif varType == None:
              content = []
         else:
-            raise RuntimeError(None, 'ECDictionary can only hold dict values or None') # type: ignore
+            raise RuntimeError(None, 'ECList can only hold list values or None') # type: ignore
         super().setValue(content)
     
     def getValue(self):
@@ -448,6 +481,16 @@ class ECList(ECValueHolder):
     # Check if the list is empty
     def isEmpty(self):
         return self.getItemCount() == 0
+    
+    # Delete an item from the list
+    def deleteItem(self, index):
+        content = self.getValue()
+        if content is None:
+            return
+        if index < 0 or index >= len(content):
+            return
+        del content[index]
+        self.setContent(content)
 
 ###############################################################################
 # A file variable

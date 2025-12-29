@@ -3,7 +3,7 @@ from .ec_classes import ECObject, FatalError, ECValue
 
 # Create a constant
 def getConstant(str):
-	return ECValue(type='str', content=str)
+	return ECValue(type=str, content=str)
 
 class Value:
 
@@ -23,17 +23,17 @@ class Value:
 		value = ECValue()
 
 		if token == 'true':
-			value.setValue('boolean', True)
+			value.setValue(bool, True)
 			return value
 
 		if token == 'false':
-			value.setValue('boolean', False)
+			value.setValue(bool, False)
 			return value
 
 		# Check for a string constant
 		if token[0] == '`':
 			if token[len(token) - 1] == '`':
-				value.setValue(type='str', content=token[1 : len(token) - 1])
+				value.setValue(type=str, content=token[1 : len(token) - 1])
 				return value
 			FatalError(self.compiler, f'Unterminated string "{token}"')
 			return None
@@ -42,7 +42,7 @@ class Value:
 		if token.isnumeric() or (token[0] == '-' and token[1:].isnumeric):
 			val = eval(token)
 			if isinstance(val, int):
-				value.setValue('int', val)
+				value.setValue(int, val)
 				return value
 			FatalError(self.compiler, f'{token} is not an integer')
 
@@ -112,13 +112,12 @@ class Value:
 
 	def compileConstant(self, token):
 		value = ECValue()
-		if type(token) == 'str':
-			token = eval(token)
-		if isinstance(token, int):
-			value.setValue(type='int', content=token)
-			return value
-		if isinstance(token, float):
-			value.setValue(type='float', content=token)
-			return value
-		value.setValue(type='str', content=token)
+		if isinstance(token, str):
+			value.setValue(type=int, content=token)
+		elif isinstance(token, int):
+			value.setValue(type=int, content=token)
+		elif isinstance(token, float):
+			value.setValue(type=float, content=token)
+		else:
+			value.setValue(type=str, content=str(token))
 		return value

@@ -122,7 +122,7 @@ class ValueDisplay(QWidget):
             else:
                 val_type = val.get('type', '?')
                 content = val.get('content', '')
-                if val_type == 'str':
+                if val_type == str:
                     # keep each element concise
                     s = str(content)
                     if len(s) > 120:

@@ -106,7 +106,7 @@ class Core(Handler):
         # If value2 exists, we are adding two values and storing the result in target
         if value2 != None:
             # add X to Y giving Z
-            targetValue = ECValue(type='int', content=int(value1) + int(value2))
+            targetValue = ECValue(type=int, content=int(value1) + int(value2))
         else:
             # add X to Y
             targetValue = self.getSymbolValue(target)
@@ -195,7 +195,7 @@ class Core(Handler):
             if target['keyword'] == 'ssh':
                 target['ssh'] = None
             else:
-                self.putSymbolValue(target, ECValue(type='boolean', content=False))
+                self.putSymbolValue(target, ECValue(type=bool, content=False))
         return self.nextPC()
 
     # Close a file
@@ -409,7 +409,7 @@ class Core(Handler):
         # If value1 exists, we are adding two values and storing the result in target
         if value1 != None:
             # divide X by Y giving Z
-            targetValue = ECValue(type='int', content=int(value1) // int(value2))
+            targetValue = ECValue(type=int, content=int(value1) // int(value2))
         else:
             # divide X by Y
             targetValue = self.getSymbolValue(target)
@@ -504,7 +504,7 @@ class Core(Handler):
                         self.nextToken()
                         command['timeout'] = self.nextValue()
                     else:
-                        timeout = ECValue(type = 'int', content = 5)
+                        timeout = ECValue(type = int, content = 5)
                         command['timeout'] = timeout
                     self.processOr(command, get)
                     return True
@@ -512,7 +512,7 @@ class Core(Handler):
 
     def r_get(self, command):
         global errorCode, errorReason
-        retval = ECValue(type='str')
+        retval = ECValue(type=str)
         url = self.textify(command['url'])
         target = self.getVariable(command['target'])
         response = {}
@@ -701,7 +701,7 @@ class Core(Handler):
         # get the variable
         if self.nextIsSymbol():
             command['target'] = self.getToken()
-            value = ECValue(type='str', content=': ')
+            value = ECValue(type=str, content=': ')
             command['prompt'] = value
             if self.peek() == 'with':
                 self.nextToken()
@@ -713,7 +713,7 @@ class Core(Handler):
     def r_input(self, command):
         record = self.getVariable(command['target'])
         prompt = command['prompt'].getValue()
-        value = ECValue(type='str', content=prompt+input(prompt))
+        value = ECValue(type=str, content=prompt+input(prompt))
         self.putSymbolValue(record, value)
         return self.nextPC()
 
@@ -786,7 +786,7 @@ class Core(Handler):
                 return command['or']
             else:
                 RuntimeError(self.program, f'Error: {errorReason}')
-        value = ECValue(type='str', content=content)
+        value = ECValue(type=str, content=content)
         self.putSymbolValue(target, value)
         return self.nextPC()
 
@@ -862,7 +862,7 @@ class Core(Handler):
         # If value1 exists, we are adding two values and storing the result in target
         if value1 != None:
             # multiply X by Y giving Z
-            targetValue = ECValue(type='int', content=int(value1) * int(value2))
+            targetValue = ECValue(type=int, content=int(value1) * int(value2))
         else:
             # multiply X by Y
             targetValue = self.getSymbolValue(target)
@@ -1016,7 +1016,7 @@ class Core(Handler):
 
     def r_post(self, command):
         global errorCode, errorReason
-        retval = ECValue(type='str', content = '')
+        retval = ECValue(type=str, content = '')
         value = self.textify(command['value'])
         url = self.textify(command['url'])
         try:
@@ -1144,7 +1144,7 @@ class Core(Handler):
         file = fileRecord['file']
         if file.mode == 'r':
             content = file.readline().split('\n')[0] if line else file.read()
-            value = ECValue(type='str', content=content)
+            value = ECValue(type=str, content=content)
             self.putSymbolValue(record, value)
         return self.nextPC()
 
@@ -1181,7 +1181,7 @@ class Core(Handler):
         original = self.textify(command['original'])
         replacement = self.textify(command['replacement'])
         content = content.replace(original, str(replacement))
-        value = ECValue(type='str', content=content)
+        value = ECValue(type=str, content=content)
         self.putSymbolValue(templateRecord, value)
         return self.nextPC()
 
@@ -1445,7 +1445,7 @@ class Core(Handler):
         cmdType = command['type']
         if cmdType == 'set':
             target = self.getVariable(command['target'])
-            self.putSymbolValue(target, ECValue(type='boolean', content=True))
+            self.putSymbolValue(target, ECValue(type=bool, content=True))
             return self.nextPC()
         
         elif cmdType == 'setValue':
@@ -1563,7 +1563,7 @@ class Core(Handler):
             record = self.getSymbolRecord()
             if isinstance(record['object'], ECObject):
                 command['target'] = record['name']
-                value = ECValue(type='str', content='\n')
+                value = ECValue(type=str, content='\n')
                 command['on'] = value
                 if self.peek() == 'on':
                     self.nextToken()
@@ -1586,7 +1586,7 @@ class Core(Handler):
         object.setElements(elements)
         
         for n in range(0, elements):
-            val = ECValue(type='str', content=content[n])
+            val = ECValue(type=str, content=content[n])
             object.setIndex(n)
             object.setValue(val)
         object.setIndex(0)
@@ -1693,7 +1693,7 @@ class Core(Handler):
         # If value2 exists, we are adding two values and storing the result in target
         if value2 != None:
             # take X from Y giving Z
-            targetValue = ECValue(type='int', content=int(value2) - int(value1))
+            targetValue = ECValue(type=int, content=int(value2) - int(value1))
         else:
             # take X from Y
             targetValue = self.getSymbolValue(target)
@@ -1714,7 +1714,7 @@ class Core(Handler):
     def r_toggle(self, command):
         target = self.getVariable(command['target'])
         value = self.getSymbolValue(target)
-        val = ECValue(type='boolean', content=not value.getContent())
+        val = ECValue(type=bool, content=not value.getContent())
         self.putSymbolValue(target, val)
         self.add(command)
         return self.nextPC()
@@ -1732,7 +1732,7 @@ class Core(Handler):
     def r_trim(self, command):
         record = self.getVariable(command['name'])
         value = record['value'][record['index']]
-        if value.getType() == 'str':
+        if value.getType() == str:
             content = value.getContent()
             value.setContent(content.strip())
         return self.nextPC()
@@ -1932,7 +1932,7 @@ class Core(Handler):
         if token in ['now', 'today', 'newline', 'tab', 'empty']:
             return value
 
-        if token in ['stringify', 'prettify', 'json', 'lowercase', 'uppercase', 'hash', 'random', 'float', 'integer', 'encode', 'decode']:
+        if token in ['stringify', 'prettify', 'json', 'lowercase', 'uppercase', 'hash', 'random', float, 'integer', 'encode', 'decode']:
             value.setContent(self.nextValue())
             return value
 
@@ -2167,26 +2167,26 @@ class Core(Handler):
     # Value handlers
 
     def v_args(self, v):
-        return ECValue(type='str', content=json.dumps(self.program.argv))
+        return ECValue(type=str, content=json.dumps(self.program.argv))
 
     def v_arg(self, v):
         index = self.textify(v['index'])
         if index >= len(self.program.argv):
             RuntimeError(self.program, 'Index exceeds # of args')
-        return ECValue(type='str', content=self.program.argv[index])
+        return ECValue(type=str, content=self.program.argv[index])
 
     def v_boolean(self, v):
-        value = ECValue(type='boolean', content=v.getContent())
+        value = ECValue(type=bool, content=v.getContent())
 
     def v_cos(self, v):
         angle = self.textify(v['angle'])
         radius = self.textify(v['radius'])
-        return ECValue(type='int', content=round(math.cos(angle * 0.01745329) * radius))
+        return ECValue(type=int, content=round(math.cos(angle * 0.01745329) * radius))
 
     def v_count(self, v):
         content = self.textify(self.getVariable(v.getContent()))
         if content == None: raise RuntimeError(self.program, 'Count: No value provided')
-        return ECValue(type='int', content=len(content))
+        return ECValue(type=int, content=len(content))
 
     def v_datime(self, v):
         ts = self.textify(v.timestamp)
@@ -2195,11 +2195,11 @@ class Core(Handler):
             fmt = '%b %d %Y %H:%M:%S'
         else:
             fmt = self.textify(fmt)
-        return ECValue(type='str', content=datetime.fromtimestamp(ts/1000).strftime(fmt))
+        return ECValue(type=str, content=datetime.fromtimestamp(ts/1000).strftime(fmt))
 
     def v_decode(self, v):
         content = self.textify(v.getContent())
-        value = ECValue(type='str')
+        value = ECValue(type=str)
         if self.encoding == 'utf-8':
             value.setContent(content.decode('utf-8'))
         elif self.encoding == 'base64':
@@ -2234,14 +2234,14 @@ class Core(Handler):
         var = self.getVariable(v.name)
         object = var['object']
         self.checkObjectType(object, ECVariable)
-        return ECValue(type='int', content=object.getElements())
+        return ECValue(type=int, content=object.getElements())
 
     def v_empty(self, v):
-        return ECValue(type='str', content=''  )
+        return ECValue(type=str, content=''  )
 
     def v_encode(self, v):
         content = self.textify(v.getContent())
-        value = ECValue(type='str')
+        value = ECValue(type=str)
         if self.encoding == 'utf-8':
             value.setContent(content.encode('utf-8'))
         elif self.encoding == 'base64':
@@ -2266,21 +2266,21 @@ class Core(Handler):
         value = ECValue()
         item = v.item
         if item == 'errorCode':
-            value.setValue(type='int', content=errorCode)
+            value.setValue(type=int, content=errorCode)
         elif item == 'errorReason':
-            value.setValue(type='str', content=errorReason)
+            value.setValue(type=str, content=errorReason)
         elif item == 'sshError':
             record = self.getVariable(v.name)
-            value.setValue(type='str', content=record['error'] if 'error' in record else '')
+            value.setValue(type=str, content=record['error'] if 'error' in record else '')
         return value
 
     def v_files(self, v):
         path = self.textify(v.target)
-        return ECValue(type='str', content=json.dumps(os.listdir(path)))
+        return ECValue(type=str, content=json.dumps(os.listdir(path)))
 
     def v_float(self, v):
         val = self.textify(v.getContent())
-        value = ECValue(type='float')
+        value = ECValue(type=float)
         try:
             value.setContent(float(val))
         except:
@@ -2296,16 +2296,16 @@ class Core(Handler):
             RuntimeError(self.program, 'Invalid "from" value')
         if to is not None and type(to) != int:
             RuntimeError(self.program, 'Invalid "to" value')
-        return ECValue(type='str', content=content[start:] if to == None else content[start:to])
+        return ECValue(type=str, content=content[start:] if to == None else content[start:to])
 
     def v_hash(self, v):
         hashval = self.textify(v.getContent())
-        return ECValue(type='str', content=hashlib.sha256(hashval.encode('utf-8')).hexdigest())
+        return ECValue(type=str, content=hashlib.sha256(hashval.encode('utf-8')).hexdigest())
 
     def v_index(self, v):
         record = self.getVariable(v.name)
         object = self.getObject(record)
-        return ECValue(type='int', content=object.getIndex())
+        return ECValue(type=int, content=object.getIndex())
 
     def v_indexOf(self, v):
         value = v.value
@@ -2321,11 +2321,11 @@ class Core(Handler):
             data = target.getContent()
             try: index = data.index(value)
             except: index = -1
-        return ECValue(type='int', content=index)
+        return ECValue(type=int, content=index)
 
     def v_integer(self, v):
         val = self.textify(v.getValue())
-        return ECValue(type='int', content=int(val))
+        return ECValue(type=int, content=int(val))
 
     def v_json(self, v):
         item = self.textify(v.getContent())
@@ -2334,7 +2334,7 @@ class Core(Handler):
             v = json.loads(item)
             if type(v) == list: value.setType('list')
             elif type(v) == dict: value.setType('dict')
-            else: value.setType('str')  
+            else: value.setType(str)  
             value.setContent(v)
         except:
             value = None
@@ -2347,47 +2347,47 @@ class Core(Handler):
     def v_left(self, v):
         content = self.textify(v.getContent())
         count = self.textify(v.count)
-        return ECValue(type='str', content=content[0:count])
+        return ECValue(type=str, content=content[0:count])
 
     def v_lengthOf(self, v):
         content = self.textify(v.getContent())
         if type(content) == str:
-            return ECValue(type='int', content=len(content))
+            return ECValue(type=int, content=len(content))
         RuntimeError(self.program, 'Value is not a string')
 
     def v_lowercase(self, v):
         content = self.textify(v.getValue())
-        return ECValue(type='str', content=content.lower())
+        return ECValue(type=str, content=content.lower())
 
     def v_message(self, v):
-        return ECValue(type='str', content=self.program.message)
+        return ECValue(type=str, content=self.program.message)
 
     def v_modification(self, v):
         fileName = self.textify(v['fileName'])
         ts = int(os.stat(fileName).st_mtime)
-        return ECValue(type='int', content=ts)
+        return ECValue(type=int, content=ts)
 
     def v_modulo(self, v):
         val = self.textify(v.getContent())
         modval = self.textify(v.modval)
-        return ECValue(type='int', content=val % modval)
+        return ECValue(type=int, content=val % modval)
 
     def v_newline(self, v):
-        return ECValue(type='str', content='\n')
+        return ECValue(type=str, content='\n')
 
     def v_now(self, v):
-        return ECValue(type='int', content=int(time.time()))
+        return ECValue(type=int, content=int(time.time()))
 
     def v_position(self, v):
         needle = self.textify(v.needle)
         haystack = self.textify(v.haystack)
         last = v.last
-        return ECValue(type='int', content=haystack.rfind(needle) if last else haystack.find(needle))
+        return ECValue(type=int, content=haystack.rfind(needle) if last else haystack.find(needle))
 
     def v_prettify(self, v):
         item = self.textify(v.getContent())
         if isinstance(item, str): item = json.loads(item)
-        return ECValue(type='str', content=json.dumps(item, indent=4))
+        return ECValue(type=str, content=json.dumps(item, indent=4))
 
     def v_property(self, v):
         propertyName = v.name
@@ -2399,22 +2399,22 @@ class Core(Handler):
 
     def v_random(self, v):
         limit = self.textify(v.getValue())
-        return ECValue(type='int', content=random.randrange(0, limit))
+        return ECValue(type=int, content=random.randrange(0, limit))
 
     def v_right(self, v):
         content = self.textify(v.getContent())
         count = self.textify(v.count)
-        return ECValue(type='str', content=content[-count:])
+        return ECValue(type=str, content=content[-count:])
 
     def v_sin(self, v):
         angle = self.textify(v.angle)
         radius = self.textify(v.radius)
-        return ECValue(type='int', content=round(math.sin(angle * 0.01745329) * radius))
+        return ECValue(type=int, content=round(math.sin(angle * 0.01745329) * radius))
 
     def v_stringify(self, v):
         item = self.textify(v.getContent())
         item = json.loads(item)
-        return ECValue(type='str', content=json.dumps(item))
+        return ECValue(type=str, content=json.dumps(item))
 
     # This is used by the expression evaluator to get the value of a symbol
     def v_symbol(self, v):
@@ -2426,28 +2426,28 @@ class Core(Handler):
         elif keyword == 'variable':
             return self.getSymbolValue(record)
         elif keyword == 'ssh':
-            return ECValue(type='boolean', content=True if 'ssh' in record and record['ssh'] != None else False)
+            return ECValue(type=bool, content=True if 'ssh' in record and record['ssh'] != None else False)
         else:
             return None
 
     def v_system(self, v):
         command = self.textify(v.getContent())
         result = os.popen(command).read()
-        return ECValue(type='str', content=result)
+        return ECValue(type=str, content=result)
 
     def v_tab(self, v):
-        return ECValue(type='str', content='\t')
+        return ECValue(type=str, content='\t')
 
     def v_tan(self, v):
         angle = self.textify(v['angle'])
         radius = self.textify(v['radius'])
-        return ECValue(type='int', content=round(math.tan(angle * 0.01745329) * radius))
+        return ECValue(type=int, content=round(math.tan(angle * 0.01745329) * radius))
 
     def v_ticker(self, v):
-        return ECValue(type='int', content=self.program.ticker)
+        return ECValue(type=int, content=self.program.ticker)
 
     def v_timestamp(self, v):
-        value = ECValue(type='int')
+        value = ECValue(type=int)
         fmt = v.format
         if fmt == None:
             value.setContent(int(time.time()))
@@ -2460,24 +2460,24 @@ class Core(Handler):
         return value
 
     def v_today(self, v):
-        return ECValue(type='int', content=int(datetime.combine(datetime.now().date(),datetime.min.time()).timestamp()) * 1000)
+        return ECValue(type=int, content=int(datetime.combine(datetime.now().date(),datetime.min.time()).timestamp()) * 1000)
 
     def v_trim(self, v):
         content = v.getContent()
         content = self.textify(content)
-        return ECValue(type='str', content=content.strip())
+        return ECValue(type=str, content=content.strip())
 
     def v_type(self, v):
-        value = ECValue(type='str')
+        value = ECValue(type=str)
         val = self.textify(v['value'])
         if val is None:
             value.setContent('none')
         elif type(val) is str:
-            value.setContent('str')
+            value.setContent(str)
         elif type(val) is int:
             value.setContent('numeric')
         elif type(val) is bool:
-            value.setContent('boolean')
+            value.setContent(bool)
         elif type(val) is list:
             value.setContent('list')
         elif type(val) is dict:
@@ -2486,11 +2486,11 @@ class Core(Handler):
 
     def v_uppercase(self, v):
         content = self.textify(v.getContent())
-        return ECValue(type='str', content=content.upper())
+        return ECValue(type=str, content=content.upper())
 
     def v_valueOf(self, v):
         v = self.textify(v.getContent())
-        return ECValue(type='int', content=int(v) if v != '' else 0)
+        return ECValue(type=int, content=int(v) if v != '' else 0)
     
     def v_variable(self, v):
         name = v.getContent()
@@ -2501,7 +2501,7 @@ class Core(Handler):
         return value
 
     def v_weekday(self, v):
-        return ECValue(type='int', content=datetime.today().weekday())
+        return ECValue(type=int, content=datetime.today().weekday())
 
     #############################################################################
     # Compile a condition
@@ -2611,7 +2611,7 @@ class Core(Handler):
                 condition.negate = True # type: ignore
             token = self.nextToken()
             condition.type = token # type: ignore
-            if token in ['numeric', 'string', 'boolean', 'none', 'list', 'object', 'even', 'odd', 'empty']:
+            if token in ['numeric', 'string', bool, 'none', 'list', 'object', 'even', 'odd', 'empty']:
                 return condition
             if token in ['greater', 'less']:
                 if self.nextToken() == 'than':
@@ -2623,7 +2623,7 @@ class Core(Handler):
  
         if condition.value1: # type: ignore
             # It's a boolean if
-            condition.type = 'boolean' # type: ignore
+            condition.type = bool # type: ignore
             return condition
 
         self.warning(f'Core.compileCondition: I can\'t get a conditional:')

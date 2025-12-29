@@ -458,7 +458,7 @@ def r_add(self, command):
     targetValue = self.getSymbolValue(target)
     
     if targetValue == None:
-        targetValue = {'type': 'int', 'content': 0}
+        targetValue = {'type': int, 'content': 0}
     
     targetValue['content'] = int(targetValue['content']) + int(value1)
     self.putSymbolValue(target, targetValue)
@@ -526,7 +526,7 @@ def r_assert(self, command):
 ### Best Practices
 
 1. Value Types
-   - Always set `val['type']` when creating value dicts ('int', 'string', 'boolean', 'object')
+   - Always set `val['type']` when creating value dicts (int, 'string', bool, 'object')
    - Use `val['content']` to store the actual value
 
 2. Variable Validation

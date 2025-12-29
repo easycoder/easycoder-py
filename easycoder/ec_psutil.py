@@ -36,7 +36,7 @@ class PSUtil(Handler):
     def v_memory(self, v):
         process: Process = Process(os.getpid())
         megabytes: float = process.memory_info().rss / (1024 * 1024)
-        return ECValue(domain=self.getName(), type='float', content=megabytes)
+        return ECValue(domain=self.getName(), type=float, content=megabytes)
 
     #############################################################################
     # Compile a condition

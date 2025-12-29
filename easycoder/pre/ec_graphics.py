@@ -1472,7 +1472,7 @@ class Graphics(Handler):
                 if choice == QMessageBox.StandardButton.Ok: result = 'OK'
                 else: result = ''
             else: result = 'Cancel'
-            v = ECValue(domain='graphics', type='str', content=result)
+            v = ECValue(domain='graphics', type=str, content=result)
             self.putSymbolValue(target, v)
         elif 'window' in command:
             window = self.getInnerObject(self.getVariable(command['window'])['object'])
@@ -1577,33 +1577,33 @@ class Graphics(Handler):
         keyword = record['keyword']
         if self.isObjectType(record, ECPushButton):
             pushbutton = self.getInnerObject(record)
-            v = ECValue(domain=self.getName(), type='str', content=pushbutton.accessibleName())
+            v = ECValue(domain=self.getName(), type=str, content=pushbutton.accessibleName())
             return v
         elif self.isObjectType(record, ECLineInput):
             lineinput = self.getInnerObject(record)
-            v = ECValue(domain=self.getName(), type='str', content=lineinput.displayText())
+            v = ECValue(domain=self.getName(), type=str, content=lineinput.displayText())
             return v
         elif self.isObjectType(record, ECMultiline):
             multiline = self.getInnerObject(record)
-            v = ECValue(domain=self.getName(), type='str', content=multiline.toPlainText())
+            v = ECValue(domain=self.getName(), type=str, content=multiline.toPlainText())
             return v
         elif self.isObjectType(record, ECComboBox):
             combobox = self.getInnerObject(record)
-            v = ECValue(domain=self.getName(), type='str', content=combobox.currentText())
+            v = ECValue(domain=self.getName(), type=str, content=combobox.currentText())
             return v
         elif self.isObjectType(record, ECListBox):
             listbox = self.getInnerObject(record)
             content = listbox.currentItem().text()  # type: ignore
-            v = ECValue(domain=self.getName(), type='str', content=content)
+            v = ECValue(domain=self.getName(), type=str, content=content)
             return v
         elif self.isObjectType(record, ECCheckBox):
             checkbox =self.getInnerObject(record)
             content = checkbox.isChecked()  # type: ignore
-            v = ECValue(domain=self.getName(), type='boolean', content=content)
+            v = ECValue(domain=self.getName(), type=bool, content=content)
             return v
         elif self.isObjectType(record, ECDialog):
             content = record['result']
-            v = ECValue(domain=self.getName(), type='str', content=content)
+            v = ECValue(domain=self.getName(), type=str, content=content)
             return v
         return None
 
@@ -1615,7 +1615,7 @@ class Graphics(Handler):
             if isinstance(object, (ECListBox, ECComboBox)):
                 widget = self.getInnerObject(object)
                 value = widget.count()  # type: ignore
-                return ECValue(domain=self.getName(), type='int', content=value)  # type: ignore
+                return ECValue(domain=self.getName(), type=int, content=value)  # type: ignore
             else: raise RuntimeError(self.program, f"Object is not a listbox or combobox")
 
     def v_current(self, v):
@@ -1629,10 +1629,10 @@ class Graphics(Handler):
                     content = object.getText()  # type: ignore
                 elif option == 'index':
                     content = object.getIndex()  # type: ignore
-                return ECValue(domain=self.getName(), type='int', content=content)
+                return ECValue(domain=self.getName(), type=int, content=content)
             elif isinstance(object, (ECComboBox)):
                 content = str(object.currentText())  # type: ignore
-                return ECValue(domain=self.getName(), type='int', content=content)
+                return ECValue(domain=self.getName(), type=int, content=content)
             else: raise RuntimeError(self.program, f"Object is not a listbox or combobox")
     
     def v_element(self, v):
@@ -1643,7 +1643,7 @@ class Graphics(Handler):
             record = self.getVariable(v.getContent())
             object = self.getObject(record)
             value = object.isEmpty()
-            return ECValue(domain=self.getName(), type='boolean', content=value)  # type: ignore
+            return ECValue(domain=self.getName(), type=bool, content=value)  # type: ignore
         return None
 
     def v_selected(self, v): return self.v_current(v)
@@ -1654,7 +1654,7 @@ class Graphics(Handler):
             record = self.getVariable(content.getContent())
             object = self.getObject(record)
             value = object.getText()
-            return ECValue(domain=self.getName(), type='int', content=value)  # type: ignore
+            return ECValue(domain=self.getName(), type=int, content=value)  # type: ignore
 
     #############################################################################
 	# Get the value of an unknown item (domain-specific)
