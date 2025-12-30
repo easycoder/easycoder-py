@@ -328,7 +328,7 @@ class ECVariable(ECValueHolder):
         val_type = value.getType()
         if type_in(val_type, ('dict', 'list')):
              value.setContent(json.dumps(value.getContent()))
-        elif not type_in(val_type, (str, int, float, bool)):
+        elif not type_in(val_type, (str, int, float, bool, None)):
             raise RuntimeError(None, 'ECVariable can only hold str, int, float, or bool values') # type: ignore
         super().setValue(value)
 

@@ -259,7 +259,7 @@ class Program:
 			elif varType == 'float': value.setValue(type=str, content=str(item))
 			elif varType == 'list': value.setValue(type=list, content=item)
 			elif varType == 'dict': value.setValue(type=dict, content=item)
-			else: value.setValue(None)
+			else: value.setValue(type=None, content=None)
 		return value
 
 	# Runtime function to evaluate an ECObject or ECValue. Returns another ECValue
@@ -277,7 +277,7 @@ class Program:
 			RuntimeError(self, 'Value does not hold a valid ECValue')
 		result = ECValue(type=valType)
 	
-		if valType in (str, int, bool, 'list', 'dict', None):
+		if valType in ('str', 'int', 'bool', 'list', 'dict', None):
 			# Simple value - just return the content
 			result.setContent(value.getContent()) # type: ignore
 		
