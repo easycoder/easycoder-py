@@ -4,4 +4,4 @@ import os
 from easycoder import Program
 
 os.chdir('/home/graham/Controller/')
-Program('rbr.ecs').start()
+Program('debug rbr.ecs').start()

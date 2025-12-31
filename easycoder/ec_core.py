@@ -198,15 +198,43 @@ class Core(Handler):
     def k_close(self, command):
         if self.nextIsSymbol():
             fileRecord = self.getSymbolRecord()
-            if fileRecord['keyword'] == 'file':
-                command['file'] = fileRecord['name']
-                self.add(command)
-                return True
+            self.checkObjectType
+            command['file'] = fileRecord['name']
+            self.add(command)
+            return True
         return False
 
     def r_close(self, command):
         fileRecord = self.getVariable(command['file'])
         fileRecord['file'].close()
+        return self.nextPC()
+
+    # copy {variable} to {variable}
+    # copy {dictionary} to {dictionary}
+    # copy {list} to {list}
+    def k_copy(self, command):
+        if self.nextIsSymbol():
+            record = self.getSymbolRecord()
+            sourceObject = self.getObject(record)
+            if self.isObjectType(sourceObject, (ECVariable, ECDictionary, ECList)):
+                command['source'] = record['name']
+                self.skip('to')
+                if self.nextIsSymbol():
+                    record = self.getSymbolRecord()
+                    targetObject = self.getObject(record)
+                    # Check that the types match
+                    if type(sourceObject) != type(targetObject):
+                        raise FatalError(self.compiler, 'Cannot copy - type mismatch')
+                    command['target'] = record['name']
+                    self.add(command)
+                    return True
+        return False
+
+    def r_copy(self, command):
+        sourceRecord = self.getVariable(command['source'])
+        targetRecord = self.getVariable(command['target'])
+        # Copy the value (type already checked at compile time)
+        self.putSymbolValue(targetRecord, self.textify(sourceRecord))
         return self.nextPC()
 
     # Create directory
@@ -2566,7 +2594,7 @@ class Core(Handler):
         if token == 'has':
             self.nextToken()
             token = self.nextToken()
-            if token in ('entry', 'property:'):
+            if token in ('entry', 'property'):
                 value = self.nextValue()
                 if token == 'entry':
                     condition.type = 'hasEntry' # type: ignore
@@ -2618,7 +2646,7 @@ class Core(Handler):
                 condition.negate = True # type: ignore
             token = self.nextToken()
             condition.type = token # type: ignore
-            if token in ['numeric', 'string', 'bool', 'none', 'list', 'object', 'even', 'odd', 'empty']:
+            if token in ['numeric', 'string', 'bool', 'boolean', 'none', 'list', 'object', 'even', 'odd', 'empty']:
                 return condition
             if token in ['greater', 'less']:
                 if self.nextToken() == 'than':
@@ -2660,6 +2688,9 @@ class Core(Handler):
             else:
                 return True if condition.negate else False
         return False
+    
+    def c_boolean(self, condition):
+        return self.c_bool(condition)
 
     def c_empty(self, condition):
         if condition.value1.getType() == 'symbol':
