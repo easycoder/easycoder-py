@@ -2582,6 +2582,10 @@ class Core(Handler):
                         condition.negate = not condition.negate # type: ignore
                         return condition
             return None
+        
+        elif token == 'debugging':
+            condition.type = 'debugging' # type: ignore
+            return condition
 
         value = self.getValue()
         if value == None:
@@ -2691,6 +2695,9 @@ class Core(Handler):
     
     def c_boolean(self, condition):
         return self.c_bool(condition)
+
+    def c_debugging(self, condition):
+        return self.program.debugging
 
     def c_empty(self, condition):
         if condition.value1.getType() == 'symbol':
