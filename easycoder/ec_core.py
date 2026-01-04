@@ -815,8 +815,13 @@ class Core(Handler):
                 return command['or']
             else:
                 RuntimeError(self.program, f'Error: {errorReason}')
+
         value = ECValue(type=str, content=content)
-        self.putSymbolValue(target, value)
+        try:
+            self.putSymbolValue(target, value)
+        except Exception as e:
+            print(f'Exception "{e}": Running the "or" clause')
+            return command['or']
         return self.nextPC()
 
     # Lock a variable
