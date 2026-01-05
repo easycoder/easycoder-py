@@ -499,6 +499,12 @@ class ECFile(ECObject):
         super().__init__()
 
 ###############################################################################
+# A module variable
+class ECModule(ECObject):
+    def __init__(self):
+        super().__init__()
+
+###############################################################################
 # An SSH variable
 class ECSSH(ECObject):
     def __init__(self):

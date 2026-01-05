@@ -1,0 +1,31 @@
+!   mqttspoke.ecs
+
+    script MQTTSpoke
+
+    use mqtt
+    
+!    debug compile
+!    debug step
+
+    dictionary Topics
+    variable ResponseTopic
+    variable MessageTopic
+
+    put `ectest/response` into ResponseTopic
+    put `ectest/message` into MessageTopic
+
+    reset Topics
+    set entry `response` of Topics to ResponseTopic
+
+    mqtt spoke
+        client `EasyCoder-MQTT-Test`
+        broker `test.mosquitto.org`
+        port 1883
+        topics Topics
+    
+    wait 1
+    send mqtt `Hello, World!` to MessageTopic
+
+    wait 3
+
+    exit

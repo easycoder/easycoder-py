@@ -198,7 +198,6 @@ class Graphics(Handler):
     # Set a graphic element as the value of a record
     def setGraphicElement(self, record, element):
         object = self.getObject(record)
-        # object.setValue(ECValue(domain=self.getName(), type='object', content=element))
         object.setValue(element)
 
     def dialogTypes(self):

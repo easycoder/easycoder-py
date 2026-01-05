@@ -1,5 +1,5 @@
 import json, math, hashlib, threading, os, subprocess, time
-import base64, binascii, random, requests, paramiko
+import base64, binascii, random, requests, paramiko, uuid
 from copy import deepcopy
 from datetime import datetime
 from .ec_classes import (
@@ -847,7 +847,7 @@ class Core(Handler):
     # Declare a module variable
     def k_module(self, command):
         self.compiler.addValueType()
-        return self.compileVariable(command, 'ECObject')
+        return self.compileVariable(command, 'ECModule')
 
     def r_module(self, command):
         return self.nextPC()
@@ -1355,7 +1355,7 @@ class Core(Handler):
         if self.nextIs('to'):
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                if record['keyword'] == 'module':
+                if self.isObjectType(record, 'ECModule'):
                     command['module'] = record['name']
                     self.add(command)
                     return True
@@ -1796,7 +1796,8 @@ class Core(Handler):
 
     # use plugin {class} from {source}
     # use graphics
-    # use psutil.
+    # use mqtt
+    # use psutil
     def k_use(self, command):
         if self.peek() == 'plugin':
             # Import a plugin
@@ -1811,9 +1812,15 @@ class Core(Handler):
             token = self.nextToken()
             if token == 'graphics':
                 return self.program.useGraphics()
+            elif token == 'mqtt':
+                return self.program.useMQTT()
             elif token == 'psutil':
                 return self.program.usePSUtil()
         return False
+    
+    # Unused
+    def r_use(self, command):
+        return self.nextPC()
 
     # Declare a general-purpose variable
     def k_variable(self, command):
@@ -2016,8 +2023,8 @@ class Core(Handler):
         token = self.getToken()
         value.setType(token)
 
-        if token == 'args':
-           return value
+        if token in ['args', 'message', 'uuid', 'weekday']:
+            return value
 
         if token in ('items', 'elements'):
             if self.nextToken() in ('in', 'of'):
@@ -2114,9 +2121,6 @@ class Core(Handler):
             value.haystack = self.nextValue() # type: ignore
             return value
 
-        if token == 'message':
-            return value
-
         if token == 'timestamp':
             value.format = None # type: ignore
             if self.peek() == 'of':
@@ -2133,10 +2137,6 @@ class Core(Handler):
                 value.target = self.nextValue() # type: ignore
                 return value
             return None
-
-        if token == 'weekday':
-            value.setType('weekday')
-            return value
 
         if token == 'error':
             token = self.peek()
@@ -2207,7 +2207,7 @@ class Core(Handler):
         value = ECValue(type=bool, content=v.getContent())
     
     def v_boolean(self, v):
-        return self.v.bool(v)
+        return self.v_bool(v)
 
     def v_cos(self, v):
         angle = self.textify(v['angle'])
@@ -2527,6 +2527,9 @@ class Core(Handler):
     def v_uppercase(self, v):
         content = self.textify(v.getContent())
         return ECValue(type=str, content=content.upper())
+    
+    def v_uuid(self, v):
+        return ECValue(type=str, content=str(uuid.uuid4())[:8])
 
     def v_valueOf(self, v):
         v = self.textify(v.getContent())

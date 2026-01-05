@@ -1,0 +1,44 @@
+!   mqtthub.ecs
+
+    script MQTTHub
+
+    use mqtt
+
+    hub Hub
+    spoke Spoke
+    variable Broker
+    variable Port
+    topic Topic1
+    topic Topic2
+
+    put `test.mosquitto.org` into Broker
+    put 1883 into Port
+    
+    create Topic1
+        name `EasyCoder-MQTT/request`
+        qos 1
+    create Topic2
+        name `EasyCoder-MQTT/response`
+        qos 1
+
+    create Hub
+        id `EasyCoder-MQTT-Test-hub`
+        broker Broker
+        port Port
+        request Topic1
+        response Topic2
+    wait 3
+
+    create Spoke
+        id `EasyCoder-MQTT-Test-spoke`
+        broker Broker
+        port Port
+        request Topic2
+        response Topic1
+    wait 3
+    
+    send mqtt `Hello, World!` to Topic1
+
+    wait 3
+
+    exit

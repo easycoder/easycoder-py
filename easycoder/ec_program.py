@@ -119,6 +119,15 @@ class Program:
 			self.useClass(Graphics)
 		return True
 	
+	# Use the mqtt module
+	def useMQTT(self):
+		if self.psutil == None:
+			print('Loading mqtt module')
+			from .ec_mqtt import MQTT
+			self.psutil = MQTT
+			self.useClass(MQTT)
+		return True
+	
 	# Use the psutil module
 	def usePSUtil(self):
 		if self.psutil == None:
