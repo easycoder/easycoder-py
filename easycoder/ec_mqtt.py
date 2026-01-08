@@ -1,5 +1,6 @@
 from easycoder import Handler, ECObject, ECValue, ECDictionary, FatalError, RuntimeError
 import paho.mqtt.client as mqtt
+import time
     
 #############################################################################
 # MQTT client class
@@ -7,71 +8,65 @@ class MQTTClient():
     def __init__(self):
         super().__init__()
 
-    def create(self, program, clientID, broker, port, request, response):
+    def create(self, program, clientID, broker, port, topics):
         self.program = program
         self.clientID = clientID
         self.broker = broker
         self.port = port
-        self.request = request
-        self.response = response
+        self.topics = topics
+        self.onMessagePC = None
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=self.clientID) # type: ignore
     
         # Setup callbacks
-        self.client.on_connect = self.onConnect
-        self.client.on_message = self.onMessage
+        self.client.on_connect = self.on_connect
+        self.client.on_message = self.on_message
 
-    def onConnect(self, client, userdata, flags, reason_code, properties):
+    def on_connect(self, client, userdata, flags, reason_code, properties):
         print(f"Client {self.clientID} connected")
-        self.client.subscribe(self.request.name, qos=self.request.qos)
+        for item in self.topics:
+            topic = self.program.getObject(self.program.getVariable(item))
+            self.client.subscribe(topic.getName(), qos=topic.getQOS())
+            print(f"Subscribed to topic: {topic.getName()} with QoS {topic.getQOS()}")
     
-    def onMessage(self, client, userdata, msg):
-        print(msg.payload.decode())
+    def on_message(self, client, userdata, msg):
+        # print(f"Message received on topic {msg.topic}: {msg.payload.decode()}")
+        if self.onMessagePC is not None:
+            self.message = msg
+            self.program.run(self.onMessagePC)
+            self.program.flushCB()
     
-    def sendMessage(self, text):
-        self.client.publish(self.response.name, text, qos=self.response.qos)
+    def getMessageTopic(self):
+        return self.message.topic
+    
+    def getMessagePayload(self):
+        return self.message.payload.decode('utf-8')
+
+    def onMessage(self, pc):
+        self.onMessagePC = pc
+    
+    def sendMessage(self, topic, message, qos):
+        self.client.publish(topic, message, qos=qos)
     
     def run(self):
         self.client.connect(self.broker, int(self.port), 60)
         self.client.loop_start()
         
 ###############################################################################
-# An MQTT hub
-class ECHub(ECObject):
-    def __init__(self):
-        super().__init__()
-    
-    def create(self, program, clientID, broker, port, request, response):
-        self.client = MQTTClient()
-        self.client.create(program, clientID, broker, port, request, response)
-    
-    def onMessage(self, client, userdata, msg):
-        print(f"Topic: {msg.topic}\nMessage: {msg.payload.decode()}")
-        # Echo message back to response topic
-        self.client.sendMessage(msg.payload.decode())
-        
-###############################################################################
-# An MQTT spoke
-class ECSpoke(ECObject):
-    def __init__(self):
-        super().__init__()
-    
-    def create(self, program, clientID, broker, port, request, response):
-        self.client = MQTTClient()
-        self.client.create(program, clientID, broker, port, request, response)
-        if hasattr(program.handler, 'spoke'):
-            raise FatalError(program, 'Only one MQTT spoke can be defined per program')
-        program.handler.spoke = self
-
-    def onMessage(self, client, userdata, msg):
-        print(f"Topic: {msg.topic}\nMessage: {msg.payload.decode()}")
-        # Echo message back to response topic
-        self.client.sendMessage(msg.payload.decode())
-        
-###############################################################################
 # An MQTT topic
 class ECTopic(ECObject):
     def __init__(self):
         super().__init__()
+
+    def create(self, name, qos=1):
+        super().__init__()
+        self.name = name
+        self.qos = qos
+
+    def getName(self):
+        return self.name
+
+    def getQOS(self):
+        return self.qos
 
 ###############################################################################
 # The MQTT compiler and rutime handlers
@@ -87,69 +82,102 @@ class MQTT(Handler):
     #############################################################################
     # Keyword handlers
 
-    # create {hub/spoke} id {clientID} broker {broker} port {port} request {topic} response {topic}
-    def k_create(self, command):
+    # init {topic} name {name} qos {qos}
+    def k_init(self, command):
         if self.nextIsSymbol():
             record = self.getSymbolRecord()
-            self.checkObjectType(record, MQTTClient)
-            command['client'] = record['name']
-            while True:
-                token = self.peek()
-                if token == 'id':
-                    self.nextToken()
-                    command['clientID'] = self.nextValue()
-                elif token == 'broker':
-                    self.nextToken()
-                    command['broker'] = self.nextValue()
-                elif token == 'port':
-                    self.nextToken()
-                    command['port'] = self.nextValue()
-                elif token == 'request':
-                    self.nextToken()
-                    if self.nextIsSymbol():
-                        record = self.getSymbolRecord()
-                        self.checkObjectType(record, ECDictionary())
-                        command['request'] = self.nextValue()
-                    else: return False
-                elif token == 'response':
-                    self.nextToken()
-                    if self.nextIsSymbol():
-                        record = self.getSymbolRecord()
-                        self.checkObjectType(record, ECDictionary())
-                        command['response'] = self.nextValue()
-                    else: return False
-                else:
-                    break
+            self.checkObjectType(record, ECTopic)
+            command['topic'] = record['name']
+            self.skip('name')
+            command['name'] = self.nextValue()
+            self.skip('qos')
+            command['qos'] = self.nextValue()
             self.add(command)
             return True
         return False
 
-    def r_create(self, command):
-        record = self.getVariable(command['client'])
+    def r_init(self, command):
+        record = self.getVariable(command['topic'])
+        topic = ECTopic()
+        topic.create(self.textify(command['name']), qos=int(self.textify(command['qos'])))
+        record['object'] = topic
+        return self.nextPC()
+
+    # mqtt id {clientID} broker {broker} port {port} topics {topic} [and {topic} ...]
+    def k_mqtt(self, command):
+        while True:
+            token = self.peek()
+            if token == 'id':
+                self.nextToken()
+                command['clientID'] = self.nextValue()
+            elif token == 'broker':
+                self.nextToken()
+                command['broker'] = self.nextValue()
+            elif token == 'port':
+                self.nextToken()
+                command['port'] = self.nextValue()
+            elif token == 'topics':
+                self.nextToken()
+                topics = []
+                while self.nextIsSymbol():
+                    record = self.getSymbolRecord()
+                    self.checkObjectType(record, ECTopic())
+                    topics.append(record['name'])
+                    if self.peek() == 'and': self.nextToken()
+                    else:break
+                command['topics'] = topics
+            else:
+                self.add(command)
+                return True
+        return False
+
+    def r_mqtt(self, command):
+        if hasattr(self.program, 'mqttClient'):
+            raise RuntimeError(self.program, 'MQQT client already defined')
         clientID = self.textify(command['clientID'])
         broker = self.textify(command['broker'])
         port = self.textify(command['port'])
-        request = self.getObject(self.getVariable(command['request']))
-        response = self.getObject(self.getVariable(command['response']))
-        object = self.getObject(record)
-        if isinstance(object, ECHub):
-            client = ECHub()
-            client.create(self.program, clientID, broker, port, request, response)
-        else:
-            client = ECSpoke()
-            client.create(self.program, clientID, broker, port, request, response)
+        topics = command['topics']
+        client = MQTTClient()
+        client.create(self.program, clientID, broker, port, topics)
         client.run()
+        self.program.mqttClient = client
         return self.nextPC()
 
-    # Declare a hub variable
-    def k_hub(self, command):
-        self.compiler.addValueType()
-        return self.compileVariable(command, 'ECHub')
+    # on mqtt message {action}
+    def k_on(self, command):
+        token = self.peek()
+        if token == 'mqtt':
+            self.nextToken()
+            if self.nextIs('message'):
+                self.nextToken()
+                command['goto'] = 0
+                self.add(command)
+                cmd = {}
+                cmd['domain'] = 'core'
+                cmd['lino'] = command['lino']
+                cmd['keyword'] = 'gotoPC'
+                cmd['goto'] = 0
+                cmd['debug'] = False
+                self.add(cmd)
+                # Add the action and a 'stop'
+                self.compileOne()
+                cmd = {}
+                cmd['domain'] = 'core'
+                cmd['lino'] = command['lino']
+                cmd['keyword'] = 'stop'
+                cmd['debug'] = False
+                self.add(cmd)
+                # Fixup the link
+                command['goto'] = self.getCodeSize()
+                return True
+        return False
 
-    def r_hub(self, command):
-        return self.nextPC()
+    def r_on(self, command):
+        self.program.mqttClient.onMessage(self.nextPC()+1)
+        return command['goto']
 
-    # Send a message from one client to another
+    # send {message} to {topic}
     def k_send(self, command):
         if self.nextIs('mqtt'):
             command['message'] = self.nextValue()
@@ -168,19 +196,11 @@ class MQTT(Handler):
         return False
 
     def r_send(self, command):
-        if self.spoke == None:
-            raise RuntimeError(self.program, 'No MQTT spoke defined')
-        topic = self.textify(command['topic'])
+        if not hasattr(self.program, 'mqttClient'):
+            raise RuntimeError(self.program, 'No MQTT client defined')
+        topic = self.getObject(self.getVariable(command['to']))
         message = self.textify(command['message'])
-        self.spoke.sendMessage(topic, message)
-        return self.nextPC()
-
-    # Declare a spoke variable
-    def k_spoke(self, command):
-        self.compiler.addValueType()
-        return self.compileVariable(command, 'ECSpoke')
-
-    def r_spoke(self, command):
+        self.program.mqttClient.sendMessage(topic.getName(), message, topic.getQOS())
         return self.nextPC()
 
     # Declare a topic variable
@@ -194,13 +214,15 @@ class MQTT(Handler):
     #############################################################################
     # Compile a value in this domain
     def compileValue(self):
-        value = ECValue(domain=self.getName())
-        if self.tokenIs('the'):
-            self.nextToken()
-        token = self.getToken()
-        if token in ['mem', 'memory']:
-            value.setType('memory')
-            return value
+        token = self.nextToken()
+        if token == 'mqtt':
+            value = ECValue(domain=self.getName())
+            token = self.nextToken()
+            if token in ['topic', 'message']:
+                value.setType(token)
+                return value
+        else:
+            return self.getValue()
         return None
 
     #############################################################################
@@ -211,6 +233,12 @@ class MQTT(Handler):
     #############################################################################
     # Value handlers
 
+    def v_message(self, v):
+        return self.program.mqttClient.getMessagePayload()
+
+    def v_topic(self, v):
+        return self.program.mqttClient.getMessageTopic()
+
     #############################################################################
     # Compile a condition
     def compileCondition(self):
@@ -219,49 +247,3 @@ class MQTT(Handler):
 
     #############################################################################
     # Condition handlers
-
-'''
-###############################################################################
-# Standalone test code for hub/spoke without EasyCoder
-if __name__ == "__main__":
-    import time
-    
-    print(f"\n{'='*40}")
-    print(f"MQTT Hub/Spoke Test")
-    print(f"{'='*40}\n")
-    
-    # Create and start hub
-    print("1. Creating hub...")
-    hub = MQTTClient(
-        clientID="Test-Hub",
-        broker="test.mosquitto.org",
-        port=1883,
-        request = {'name': 'EasyCoder-MQTT/request', 'qos': 1},
-        response = {'name': 'EasyCoder-MQTT/response', 'qos': 1}
-    )
-    hub.run()
-    time.sleep(2)  # Wait for connection
-    
-    # Create and start spoke
-    print("\n2. Creating spoke...")
-    spoke = MQTTClient(
-        clientID="Test-Spoke",
-        broker="test.mosquitto.org",
-        port=1883,
-        request = {'name': 'EasyCoder-MQTT/request', 'qos': 1},
-        response = {'name': 'EasyCoder-MQTT/response', 'qos': 1}
-    )
-    spoke.run()
-    time.sleep(2)  # Wait for connection
-    
-    # Send test message
-    print("\n3. Sending test message from spoke...")
-    spoke.sendMessage('EasyCoder-MQTT/request', "Hello from standalone test!")
-    
-    # Wait for message to be received
-    print("\n4. Waiting for message to arrive at hub...")
-    time.sleep(3)
-    
-    print("\n5. Test complete. If you see 'Topic:' and message above, it worked!")
-    print(f"{'='*60}\n")
-'''

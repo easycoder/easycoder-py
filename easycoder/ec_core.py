@@ -16,7 +16,8 @@ from .ec_classes import (
     ECFile,
     ECStack,
     ECSSH,
-    ECValue
+    ECValue,
+    ECModule
 )
 
 from .ec_handler import Handler
@@ -929,7 +930,8 @@ class Core(Handler):
 
     # on message {action}
     def k_on(self, command):
-        if self.nextIs('message'):
+        token = self.peek()
+        if token == 'message':
             self.nextToken()
             command['goto'] = 0
             self.add(command)
@@ -1186,7 +1188,8 @@ class Core(Handler):
     def k_release(self, command):
         if self.nextIs('parent'):
             self.add(command)
-        return True
+            return True
+        return False
 
     def r_release(self, command):
         self.program.releaseParent()
@@ -1355,7 +1358,7 @@ class Core(Handler):
         if self.nextIs('to'):
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                if self.isObjectType(record, 'ECModule'):
+                if self.isObjectType(record, ECModule):
                     command['module'] = record['name']
                     self.add(command)
                     return True

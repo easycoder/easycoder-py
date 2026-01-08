@@ -4,4 +4,4 @@ import os
 from easycoder import Program
 
 os.chdir('/home/graham/dev/easycoder/easycoder-py/tests')
-Program('mqtthub.ecs').start()
+Program('hub.ecs').start()

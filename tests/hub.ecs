@@ -1,0 +1,30 @@
+!   hub.ecs
+
+    script MQTTHub
+
+    use mqtt
+
+    topic Request
+    topic Response
+
+    init Request
+        name `38:54:39:34:62:d7/request`
+        qos 1
+    init Response
+        name `38:54:39:34:62:d7/response`
+        qos 1
+
+    mqtt
+        id `EasyCoder-MQTT-Hub`
+        broker `test.mosquitto.org`
+        port 1883
+        topics Request
+    
+    on mqtt message
+    begin
+        wait 10 ticks
+        log the mqtt topic cat ` - ` cat the mqtt message
+        send mqtt `Ack` to Response
+    end
+
+    stop
