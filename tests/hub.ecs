@@ -24,19 +24,19 @@
         port 1883
         topics Request
     
-!    on mqtt message
-!    begin
-!        put the mqtt message into Query
-!        log the mqtt topic cat ` - ` cat Query
-!        split Query on ` `
-!        index Query to 0
-!        if Query is `file`
-!        begin
-!            index Query to 1
-!            load Text from Query
-!            send mqtt Text to Response
-!        end
-!        else send mqtt `Ack` to Response
-!    end
+    on mqtt message
+    begin
+        put the mqtt message into Query
+        log the mqtt topic cat ` - ` cat Query
+        split Query on ` `
+        index Query to 0
+        if Query is `file`
+        begin
+            index Query to 1
+            load Text from Query
+            send mqtt Text to Response
+        end
+        else send mqtt `Ack` to Response
+    end
 
     stop

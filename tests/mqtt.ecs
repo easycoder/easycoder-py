@@ -24,7 +24,7 @@
 
     wait 3
     
-    send mqtt `Hello, World!` to Request
+    send mqtt `file /home/graham/dev/easycoder/easycoder-py/tests/tests.ecs` to Request
 
     wait 3
 
