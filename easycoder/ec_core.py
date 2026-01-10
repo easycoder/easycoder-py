@@ -515,7 +515,7 @@ class Core(Handler):
         self.run(label)
         return next
 
-    # get {variable) from {url} [or {command}]
+    # get {variable) from url {url} [or {command}]
     def k_get(self, command):
         if self.nextIsSymbol():
             record = self.getSymbolRecord()

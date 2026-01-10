@@ -7,7 +7,7 @@ class P100(Handler):
     loginPassword = None
 
     def __init__(self, compiler):
-        Handler.__init__(self, compiler)
+        super().__init__(compiler)
 
     def getName(self):
         return 'p100'

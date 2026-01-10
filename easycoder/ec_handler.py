@@ -76,4 +76,4 @@ class Handler:
 
 	# Get the value of an unknown item (domain-specific)
 	def getUnknownValue(self, value):
-		return None # Unable to get value
+		return value

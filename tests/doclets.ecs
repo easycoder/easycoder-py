@@ -1,0 +1,34 @@
+!   doclets.ecs
+
+    script DocletTest
+
+!    debug compile
+!    debug step
+
+    use plugin Doclets from ec_doclets
+
+    list List
+    dictionary Doclet
+    variable FilePath
+    variable N
+
+    doclets init
+        path `~/Doclets/Doclets,~/Doclets/EasyCoder,~/Doclets/RBR`
+    
+    get List from doclet query `api`
+
+    put 0 into N
+    while N is less than the count of List
+    begin
+        put item N of List into Doclet
+        log entry `display_filename` of Doclet
+        increment N
+    end
+
+    put item 1 of List into Doclet
+    put entry `display_filename` of Doclet into FilePath
+    log FilePath
+    get List from doclet file FilePath
+    log List
+
+    exit

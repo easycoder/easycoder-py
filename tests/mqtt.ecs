@@ -2,7 +2,7 @@
 
     script MQTTTest
 
-    use mqtt
+    use plugin MQTT from ec_mqtt
 
     topic Request
     topic Response

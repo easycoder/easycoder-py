@@ -421,19 +421,13 @@ class ECList(ECValueHolder):
 
     # Set the value to an ECValue
     def setValue(self, value):
-        varType = value.getType()
-        if type_in(varType, (str, 'list')):
-            content = value.getContent()
-            if types_equal(varType, str):
-                try:
-                    if content in ('', [], None): content = []
-                    else: content = json.loads(content)
-                except:
-                    raise RuntimeError(None, 'ECList string value is not valid JSON') # type: ignore
-        elif varType == None:
-             content = []
+        content = value.getContent()
+        if content in ('', None): content = []
         else:
-            raise RuntimeError(None, 'ECList can only hold list values or None') # type: ignore
+            try:
+                content = json.loads(content) # type: ignore
+            except:
+                pass
         super().setValue(content)
     
     def getValue(self):
