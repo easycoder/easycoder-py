@@ -1,3 +1,5 @@
+import time
+import uuid
 from easycoder import Handler, ECObject, ECValue, RuntimeError
 import paho.mqtt.client as mqtt
     
@@ -7,32 +9,55 @@ class MQTTClient():
     def __init__(self):
         super().__init__()
 
-    def create(self, program, clientID, broker, port, topics):
+    def create(self, program=None, clientID='EasyCoder-MQTT-Hub', broker='EasyCoder-MQTT-Hub', port=1883, topics=None):
         self.program = program
+        # Avoid client ID collisions on public brokers
+        clientID += f"-{uuid.uuid4().hex[:6]}"
         self.clientID = clientID
         self.broker = broker
         self.port = port
-        self.topics = topics
+        self.topics = [] if topics is None else topics
         self.onMessagePC = None
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=self.clientID) # type: ignore
+        self.client.reconnect_delay_set(min_delay=1, max_delay=5)
     
         # Setup callbacks
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
+        self.client.on_disconnect = self.on_disconnect
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
         print(f"Client {self.clientID} connected")
-        for item in self.topics:
-            topic = self.program.getObject(self.program.getVariable(item))
-            self.client.subscribe(topic.getName(), qos=topic.getQOS())
-            print(f"Subscribed to topic: {topic.getName()} with QoS {topic.getQOS()}")
-    
+        if self.program is None:
+            for item in self.topics:
+                self.client.subscribe(item.get('name'), qos=item.get('qos', 1))
+                print(f"Subscribe to topic: {item} (program is None)")
+        else:
+            for item in self.topics:
+                topic = self.program.getObject(self.program.getVariable(item))
+                self.client.subscribe(topic.getName(), qos=topic.getQOS())
+                print(f"Subscribed to topic: {topic.getName()} with QoS {topic.getQOS()}")
+
+    def on_disconnect(self, client, userdata, flags, reason_code, properties=None):
+        try:
+            code_val = reason_code.value if hasattr(reason_code, 'value') else reason_code
+        except Exception:
+            code_val = reason_code
+        print(f"Disconnected: reason_code={code_val}") 
+
     def on_message(self, client, userdata, msg):
         # print(f"Message received on topic {msg.topic}: {msg.payload.decode()}")
-        if self.onMessagePC is not None:
+        if self.program is None:
+            try:
+                payload = msg.payload.decode('utf-8')
+            except Exception:
+                payload = msg.payload
+            print(f"[standalone] {msg.topic}: {payload}")
+        elif self.onMessagePC is not None:
             self.message = msg
-            self.program.run(self.onMessagePC)
-            self.program.flushCB()
+            if self.program is not None:
+                self.program.run(self.onMessagePC)
+                self.program.flushCB()
     
     def getMessageTopic(self):
         return self.message.topic
@@ -58,11 +83,11 @@ class ECTopic(ECObject):
 
     def create(self, name, qos=1):
         super().__init__()
-        self.name = name
+        super().setName(name)
         self.qos = qos
 
     def getName(self):
-        return self.name
+        return super().getName()
 
     def getQOS(self):
         return self.qos
@@ -246,3 +271,24 @@ class MQTT(Handler):
 
     #############################################################################
     # Condition handlers
+
+if __name__ == '__main__':
+
+    clientID = 'EasyCoder-MQTT-Hub'
+    broker = 'test.mosquitto.org'
+    port = 1883
+    request = {'name': '38:54:39:34:62:d7/request', 'qos': 1}
+    response = {'name': '38:54:39:34:62:d7/response', 'qos': 1}
+    topics = [request]
+
+    client = MQTTClient()
+    client.create(program=None, clientID=clientID, broker=broker, port=port, topics=topics)
+    client.run()
+
+    print(f"Subscribed to {request['name']} on {broker}:{port}. Waiting for messages (Ctrl+C to exit)...")
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("\nStopping...")
+        client.client.loop_stop()

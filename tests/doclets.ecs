@@ -25,9 +25,8 @@
         increment N
     end
 
-    put item 1 of List into Doclet
+    put item 0 of List into Doclet
     put entry `display_filename` of Doclet into FilePath
-    log FilePath
     get List from doclet file FilePath
     log List
 

@@ -27,10 +27,10 @@ class DocletManager():
             self.doclets_dirs = [Path(__file__).parent]
         self.ollama_url = ollama_url
         self.model = "llama3.2"  # Default model, can be changed
-        print(f"DocletManager.__init__ raw input: {doclets_dir}")
-        print(f"DocletManager initialized with directories: {[str(d) for d in self.doclets_dirs]}")
-        for d in self.doclets_dirs:
-            print(f"  Directory exists: {d.exists()}, is_dir: {d.is_dir()}")
+        # print(f"DocletManager.__init__ raw input: {doclets_dir}")
+        # print(f"DocletManager initialized with directories: {[str(d) for d in self.doclets_dirs]}")
+        # for d in self.doclets_dirs:
+        #     print(f"  Directory exists: {d.exists()}, is_dir: {d.is_dir()}")
         
     def find_all_doclets(self) -> List[Tuple[Path, str, str]]:
         """Find all doclets in the directory structure
@@ -42,12 +42,12 @@ class DocletManager():
         
         # Search across all configured directories
         for base_dir in self.doclets_dirs:
-            print(f"  Searching in: {base_dir}")
+            # print(f"  Searching in: {base_dir}")
             year_count = 0
             # Look for year folders (e.g., 2026, 2025, etc.)
             for year_folder in base_dir.glob("[0-9][0-9][0-9][0-9]"):
                 year_count += 1
-                print(f"    Found year folder: {year_folder.name}")
+                # print(f"    Found year folder: {year_folder.name}")
                 if year_folder.is_dir():
                     # Find all .md files in this year folder
                     for doclet_file in year_folder.glob("*.md"):
@@ -57,7 +57,7 @@ class DocletManager():
                                 first_line = f.readline().strip()
                                 subject = first_line[2:].strip() if first_line.startswith('# ') else "No subject"
                                 doclets.append((doclet_file, doclet_file.name, subject))
-                                print(f"      Added: {doclet_file.name} - {subject}")
+                                # print(f"      Added: {doclet_file.name} - {subject}")
                         except Exception as e:
                             print(f"Warning: Could not read {doclet_file}: {e}", file=sys.stderr)
             if year_count == 0:
@@ -246,9 +246,9 @@ Doclets:\n{context}
 
     def search_data(self, query: str, include_content: bool = False, use_llm: bool = False, include_summary: bool = False, return_meta: bool = False) -> Union[List[Dict[str, Any]], Tuple[List[Dict[str, Any]], Dict[str, Any]]]:
         """Programmatic search returning raw data; optionally include metadata."""
-        print(f"search_data called with query: '{query}'")
+        # print(f"search_data called with query: '{query}'")
         matches, error, meta = self._match_doclets(query=query, use_llm=use_llm)
-        print(f"  _match_doclets returned: error={error}, match_count={meta.get('match_count')}, status={meta.get('status')}")
+        # print(f"  _match_doclets returned: error={error}, match_count={meta.get('match_count')}, status={meta.get('status')}")
 
         results: List[Dict[str, Any]] = []
         if not error:
@@ -457,7 +457,6 @@ class Doclets(Handler):
         target = self.getObject(self.getVariable(command['target']))
         if 'query' in command:
             query = self.textify(command['query'])
-            print(f"r_get: query={query}")
             results = doclets_manager.search_data(
                 query=query,
                 include_content=True if command.get('include_content') else False,
@@ -467,7 +466,6 @@ class Doclets(Handler):
             )
         elif 'file' in command:
             filepath = self.textify(command['file'])
-            print(f"r_get {filepath}")
             results = doclets_manager.read_doclet_content(filepath=filepath)
         if isinstance(results, str):
             results = ECValue(type=str, content=results)
