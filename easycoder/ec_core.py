@@ -1815,6 +1815,8 @@ class Core(Handler):
             token = self.nextToken()
             if token == 'graphics':
                 return self.program.useGraphics()
+            if token == 'mqtt':
+                return self.program.useMQTT()
             elif token == 'psutil':
                 return self.program.usePSUtil()
         return False

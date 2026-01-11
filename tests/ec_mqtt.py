@@ -2,6 +2,7 @@ import time
 import uuid
 from easycoder import Handler, ECObject, ECValue, RuntimeError
 import paho.mqtt.client as mqtt
+from binascii import hexlify, unhexlify
     
 #############################################################################
 # MQTT client class
@@ -46,34 +47,171 @@ class MQTTClient():
         print(f"Disconnected: reason_code={code_val}") 
 
     def on_message(self, client, userdata, msg):
-        # print(f"Message received on topic {msg.topic}: {msg.payload.decode()}")
-        if self.program is None:
-            try:
-                payload = msg.payload.decode('utf-8')
-            except Exception:
-                payload = msg.payload
-            print(f"[standalone] {msg.topic}: {payload}")
-        elif self.onMessagePC is not None:
-            self.message = msg
-            if self.program is not None:
-                self.program.run(self.onMessagePC)
-                self.program.flushCB()
+        try:
+            payload = msg.payload.decode('utf-8')
+        except Exception:
+            payload = str(msg.payload)
+        
+        # Check if this is a chunked message
+        is_chunked = payload.startswith('part:') or payload.startswith('last:')
+        
+        if is_chunked:
+            # Handle dechunking
+            confirmation = self.receive_part(payload)
+            print(f"[chunked] Part received: {confirmation}")
+            
+            # If complete, invoke callback
+            if self.receive_complete:
+                # Create a mock message object with the reassembled payload
+                class MockMessage:
+                    def __init__(self, topic, payload_str):
+                        self.topic = topic
+                        self.payload_str = payload_str
+                    def decode(self, encoding='utf-8'):
+                        return self.payload_str
+                
+                self.message = MockMessage(msg.topic, self.received_message)
+                self.receive_complete = False  # Reset for next message
+                
+                print("Message reassembled")
+                
+                if self.program is None:
+                    print(f"[standalone] {msg.topic}: {self.received_message}")
+                elif self.onMessagePC is not None:
+                    self.program.run(self.onMessagePC)
+                    self.program.flushCB()
+        else:
+            # Non-chunked message - handle directly
+            print(f"Message received on topic {msg.topic}: {payload[0:40]}{'...' if len(payload)>40 else ''}")
+            if self.program is None:
+                print(f"[standalone] {msg.topic}: {payload}")
+            elif self.onMessagePC is not None:
+                self.message = msg
+                if self.program is not None:
+                    self.program.run(self.onMessagePC)
+                    self.program.flushCB()
     
     def getMessageTopic(self):
         return self.message.topic
     
     def getMessagePayload(self):
-        return self.message.payload.decode('utf-8')
+        return self.message.payload_str
 
     def onMessage(self, pc):
         self.onMessagePC = pc
     
     def sendMessage(self, topic, message, qos):
-        self.client.publish(topic, message, qos=qos)
+        # Use chunking for large messages
+        self.send_chunked(topic, message, qos=qos)
     
     def run(self):
         self.client.connect(self.broker, int(self.port), 60)
         self.client.loop_start()
+
+    def chunk_message(self, message: str, chunk_size: int = 1000):
+        """Split message into hex-encoded chunks for transmission.
+
+        Returns list of (part_num, hex_text) tuples.
+        """
+        msg_bytes = message.encode('utf-8')
+        chunks = []
+        for i in range(0, len(msg_bytes), chunk_size):
+            chunk = msg_bytes[i:i + chunk_size]
+            hex_text = hexlify(chunk).decode('ascii')
+            chunks.append((len(chunks), hex_text))
+        return chunks
+
+    def send_chunked(self, topic: str, message: str, qos: int = 1, chunk_size: int = 1000):
+        """Send a large message as a series of chunked MQTT messages.
+
+        Sends parts as: part:{n},text:{hex_encoded_text}
+        Last part prefixed with: last:{n},text:{hex_encoded_text}
+        """
+        chunks = self.chunk_message(message, chunk_size)
+        if not chunks:
+            return
+
+        for part_num, hex_text in chunks[:-1]:
+            msg = f"part:{part_num},text:{hex_text}"
+            self.client.publish(topic, msg, qos=qos)
+            confirmation = f"part {part_num} {len(hex_text)}"
+            print(f"[chunked] Part sent: {confirmation}")
+
+        # Send last part
+        last_num, hex_text = chunks[-1]
+        msg = f"last:{last_num},text:{hex_text}"
+        self.client.publish(topic, msg, qos=qos)
+        confirmation = f"part {last_num} {len(hex_text)}"
+        print(f"[chunked] Part sent: {confirmation}")
+
+    def init_receive_buffer(self):
+        """Initialize buffer for receiving chunked messages."""
+        self.receive_buffer = []
+        self.receive_part_count = 0
+        self.receive_complete = False
+
+    def receive_part(self, msg: str) -> str:
+        """Process an incoming chunked part.
+
+        Returns confirmation message: '{part} {size}' or error.
+        """
+        try:
+            is_last = msg.startswith('last:')
+            prefix = 'last:' if is_last else 'part:'
+            msg_data = msg[len(prefix):]
+
+            # Parse format: "0,text:{hex}" or "{num},text:{hex}"
+            items = msg_data.split(',', 1)  # Split into at most 2 parts
+            if len(items) < 2:
+                return 'Error: invalid part format'
+            
+            # First item is the part number
+            try:
+                part_num = int(items[0])
+            except ValueError:
+                return f'Error: invalid part number: {items[0]}'
+            
+            # Second item should be "text:{hex}"
+            if not items[1].startswith('text:'):
+                return 'Error: missing text field'
+            hex_text = items[1][5:]  # Strip "text:"
+
+            if part_num is None or hex_text is None:
+                return 'Error: invalid part format'
+
+            # Initialize on part 0
+            if part_num == 0:
+                self.init_receive_buffer()
+
+            # Verify sequence
+            if part_num != self.receive_part_count:
+                return f'Error: sequence mismatch, expected {self.receive_part_count}, got {part_num}'
+
+            # Decode and accumulate
+            try:
+                decoded = unhexlify(hex_text).decode('utf-8')
+            except Exception as e:
+                return f'Error: decode failed: {e}'
+
+            self.receive_buffer.append(decoded)
+            self.receive_part_count += 1
+
+            # If last part, merge buffer
+            if is_last:
+                self.receive_complete = True
+                self.received_message = ''.join(self.receive_buffer)
+                return f'last {part_num} {sum(len(b) for b in self.receive_buffer)}'
+
+            return f'{part_num} {len(decoded)}'
+
+        except Exception as e:
+            return f'Error: {e}'
+
+    def get_received_message(self) -> str:
+        """Return the reassembled message if complete."""
+        if self.receive_complete:
+            return self.received_message
+        return ''
         
 ###############################################################################
 # An MQTT topic

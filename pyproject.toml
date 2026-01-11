@@ -16,7 +16,8 @@ dependencies = [
     "requests",
     "psutil",
     "paramiko",
-    "pyside6"
+    "pyside6",
+    "paho-mqtt"
 ]
 
 [tool.flit.sdist]

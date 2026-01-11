@@ -1,6 +1,7 @@
 import time, sys, json
 from copy import deepcopy
 from collections import deque
+
 from .ec_classes import (
 	Script,
 	Token,
@@ -60,6 +61,7 @@ class Program:
 		self.value = self.compiler.value
 		self.condition = self.compiler.condition
 		self.graphics = None
+		self.mqtt = None
 		self.psutil = None
 		self.useClass(Core)
 		self.ticker = 0
@@ -117,6 +119,15 @@ class Program:
 			from .ec_graphics import Graphics
 			self.graphics = Graphics
 			self.useClass(Graphics)
+		return True
+	
+	# Use the MQTT module
+	def useMQTT(self):
+		if self.mqtt == None:
+			print('Loading MQTT module')
+			from .ec_mqtt import MQTT
+			self.mqtt = MQTT
+			self.useClass(MQTT)
 		return True
 	
 	# Use the psutil module

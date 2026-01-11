@@ -4,18 +4,22 @@
 
     script MQTTHub
 
-    use plugin MQTT from ec_mqtt
+    use mqtt
 
     topic Request
     topic Response
     variable Query
+    variable Name
     variable Text
+    variable P
+    
+!    debug step
 
     init Request
-        name `38:54:39:34:62:d7/request`
+        name `a8:41:f4:d3:19:dd/request`
         qos 1
     init Response
-        name `38:54:39:34:62:d7/response`
+        name `a8:41:f4:d3:19:dd/response`
         qos 1
 
     mqtt
@@ -27,13 +31,13 @@
     on mqtt message
     begin
         put the mqtt message into Query
-        log the mqtt topic cat ` - ` cat Query
-        split Query on ` `
-        index Query to 0
-        if Query is `file`
+!        log the mqtt topic cat ` - ` cat Query
+        put the position of `:` in Query into P
+        if left P of Query is `file`
         begin
-            index Query to 1
-            load Text from Query
+            increment P
+            put from P of Query into Name
+            load Text from Name
             send mqtt Text to Response
         end
         else send mqtt `Ack` to Response
