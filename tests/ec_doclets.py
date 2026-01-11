@@ -493,7 +493,7 @@ class Doclets(Handler):
         target = self.getObject(self.getVariable(command['target']))
         if 'query' in command:
             query = self.textify(command['query'])
-            print('query:', query)
+            # print('query:', query)
             results = doclets_manager.search_data(
                 query=query,
                 include_content=command.get('include_content', False),
@@ -501,7 +501,7 @@ class Doclets(Handler):
                 include_summary=False,
                 return_meta=False
             )
-            print('results:', results)
+            # print('results:', results)
             # If a single result has content, return just the content string
             if len(results) == 1 and 'content' in results[0]:
                 results = results[0]['content']

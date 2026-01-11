@@ -50,9 +50,10 @@
         begin
             get List from doclet query Query
             if the count of List is 0 log `No results`
-            else begin
-                log `Results: ` cat List
-            end
+            else log `Sending results`
+!            else begin
+!                log `Results: ` cat List
+!            end
             send mqtt List to Response
         end
     end
