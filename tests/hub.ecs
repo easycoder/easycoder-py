@@ -1,16 +1,19 @@
 !   hub.ecs
 
-!   This script tests sending a large file from the hub in response to a request
-
     script MQTTHub
 
     use mqtt
+    use plugin Doclets from ec_doclets
 
     topic Request
     topic Response
+    dictionary Doclet
+    list List
     variable Query
     variable Name
     variable Text
+    variable FilePath
+    variable N
     variable P
     
 !    debug step
@@ -27,11 +30,14 @@
         broker `test.mosquitto.org`
         port 1883
         topics Request
+
+    doclets init
+        path `~/Doclets/Linux,~/Doclets/Doclets,~/Doclets/EasyCoder,~/Doclets/RBR`
     
     on mqtt message
     begin
         put the mqtt message into Query
-!        log the mqtt topic cat ` - ` cat Query
+        log `Query: ` cat the mqtt topic cat ` - ` cat Query
         put the position of `:` in Query into P
         if left P of Query is `file`
         begin
@@ -40,7 +46,15 @@
             load Text from Name
             send mqtt Text to Response
         end
-        else send mqtt `Ack` to Response
+        else
+        begin
+            get List from doclet query Query
+            if the count of List is 0 log `No results`
+            else begin
+                log `Results: ` cat List
+            end
+            send mqtt List to Response
+        end
     end
 
     stop

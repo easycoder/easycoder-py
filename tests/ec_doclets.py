@@ -184,11 +184,38 @@ class DocletManager():
             meta["status"] = "no_doclets"
             return [], "no_doclets", meta
 
-        query_lower = query.lower().strip()
+        qraw = query.strip()
+        qnorm = qraw.strip('"\'')  # tolerate quoted queries
+        query_lower = qnorm.lower()
         if not query_lower:
             meta["status"] = "empty_query"
             return [], "empty_query", meta
 
+        # Direct match: display filename (e.g., 'RBR/260102-00.md')
+        if '/' in qnorm:
+            filepath = self._resolve_display_filename(qnorm)
+            if filepath:
+                for fpath, fname, subject in doclets:
+                    if fpath == filepath:
+                        deterministic_matches = [(fpath, fname, subject)]
+                        meta["match_count"] = 1
+                        meta["matched_by"] = "display_filename"
+                        meta["status"] = "ok"
+                        return deterministic_matches, None, meta
+
+        # Direct match: bare filename (e.g., '260102-00.md' or '260102-00')
+        token = qnorm.rstrip(',:;.!')
+        token_fname = token.split('/')[-1]
+        if re.match(r"^\d{6}-\d{2}(\.md)?$", token_fname):
+            fname = token_fname if token_fname.endswith('.md') else f"{token_fname}.md"
+            for fpath, fname_actual, subject in doclets:
+                if fname_actual == fname:
+                    deterministic_matches = [(fpath, fname_actual, subject)]
+                    meta["match_count"] = 1
+                    meta["matched_by"] = "filename"
+                    meta["status"] = "ok"
+                    return deterministic_matches, None, meta
+        
         # Deterministic subject+body substring match
         deterministic_matches = []
         for filepath, fname, subject in doclets:
@@ -246,7 +273,16 @@ Doclets:\n{context}
 
     def search_data(self, query: str, include_content: bool = False, use_llm: bool = False, include_summary: bool = False, return_meta: bool = False) -> Union[List[Dict[str, Any]], Tuple[List[Dict[str, Any]], Dict[str, Any]]]:
         """Programmatic search returning raw data; optionally include metadata."""
-        # print(f"search_data called with query: '{query}'")
+        print(f"search_data called with query: '{query}'")
+        
+        # Force content when query is clearly a path or filename (allow quoted inputs)
+        qtrim = query.strip()
+        qnorm = qtrim.strip('"\'')
+        is_display_filename_query = '/' in qnorm
+        fname_token = qnorm.rstrip(',:;.!').split('/')[-1]
+        is_filename_query = bool(re.match(r"^\d{6}-\d{2}(\.md)?$", fname_token))
+        include_content_final = include_content or is_display_filename_query or is_filename_query
+        
         matches, error, meta = self._match_doclets(query=query, use_llm=use_llm)
         # print(f"  _match_doclets returned: error={error}, match_count={meta.get('match_count')}, status={meta.get('status')}")
 
@@ -261,10 +297,10 @@ Doclets:\n{context}
                 }
 
                 content: Optional[str] = None
-                if include_content or include_summary:
+                if include_content_final or include_summary:
                     content = self.read_doclet_content(filepath)
 
-                if include_content and content is not None:
+                if include_content_final and content is not None:
                     entry["content"] = content
 
                 if include_summary and content is not None:
@@ -457,13 +493,27 @@ class Doclets(Handler):
         target = self.getObject(self.getVariable(command['target']))
         if 'query' in command:
             query = self.textify(command['query'])
+            print('query:', query)
             results = doclets_manager.search_data(
                 query=query,
-                include_content=True if command.get('include_content') else False,
+                include_content=command.get('include_content', False),
                 use_llm=True if command.get('use_llm') else False,
                 include_summary=False,
                 return_meta=False
             )
+            print('results:', results)
+            # If a single result has content, return just the content string
+            if len(results) == 1 and 'content' in results[0]:
+                results = results[0]['content']
+            else:
+                # Otherwise return list of display filenames or full entries
+                res = []
+                for r in results:
+                    if 'content' in r:
+                        res.append(r.get('content')) # type: ignore
+                    else:
+                        res.append(r.get('display_filename', '')) # type: ignore
+                results = res
         elif 'file' in command:
             filepath = self.textify(command['file'])
             results = doclets_manager.read_doclet_content(filepath=filepath)
