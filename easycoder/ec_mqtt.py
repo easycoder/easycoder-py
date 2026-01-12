@@ -13,6 +13,7 @@ class MQTTClient():
         self.broker = broker
         self.port = port
         self.topics = topics
+        self.onConnectPC = None
         self.onMessagePC = None
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=self.clientID) # type: ignore
     
@@ -26,11 +27,16 @@ class MQTTClient():
             topic = self.program.getObject(self.program.getVariable(item))
             self.client.subscribe(topic.getName(), qos=topic.getQOS())
             print(f"Subscribed to topic: {topic.getName()} with QoS {topic.getQOS()}")
+
+        if self.onConnectPC is not None:
+            self.program.run(self.onConnectPC)
+            self.program.flushCB()
     
     def on_message(self, client, userdata, msg):
-        # print(f"Message received on topic {msg.topic}: {msg.payload.decode()}")
+        print(f"Message received on topic {msg.topic}: {msg.payload.decode()}")
         if self.onMessagePC is not None:
             self.message = msg
+            print(f'Resume program at PC {self.onMessagePC}')
             self.program.run(self.onMessagePC)
             self.program.flushCB()
     
@@ -44,6 +50,7 @@ class MQTTClient():
         self.onMessagePC = pc
     
     def sendMessage(self, topic, message, qos):
+        # print(f'Send MQTT message {message} to topic {topic} with QoS {qos}')
         self.client.publish(topic, message, qos=qos)
     
     def run(self):
@@ -148,7 +155,9 @@ class MQTT(Handler):
         token = self.peek()
         if token == 'mqtt':
             self.nextToken()
-            if self.nextIs('message'):
+            event = self.nextToken()
+            if event in ['connect', 'message']:
+                command['event'] = event
                 self.nextToken()
                 command['goto'] = 0
                 self.add(command)
@@ -173,23 +182,33 @@ class MQTT(Handler):
         return False
 
     def r_on(self, command):
-        self.program.mqttClient.onMessage(self.nextPC()+1)
+        event = command['event']
+        if event == 'connect':
+            self.program.mqttClient.onConnectPC = self.nextPC()+1
+        elif event == 'message':
+            self.program.mqttClient.onMessagePC = self.nextPC()+1
         return command['goto']
 
     # send {message} to {topic}
     def k_send(self, command):
         if self.nextIs('mqtt'):
             command['message'] = self.nextValue()
-            self.skip('from')
-            if self.nextIsSymbol():
-                record = self.getSymbolRecord()
-                self.checkObjectType(record, MQTTClient)
-                command['from'] = record['name']
             self.skip('to')
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
                 self.checkObjectType(record, MQTTClient)
                 command['to'] = record['name']
+                token = self.peek()
+                if token == 'with':
+                    self.nextToken()
+                    while True:
+                        token = self.nextToken()
+                        if token == 'qos':
+                            command['qos'] = self.nextValue()
+                        if self.peek() == 'and':
+                            self.nextToken()
+                        else:
+                            break
             self.add(command)
             return True
         return False
@@ -199,7 +218,11 @@ class MQTT(Handler):
             raise RuntimeError(self.program, 'No MQTT client defined')
         topic = self.getObject(self.getVariable(command['to']))
         message = self.textify(command['message'])
-        self.program.mqttClient.sendMessage(topic.getName(), message, topic.getQOS())
+        if 'qos' in command:
+            qos = int(self.textify(command['qos']))
+        else:
+            qos = topic.getQOS()
+        self.program.mqttClient.sendMessage(topic.getName(), message, qos)
         return self.nextPC()
 
     # Declare a topic variable

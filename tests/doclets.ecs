@@ -1,33 +1,190 @@
 !   doclets.ecs
 
-    script DocletTest
+    script Doclets
 
 !    debug compile
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Doclet query system
+
+    use graphics
+    use mqtt
+
+    window Window
+    window MDWindow
+    layout Layout
+    layout MainPanel
+    layout MDMainPanel
+    layout ButtonPanel
+    label Label
+    lineinput TopicInput
+    multiline QueryInput
+    multiline MDPanel
+    pushbutton SendQueryButton
+    pushbutton ExitButton
+    checkbox LLMCheckbox
+    listbox ResultsList
+
+    topic RequestTopic
+    topic ResponseTopic
+    variable Topics
+    variable Query
+    variable Message
+    variable State
+    variable MessageReceived
+    variable ConfigFileName
+    dictionary Config
+
 !    debug step
 
-    use plugin Doclets from ec_doclets
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Set up the UI
 
-    list List
-    dictionary Doclet
-    variable FilePath
-    variable N
+    create MainPanel type QVBoxLayout
 
-    doclets init
-        path `~/Doclets/Doclets,~/Doclets/EasyCoder,~/Doclets/RBR`
+    create Layout type QHBoxLayout
+    add Layout to MainPanel
+    create Label text `Topics:` width 100
+    add Label to Layout
+    create TopicInput size 100
+    add TopicInput to Layout
+
+    create Layout type QHBoxLayout
+    add Layout to MainPanel
+    create Label text `Query:` width 100
+    add Label to Layout
+    create QueryInput cols 80 rows 5
+    add QueryInput to Layout
+    create ButtonPanel type QVBoxLayout
+    add ButtonPanel to Layout
+    create LLMCheckbox text `Use LLM`
+    add LLMCheckbox to ButtonPanel
+    create SendQueryButton text `Send`
+    disable SendQueryButton
+    on click SendQueryButton go to SendQueryClick
+    add SendQueryButton to ButtonPanel
+
+    create Layout type QHBoxLayout
+    add Layout to MainPanel
+    create Label text `Results:` width 100
+    add Label to Layout
+    create ResultsList
+    add ResultsList to Layout
+    on select ResultsList go to ResultsListClick
+
+    create Layout type QHBoxLayout
+    add Layout to MainPanel
+!    create Label text `` width 100
+!    add Label to Layout
+    create ExitButton text `Exit`
+    add ExitButton to Layout
+    on select ExitButton go to ExitButtonClick
+
+    create Window title `Doclets`
+    set the layout of Window to MainPanel
+    show Window
+    adjust Window
+
+    put `/home/graham/.doclets_config.json` into ConfigFileName
+    if file ConfigFileName exists load Config from ConfigFileName
+    else reset Config
+    set the text of TopicInput to entry `topics` of Config
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Set up MQTT
     
-    get List from doclet query `api`
+    init RequestTopic
+        name `a8:41:f4:d3:19:dd/request`
+        qos 1
+    init ResponseTopic
+        name `a8:41:f4:d3:19:dd/response`
+        qos 1
 
-    put 0 into N
-    while N is less than the count of List
+    mqtt
+        id `EasyCoder-MQTT-Test`
+        broker `test.mosquitto.org`
+        port 1883
+        topics ResponseTopic
+    
+    on mqtt connect enable SendQueryButton 
+    on mqtt message set MessageReceived
+    
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Initialise things
+    put `idle` into State
+    clear MessageReceived
+!    fork to WaitLoop
+!    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Wait for a message
+WaitLoop:
+    while true
     begin
-        put item N of List into Doclet
-        log entry `display_filename` of Doclet
-        increment N
+        if MessageReceived
+        begin
+            clear MessageReceived
+            put the mqtt message into Message
+            log `Received ` cat Message
+            gosub to ProcessMessage
+        end
+        wait 10 ticks
     end
 
-    put item 0 of List into Doclet
-    put entry `display_filename` of Doclet into FilePath
-    get List from doclet file FilePath
-    log List
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Here when the user clicks the Send button
+SendQueryClick:
+    put TopicInput into Topics
+    put QueryInput into Query
+    if LLMCheckbox put `LLM:` cat Query into Query
+    put `query` into State
+    send mqtt `path:` cat Topics to RequestTopic
+    clear ResultsList
+    gosub to SendMQTT
+    stop
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Send an MQTT message 
+SendMQTT:
+    send mqtt Query to RequestTopic
+    return
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Here when the user clicks an item in the results list
+ResultsListClick:
+    log `Select ` cat ResultsList
+    put ResultsList into Query
+    put `content` into State
+    log `Send ` cat Query
+    gosub to SendMQTT
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Here when the user clicks the exit button
+ExitButtonClick:
+    set entry `topics` of Config to TopicInput
+    save Config to ConfigFileName
     exit
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Process a received message
+ProcessMessage:
+    log `Message received: ` cat State cat ` - ` cat Message
+    if State is `query`
+    begin
+        if Message is `[]` set Message to `["No results"]`
+        set ResultsList to json Message
+    end
+    else if State is `content`
+    begin
+        create MDMainPanel type QVBoxLayout
+
+        create MDPanel cols 80 rows 25
+        set the text of MDPanel to Message
+        add MDPanel to MDMainPanel
+
+        create MDWindow title ResultsList !size 700 500
+        set the layout of MDWindow to MDMainPanel
+        show MDWindow
+    end
+    return

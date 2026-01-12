@@ -337,6 +337,23 @@ class Graphics(Handler):
                         layout.addWidget(widget) # type: ignore
         return self.nextPC()
 
+    # adjust {window}
+    def k_adjust(self, command):
+        if self.nextIsSymbol():
+            record = self.getSymbolRecord()
+            if self.isObjectType(record, ECWindow):
+                command['window'] = record['name']
+                self.add(command)
+                return True
+        return False
+    
+    def r_adjust(self, command):
+        object = self.getVariable(command['window'])['object']
+        self.checkObjectType(object, ECWindow)
+        window = self.getInnerObject(object)
+        window.adjustSize()
+        return self.nextPC()
+
     # Center one window on another
     # center {window2} on {window1}
     def k_center(self, command):
@@ -518,6 +535,9 @@ class Graphics(Handler):
             elif token == 'size':
                 self.nextToken()
                 command['size'] = self.nextValue()
+            elif token == 'width':
+                self.nextToken()
+                command['width'] = self.nextValue()
             elif token == 'expand':
                 self.nextToken()
                 command['expand'] = True
@@ -723,6 +743,8 @@ class Graphics(Handler):
             c = label.contentsMargins()
             w = fm.horizontalAdvance('m') * self.textify(command['size']) +c.left()+c.right()
             label.setMaximumWidth(w)
+        if 'width' in command:
+            label.setFixedWidth(self.textify(command['width']))
         if 'align' in command:
             alignment = command['align']
             if alignment == 'left': label.setAlignment(Qt.AlignmentFlag.AlignLeft)
@@ -1562,6 +1584,13 @@ class Graphics(Handler):
                     if self.isObjectType(record, (ECListBox, ECComboBox)): # type: ignore
                         value.setContent(ECValue(domain=self.getName(), type='object', content=record['name']))
                         return value
+            elif token in ['width', 'height']:
+                self.skip('of')
+                if self.nextIsSymbol():
+                    record = self.getSymbolRecord()
+                    if self.isObjectType(record, ECWindow): # type: ignore
+                        value.target = record['name']
+                        return value
         return None
 
     #############################################################################
@@ -1646,6 +1675,16 @@ class Graphics(Handler):
             value = object.isEmpty()
             return ECValue(domain=self.getName(), type=bool, content=value)  # type: ignore
         return None
+    
+    def v_height(self, v):
+        targetName = v.target
+        record = self.getVariable(targetName)
+        object = self.getObject(record)
+        if isinstance(object, ECWindow):
+            widget = self.getInnerObject(object)
+            value = widget.height()  # type: ignore
+            return ECValue(domain=self.getName(), type=int, content=value)  # type: ignore
+        return None
 
     def v_selected(self, v): return self.v_current(v)
 
@@ -1656,13 +1695,27 @@ class Graphics(Handler):
             object = self.getObject(record)
             value = object.getText()
             return ECValue(domain=self.getName(), type=int, content=value)  # type: ignore
+    
+    def v_width(self, v):
+        targetName = v.target
+        record = self.getVariable(targetName)
+        object = self.getObject(record)
+        if isinstance(object, ECWindow):
+            widget = self.getInnerObject(object)
+            value = widget.width()  # type: ignore
+            return ECValue(domain=self.getName(), type=int, content=value)  # type: ignore
+        return None
 
     #############################################################################
-	# Get the value of an unknown item (domain-specific)
+	# Get the value of an unknown item
     def getUnknownValue(self, value):
         if self.isObjectType(value, (ECLabelWidget, ECPushButtonWidget, ECLineEditWidget, ECListBoxWidget, ECComboBoxWidget)):
             return value.text()  # type: ignore
-        if self.isObjectType(value, (ECDialogWindow,)): 
+        if self.isObjectType(value, (ECPlainTextEditWidget)):
+            return value.toPlainText()  # type: ignore
+        if self.isObjectType(value, (ECCheckBoxWidget)):
+            return value.isChecked()  # type: ignore
+        if self.isObjectType(value, (ECDialogWindow)): 
             return value.result()  # type: ignore
         return None # Unable to get value
 

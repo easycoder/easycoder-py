@@ -18,20 +18,38 @@ class DocletManager():
             doclets_dir: Root directory or comma-separated list of directories containing year folders
             ollama_url: URL of the local Ollama API
         """
-        # Support comma-separated list of directories
-        if doclets_dir:
-            paths = [p.strip() for p in doclets_dir.split(',')]
-            # Expand ~ in each path
-            self.doclets_dirs = [Path(p).expanduser() for p in paths]
-        else:
-            self.doclets_dirs = [Path(__file__).parent]
+        self.set_doclets_dirs(doclets_dir if doclets_dir else "")
         self.ollama_url = ollama_url
         self.model = "llama3.2"  # Default model, can be changed
-        # print(f"DocletManager.__init__ raw input: {doclets_dir}")
-        # print(f"DocletManager initialized with directories: {[str(d) for d in self.doclets_dirs]}")
-        # for d in self.doclets_dirs:
-        #     print(f"  Directory exists: {d.exists()}, is_dir: {d.is_dir()}")
+    
+    def set_doclets_dirs(self, doclets_dir: str):
+        """Set doclet directories from comma-separated list of paths or topic names.
         
+        Handles two formats:
+        - Full paths starting with '/': used as-is
+        - Topic names (no leading '/'): resolved relative to ~/Doclets/{topic_name}
+        """
+        self.doclets_dirs = []
+        if doclets_dir:
+            print(f'Setting the doclet paths to: {doclets_dir}')
+            items = [item.strip() for item in doclets_dir.split(',')]
+            
+            for item in items:
+                if item.startswith('/'):
+                    # Full path provided
+                    path = Path(item).expanduser()
+                else:
+                    # Topic name provided; resolve to ~/Doclets/{topic_name}
+                    path = Path.home() / 'Doclets' / item
+                
+                self.doclets_dirs.append(path)
+                print(f"  Directory {path} exists: {path.exists()}")
+        else:
+            # Default to ~/Doclets if no input provided
+            default_path = Path.home() / 'Doclets'
+            self.doclets_dirs = [default_path]
+            print(f"  Using default directory {default_path} exists: {default_path.exists()}")
+    
     def find_all_doclets(self) -> List[Tuple[Path, str, str]]:
         """Find all doclets in the directory structure
         
@@ -179,6 +197,8 @@ class DocletManager():
             "matched_by": None,
             "status": None,
         }
+        if use_llm: 
+            print("Using LLM for doclet search")
 
         if not doclets:
             meta["status"] = "no_doclets"
@@ -227,6 +247,7 @@ class DocletManager():
 
         llm_matches = []
         if use_llm:
+            print(f"[LLM] Invoking LLM for query: '{query}'")
             entries = []
             for filepath, fname, subject in doclets:
                 body = self.read_doclet_content(filepath)
@@ -235,23 +256,35 @@ class DocletManager():
 
             context = "\n".join(entries)
             prompt = f"""You are a precise doclet search helper.
-Doclets are listed below as: filename | subject | preview
+Below is a list of doclets in the format: filename | subject | preview
+
 User query: {query}
 
-Select the filenames that are relevant to the query (semantic matches OK, handle typos).
-Return ONLY filenames, one per line. If none, respond with NO_MATCHES.
+IMPORTANT: Return ONLY the exact filenames from the list that match the query.
+Filenames follow the format YYMMDD-NN.md (e.g., 260102-00.md).
+Handle typos and semantic matches.
+Return one filename per line.
+If no matches, return: NO_MATCHES
 
-Doclets:\n{context}
-"""
+Available doclets:
+{context}
+
+Return matching filenames:"""
 
             llm_response = self.query_llm(prompt)
+            print(f"[LLM] Response: {llm_response}")
             if "NO_MATCHES" not in llm_response:
                 for line in llm_response.strip().split('\n'):
                     line = line.strip()
-                    if line.endswith('.md'):
-                        fname = line
-                    elif re.match(r'^\d{6}-\d{2}$', line):
-                        fname = f"{line}.md"
+                    # Skip empty lines or explanatory text
+                    if not line or not re.search(r'\d{6}-\d{2}', line):
+                        continue
+                    # Extract filename pattern from the line
+                    match = re.search(r'(\d{6}-\d{2}(?:\.md)?)', line)
+                    if match:
+                        fname = match.group(1)
+                        if not fname.endswith('.md'):
+                            fname = f"{fname}.md"
                     else:
                         continue
                     for fp, f, subj in doclets:
@@ -273,7 +306,7 @@ Doclets:\n{context}
 
     def search_data(self, query: str, include_content: bool = False, use_llm: bool = False, include_summary: bool = False, return_meta: bool = False) -> Union[List[Dict[str, Any]], Tuple[List[Dict[str, Any]], Dict[str, Any]]]:
         """Programmatic search returning raw data; optionally include metadata."""
-        print(f"search_data called with query: '{query}'")
+        # print(f"search_data called with query: '{query}'")
         
         # Force content when query is clearly a path or filename (allow quoted inputs)
         qtrim = query.strip()
@@ -433,23 +466,17 @@ class Doclets(Handler):
     # Keyword handlers
 
     def k_doclets(self, command):
-        token = self.nextToken()
-        if token == 'init':
-            if self.nextIs('path'):
-                command['doclets_dir'] = self.nextValue()
-                if self.peek() == 'ollama_url':
-                    self.nextToken()
-                    command['ollama_url'] = self.nextValue()
-                else:
-                    command['ollama_url'] = "http://localhost:11434"
-                self.add(command)
-                return True
+        if self.nextIs('init'):
+            self.add(command)
+            return True
         return False
     
     def r_doclets(self, command):
+        # Use default ollama_url if not provided
+        ollama_url = command.get('ollama_url', 'http://localhost:11434')
         doclets_manager = DocletManager(
-            doclets_dir=self.textify(command.get('doclets_dir')),
-            ollama_url=command.get('ollama_url')
+            doclets_dir=command.get('doclets_dir'),
+            ollama_url=ollama_url
         )
         self.program.doclets_manager = doclets_manager
         return self.nextPC()
@@ -493,11 +520,16 @@ class Doclets(Handler):
         target = self.getObject(self.getVariable(command['target']))
         if 'query' in command:
             query = self.textify(command['query'])
+            # Check if query starts with 'LLM:' to enable LLM mode
+            use_llm = False
+            if query.startswith('LLM:'):
+                use_llm = True
+                query = query[4:].strip()  # Remove 'LLM:' prefix and trim whitespace
             # print('query:', query)
             results = doclets_manager.search_data(
                 query=query,
                 include_content=command.get('include_content', False),
-                use_llm=True if command.get('use_llm') else False,
+                use_llm=use_llm,
                 include_summary=False,
                 return_meta=False
             )
@@ -522,6 +554,23 @@ class Doclets(Handler):
         elif isinstance(results, list):
             results = ECValue(type=list, content=results)
         target.setValue(results)
+        return self.nextPC()
+    
+    # set doclets path {path}
+    def k_set(self, command):
+        if self.nextIs('doclets'):
+            self.skip('path')
+            self.skip('to')
+            command['doclets_dir'] = self.nextValue()
+            self.add(command)
+            return True
+        return False
+    
+    def r_set(self, command):
+        if not hasattr(self.program, 'doclets_manager'):
+            raise RuntimeError(self.program, 'Doclets manager not initialized')
+        doclets_manager: DocletManager = self.program.doclets_manager
+        doclets_manager.set_doclets_dirs(self.textify(command['doclets_dir']))
         return self.nextPC()
 
     #############################################################################

@@ -1,4 +1,4 @@
-from .ec_classes import ECObject
+from .ec_classes import ECValue, ECObject
 
 ###############################################################################
 # A generic graphic element
@@ -100,7 +100,7 @@ class ECCheckBox(ECCoreWidget):
     def getContent(self):
         v = self.getValue()
         if v is None: return None
-        return v.getContent().isChecked()
+        return v.getContent().isChecked() # type: ignore
 
 ###############################################################################
 # A line input widget
@@ -127,12 +127,32 @@ class ECLineInput(ECTextWidget):
         v = self.getValue()
         if v is None: return None
         return v.getContent().text()
-
+    
 ###############################################################################
 # A multiline widget
 class ECMultiline(ECTextWidget):
     def __init__(self):
         super().__init__()
+    
+    # This object has a runtime value
+    def hasRuntimeValue(self):
+        return True
+    
+    # Set the text of the widget
+    def setText(self, text):
+        v = self.getValue()
+        if v is None: return
+        v.getContent().setText(str(text)) # type: ignore
+    
+    # Get the text of the widget
+    def getText(self):
+        return self.getValue().getContent().toPlainText() # type: ignore
+
+    # Get the content of the value at the current index
+    def getContent(self):
+        v = self.getValue()
+        if v is None: return None
+        return v.getContent().text()
 
 ###############################################################################
 # A listbox variable

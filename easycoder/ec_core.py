@@ -1404,14 +1404,12 @@ class Core(Handler):
                 self.add(command)
                 return True
             elif isinstance(self.getObject(record), ECVariable):
-                self.skip('to')
-                mark = self.compiler.getIndex()
-                value = self.nextValue()
-                if value != None:
+                if self.peek() == 'to':
+                    self.nextToken()
+                    value = self.nextValue()
                     command['type'] = 'setValue'
                     command['value'] = value
                 else:
-                    self.rewindTo(mark)
                     command['type'] = 'set'
                 self.add(command)
                 return True
@@ -2193,6 +2191,13 @@ class Core(Handler):
             return mv
 
         return value
+
+    #############################################################################
+	# Get the value of an unknown item 
+    def getUnknownValue(self, value):
+        if self.isObjectType(value, (ECVariable, ECDictionary, ECList)):
+            return value.getContent()  # type: ignore
+        return None # Unable to get value
 
     #############################################################################
     # Value handlers
