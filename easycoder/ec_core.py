@@ -2,6 +2,7 @@ import json, math, hashlib, threading, os, subprocess, time
 import base64, binascii, random, requests, paramiko, uuid
 from copy import deepcopy
 from datetime import datetime
+from pathlib import Path
 from .ec_classes import (
     FatalError,
     RuntimeWarning,
@@ -794,6 +795,7 @@ class Core(Handler):
             ssh = self.getVariable(command['ssh'])
             path = self.textify(command['path'])
             sftp = ssh['sftp']
+            print(f'Loading from path: {Path(path).expanduser()}')
             try:
                 with sftp.open(path, 'r') as remote_file: content = remote_file.read().decode()
             except:
@@ -806,7 +808,7 @@ class Core(Handler):
         else:
             filename = self.textify(command['file'])
             try:
-                with open(filename) as f: content = f.read()
+                with open(Path(filename).expanduser()) as f: content = f.read()
             except:
                 errorReason = f'Unable to read from {filename}'
 
@@ -1335,7 +1337,7 @@ class Core(Handler):
                     content = json.dumps(content)
                 elif not isinstance(content, str):
                     content = self.textify(content)
-                with open(filename, 'w') as f: f.write(content)
+                with open(Path(filename).expanduser(), 'w') as f: f.write(content)
             except Exception as e:
                 errorReason = f'Unable to write to {filename}: {str(e)}'
 
@@ -2744,7 +2746,7 @@ class Core(Handler):
 
     def c_exists(self, condition):
         path = self.textify(condition.path)
-        comparison = os.path.exists(path)
+        comparison = os.path.exists(Path(path).expanduser())
         return not comparison if condition.negate else comparison
 
     def c_greater(self, condition):

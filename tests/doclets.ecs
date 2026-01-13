@@ -87,7 +87,7 @@
     show Window
     adjust Window
 
-    put `/home/graham/.doclets_config.json` into ConfigFileName
+    put `~/.doclets_config.json` into ConfigFileName
     if file ConfigFileName exists load Config from ConfigFileName
     else reset Config
     set the text of TopicInput to entry `topics` of Config
