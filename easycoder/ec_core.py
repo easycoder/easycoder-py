@@ -2539,7 +2539,7 @@ class Core(Handler):
         return ECValue(type=str, content=content.upper())
     
     def v_uuid(self, v):
-        return ECValue(type=str, content=str(uuid.uuid4())[:8])
+        return ECValue(type=str, content=str(uuid.uuid4()))
 
     def v_valueOf(self, v):
         v = self.textify(v.getContent())

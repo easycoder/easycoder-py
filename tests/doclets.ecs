@@ -103,7 +103,7 @@
         qos 1
 
     mqtt
-        id `EasyCoder-MQTT-Test`
+        id uuid
         broker `test.mosquitto.org`
         port 1883
         topics ResponseTopic
