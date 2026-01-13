@@ -22,6 +22,7 @@
     multiline MDPanel
     pushbutton SendQueryButton
     pushbutton ExitButton
+    pushbutton MDCloseButton
     checkbox LLMCheckbox
     listbox ResultsList
 
@@ -33,6 +34,7 @@
     variable State
     variable MessageReceived
     variable ConfigFileName
+    variable P
     dictionary Config
 
 !    debug step
@@ -113,8 +115,6 @@
 !   Initialise things
     put `idle` into State
     clear MessageReceived
-!    fork to WaitLoop
-!    stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Wait for a message
@@ -154,6 +154,8 @@ SendMQTT:
 ResultsListClick:
     log `Select ` cat ResultsList
     put ResultsList into Query
+    put the position of `:` in Query into P
+    put left P of Query into Query
     put `content` into State
     log `Send ` cat Query
     gosub to SendMQTT
@@ -181,10 +183,14 @@ ProcessMessage:
 
         create MDPanel cols 80 rows 25
         set the text of MDPanel to Message
-        add MDPanel to MDMainPanel
+        add stretch MDPanel to MDMainPanel
+        create MDCloseButton text `Close`
+        add MDCloseButton to MDMainPanel
+        on click MDCloseButton close MDWindow
 
         create MDWindow title ResultsList !size 700 500
         set the layout of MDWindow to MDMainPanel
         show MDWindow
+        adjust MDWindow
     end
     return

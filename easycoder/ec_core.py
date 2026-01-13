@@ -199,10 +199,10 @@ class Core(Handler):
     def k_close(self, command):
         if self.nextIsSymbol():
             fileRecord = self.getSymbolRecord()
-            self.checkObjectType
-            command['file'] = fileRecord['name']
-            self.add(command)
-            return True
+            if isinstance(self.getObject(fileRecord), ECFile):
+                command['file'] = fileRecord['name']
+                self.add(command)
+                return True
         return False
 
     def r_close(self, command):

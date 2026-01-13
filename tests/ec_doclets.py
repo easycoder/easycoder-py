@@ -247,9 +247,19 @@ class DocletManager():
 
         llm_matches = []
         if use_llm:
-            print(f"[LLM] Invoking LLM for query: '{query}'")
+            # Two-stage search: Use deterministic matches as pre-filter
+            # This limits what gets sent to LLM, saving memory and tokens
+            candidate_pool = deterministic_matches if deterministic_matches else doclets
+            
+            # Limit to top 20 candidates to avoid overwhelming the LLM
+            max_candidates = 20
+            if len(candidate_pool) > max_candidates:
+                candidate_pool = candidate_pool[:max_candidates]
+                print(f"[LLM] Pre-filtered to {max_candidates} candidates from {len(doclets)} total doclets")
+            
+            print(f"[LLM] Invoking LLM for query: '{query}' with {len(candidate_pool)} candidates")
             entries = []
-            for filepath, fname, subject in doclets:
+            for filepath, fname, subject in candidate_pool:
                 body = self.read_doclet_content(filepath)
                 preview = body[:400].replace('\n', ' ')
                 entries.append(f"- {fname} | subject: {subject} | preview: {preview}")
@@ -287,7 +297,7 @@ Return matching filenames:"""
                             fname = f"{fname}.md"
                     else:
                         continue
-                    for fp, f, subj in doclets:
+                    for fp, f, subj in candidate_pool:
                         if f == fname:
                             llm_matches.append((fp, f, subj))
                             break
@@ -534,6 +544,23 @@ class Doclets(Handler):
                 return_meta=False
             )
             # print('results:', results)
+            # Sort by topic first, then by filename within each topic
+            # First pass: group results by topic
+            topics_dict = {}
+            for r in results:
+                display_name = r.get('display_filename', '')
+                topic = display_name.split('/')[0].lower() if '/' in display_name else display_name.lower()
+                if topic not in topics_dict:
+                    topics_dict[topic] = []
+                topics_dict[topic].append(r)
+            
+            # Second pass: sort each topic group by filename, then combine in topic order
+            sorted_results = []
+            for topic in sorted(topics_dict.keys()):
+                topic_group = sorted(topics_dict[topic], key=lambda r: r.get('filename', ''))
+                sorted_results.extend(topic_group)
+            results = sorted_results
+            
             # If a single result has content, return just the content string
             if len(results) == 1 and 'content' in results[0]:
                 results = results[0]['content']
@@ -544,7 +571,10 @@ class Doclets(Handler):
                     if 'content' in r:
                         res.append(r.get('content')) # type: ignore
                     else:
-                        res.append(r.get('display_filename', '')) # type: ignore
+                        # Append first line (subject) to display filename
+                        display_name = r.get('display_filename', '')
+                        subject = r.get('subject', '')
+                        res.append(f"{display_name}: {subject}") # type: ignore
                 results = res
         elif 'file' in command:
             filepath = self.textify(command['file'])
