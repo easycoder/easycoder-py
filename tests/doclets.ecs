@@ -26,16 +26,21 @@
     checkbox LLMCheckbox
     listbox ResultsList
 
-    topic RequestTopic
-    topic ResponseTopic
+    topic MyTopic
+    topic HubTopic
+    variable UUID
     variable Topics
     variable Query
     variable Message
     variable State
     variable MessageReceived
     variable ConfigFileName
+    variable ResponseName
     variable P
     dictionary Config
+    dictionary MessageToSend
+    dictionary ReceivedMessage
+    list DocletList
 
 !    debug step
 
@@ -94,19 +99,22 @@
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Set up MQTT
-    
-    init RequestTopic
-        name `a8:41:f4:d3:19:dd/request`
+
+    put uuid into UUID
+
+    init MyTopic
+        name `Doclets-` cat UUID
         qos 1
-    init ResponseTopic
-        name `a8:41:f4:d3:19:dd/response`
+    
+    init HubTopic
+        name `a8:41:f4:d3:19:dd/request`
         qos 1
 
     mqtt
-        id uuid
+        id UUID
         broker `test.mosquitto.org`
         port 1883
-        topics ResponseTopic
+        topics MyTopic
     
     on mqtt connect enable SendQueryButton 
     on mqtt message set MessageReceived
@@ -115,6 +123,15 @@
 !   Initialise things
     put `idle` into State
     clear MessageReceived
+    
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Request the list of topics from the hub
+    put `topics` into State
+    reset MessageToSend
+    set entry `action` of MessageToSend to `topics`
+    send mqtt MessageToSend to HubTopic
+
+    stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Wait for a message
@@ -124,8 +141,8 @@ WaitLoop:
         if MessageReceived
         begin
             clear MessageReceived
-            put the mqtt message into Message
-            log `Received ` cat Message
+            put the mqtt message into ReceivedMessage
+            log `Received ` cat ReceivedMessage
             gosub to ProcessMessage
         end
         wait 10 ticks
@@ -140,14 +157,13 @@ SendQueryClick:
     put `query` into State
     send mqtt `path:` cat Topics to RequestTopic
     clear ResultsList
-    gosub to SendMQTT
+    reset MessageToSend
+    set entry `reply-to` of MessageToSend to MyTopic
+    set entry `action` of MessageToSend to `query`
+    set entry `topics` of MessageToSend to TopicInput
+    set entry `message` of MessageToSend to Query
+    send mqtt MessageToSend to HubTopic
     stop
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   Send an MQTT message 
-SendMQTT:
-    send mqtt Query to RequestTopic
-    return
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Here when the user clicks an item in the results list
@@ -158,7 +174,10 @@ ResultsListClick:
     put left P of Query into Query
     put `content` into State
     log `Send ` cat Query
-    gosub to SendMQTT
+    reset MessageToSend
+    set entry `action` of MessageToSend to `view`
+    set entry `message` of MessageToSend to Query
+    send mqtt MessageToSend to HubTopic
     stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -171,11 +190,11 @@ ExitButtonClick:
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Process a received message
 ProcessMessage:
-    log `Message received: ` cat State cat ` - ` cat Message
+    log `Message received: ` cat State cat ` - ` cat ReceivedMessage
     if State is `query`
     begin
-        if Message is `[]` set Message to `["No results"]`
-        set ResultsList to json Message
+        if ReceivedMessage is `[]` set DocletList to `["No results"]`
+        set ResultsList to json DocletList
     end
     else if State is `content`
     begin

@@ -96,8 +96,9 @@ class Value:
 			self.compiler.warning(f'ec_value.compileValue: Cannot get the value of "{token}"')
 			return None
 		if item.getType() == 'symbol':
-			object = self.compiler.getSymbolRecord(item.getContent())['object']
+			object = self.compiler.getSymbolRecord(item.getName())['object']
 			if not object.hasRuntimeValue(): return None
+			item.setContent(object.name)
 
 		if self.peek() == 'cat':
 			self.nextToken()  # consume 'cat'

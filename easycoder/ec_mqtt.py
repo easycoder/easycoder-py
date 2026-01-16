@@ -1,6 +1,9 @@
 from easycoder import Handler, ECObject, ECValue, RuntimeError
 import paho.mqtt.client as mqtt
-    
+import time
+import threading
+import json
+ 
 #############################################################################
 # MQTT client class
 class MQTTClient():
@@ -15,6 +18,13 @@ class MQTTClient():
         self.topics = topics
         self.onConnectPC = None
         self.onMessagePC = None
+        self.messages = {}
+        self.chunked_messages = {}  # Store incoming chunked messages {topic: {part_num: data}}
+        self.chunk_confirmations = {}  # Store confirmations for sent chunks
+        self.confirmation_lock = threading.Lock()
+        self.chunk_size = 1024  # Default chunk size
+        self.chunking_strategy = 'rapid_fire'  # 'sequential' or 'rapid_fire'
+        self.last_send_time = None  # Time taken for last message transmission (seconds)
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=self.clientID) # type: ignore
     
         # Setup callbacks
@@ -33,7 +43,96 @@ class MQTTClient():
             self.program.flushCB()
     
     def on_message(self, client, userdata, msg):
-        print(f"Message received on topic {msg.topic}: {msg.payload.decode()}")
+        payload = msg.payload.decode('utf-8')
+        topic = msg.topic
+        
+        # Check if this is a chunk confirmation
+        if payload.startswith('confirm:'):
+            # Extract confirmation info: "confirm: <total_chunks> <total_bytes>"
+            parts = payload.split()
+            if len(parts) >= 2:
+                with self.confirmation_lock:
+                    self.chunk_confirmations['received'] = True
+            return
+        
+        # Check if this is a chunked message (format: "part <n> <total>:<data>")
+        if payload.startswith('part '):
+            colon_pos = payload.find(':')
+            if colon_pos > 0:
+                # Extract part number and total: "part <n> <total>"
+                header = payload[5:colon_pos]  # Skip "part "
+                parts = header.split()
+                if len(parts) >= 2:
+                    try:
+                        part_num = int(parts[0])
+                        total_chunks = int(parts[1])
+                        data = payload[colon_pos + 1:]  # Get data after colon
+                        
+                        # Initialize chunked message storage if this is part 0
+                        if part_num == 0:
+                            self.chunked_messages[topic] = {}
+                        
+                        # Store this chunk with its part number
+                        if topic in self.chunked_messages:
+                            self.chunked_messages[topic][part_num] = data
+                            print(f"Received chunk {part_num}/{total_chunks - 1} on topic {topic}")
+                    except ValueError:
+                        pass
+            return
+            
+        elif payload.startswith('last:'):
+            # Final chunk: "last: <total>:<data>"
+            colon_pos = payload.find(':')
+            if colon_pos > 0:
+                header = payload[5:colon_pos]  # Skip "last: "
+                try:
+                    total_chunks = int(header)
+                    data = payload[colon_pos + 1:]  # Get data after colon
+                    
+                    if topic in self.chunked_messages:
+                        # Store the last chunk
+                        self.chunked_messages[topic][total_chunks - 1] = data
+                        
+                        # Verify all chunks are present
+                        expected_parts = set(range(total_chunks))
+                        received_parts = set(self.chunked_messages[topic].keys())
+                        
+                        if expected_parts == received_parts:
+                            # All chunks received - assemble complete message
+                            message_parts = [self.chunked_messages[topic][i] for i in sorted(self.chunked_messages[topic].keys())]
+                            complete_message = ''.join(message_parts)
+                            del self.chunked_messages[topic]
+                            
+                            # Send single confirmation
+                            total_bytes = sum(len(self.chunked_messages[topic].get(i, '')) for i in range(total_chunks))
+                            confirmation = f"confirm: {total_chunks} {len(complete_message)}"
+                            self.client.publish(topic, confirmation, qos=1)
+                            print(f"All chunks received for topic {topic} ({len(complete_message)} bytes total). Confirmation sent.")
+                            
+                            # Store and trigger callback with complete message
+                            callerID = client._client_id.decode()
+                            self.messages[callerID] = {"topic": topic, "payload": complete_message}
+                            
+                            if self.onMessagePC is not None:
+                                # Create a mock message object with the complete payload
+                                self.message = type('obj', (object,), {
+                                    'topic': topic,
+                                    'payload': complete_message.encode('utf-8')
+                                })
+                                print(f'Complete message received ({len(complete_message)} bytes). Resume program at PC {self.onMessagePC}')
+                                self.program.run(self.onMessagePC)
+                                self.program.flushCB()
+                        else:
+                            missing = expected_parts - received_parts
+                            print(f"Warning: Missing chunks {missing} for topic {topic}")
+                except ValueError:
+                    pass
+            return
+        
+        # Regular non-chunked message
+        callerID = client._client_id.decode()
+        print(f"Message received from {callerID} on topic {topic}: {payload}")
+        self.messages[callerID] = {"topic": topic, "payload": payload}
         if self.onMessagePC is not None:
             self.message = msg
             print(f'Resume program at PC {self.onMessagePC}')
@@ -41,17 +140,119 @@ class MQTTClient():
             self.program.flushCB()
     
     def getMessageTopic(self):
-        return self.message.topic
+        return self.message.topic # type: ignore
     
     def getMessagePayload(self):
-        return self.message.payload.decode('utf-8')
+        return self.message.payload.decode('utf-8') # type: ignore
 
     def onMessage(self, pc):
         self.onMessagePC = pc
+
+    def sendMessage(self, topic, message, qos, chunk_size=0):
+        """Send a message, optionally chunked if chunk_size > 0
+        
+        Uses self.chunking_strategy to select between:
+        - 'sequential': Wait for confirmation of each chunk (slower, more reliable)
+        - 'rapid_fire': Send all chunks rapidly, wait for single final confirmation (faster)
+        
+        Stores transmission time in self.last_send_time (seconds)
+        """
+        send_start = time.time()
+        
+        # If chunk_size is 0, send message as-is (no chunking)
+        if chunk_size == 0:
+            print(f'Send MQTT message to topic {topic} with QoS {qos}')
+            self.client.publish(topic, message, qos=qos)
+            self.last_send_time = time.time() - send_start
+            return
+        
+        # Send message in chunks using selected strategy
+        message_len = len(message)
+        num_chunks = (message_len + chunk_size - 1) // chunk_size
+        
+        print(f'Sending message ({message_len} bytes) in {num_chunks} chunks using {self.chunking_strategy} strategy')
+        
+        if self.chunking_strategy == 'sequential':
+            self._send_sequential(topic, message, qos, chunk_size, num_chunks)
+        else:  # rapid_fire
+            self._send_rapid_fire(topic, message, qos, chunk_size, num_chunks)
+        
+        self.last_send_time = time.time() - send_start
+        print(f'Message transmission complete in {self.last_send_time:.3f} seconds')
     
-    def sendMessage(self, topic, message, qos):
-        # print(f'Send MQTT message {message} to topic {topic} with QoS {qos}')
-        self.client.publish(topic, message, qos=qos)
+    def _send_sequential(self, topic, message, qos, chunk_size, num_chunks):
+        """Send chunks one at a time, waiting for confirmation of each"""
+        for i in range(num_chunks):
+            start = i * chunk_size
+            end = min(start + chunk_size, message[start:].count('') + chunk_size)
+            end = min(start + chunk_size, len(message))
+            chunk_data = message[start:end]
+            
+            # Prepare chunk with header: "part <n> <total>:<data>"
+            if i == num_chunks - 1:
+                chunk_msg = f"last: {num_chunks}:{chunk_data}"
+            else:
+                chunk_msg = f"part {i} {num_chunks}:{chunk_data}"
+            
+            # Clear confirmation flag
+            with self.confirmation_lock:
+                self.chunk_confirmations.clear()
+            
+            # Send the chunk
+            self.client.publish(topic, chunk_msg, qos=qos)
+            print(f"Sent chunk {i}/{num_chunks - 1}: {len(chunk_data)} bytes")
+            
+            # Wait for confirmation (with timeout)
+            timeout = 5.0  # 5 second timeout
+            start_wait = time.time()
+            while True:
+                with self.confirmation_lock:
+                    if self.chunk_confirmations.get('received', False):
+                        print(f"Chunk {i} confirmed")
+                        break
+                
+                if time.time() - start_wait > timeout:
+                    print(f"Warning: Timeout waiting for confirmation of chunk {i}")
+                    break
+                    
+                time.sleep(0.01)  # Small sleep to avoid busy waiting
+    
+    def _send_rapid_fire(self, topic, message, qos, chunk_size, num_chunks):
+        """Send all chunks as rapidly as possible, wait for single final confirmation"""
+        print(f"[Rapid-fire] Sending all {num_chunks} chunks as fast as possible...")
+        
+        # Send all chunks rapidly
+        for i in range(num_chunks):
+            start = i * chunk_size
+            end = min(start + chunk_size, len(message))
+            chunk_data = message[start:end]
+            
+            # Prepare chunk with header: "part <n> <total>:<data>"
+            if i == num_chunks - 1:
+                chunk_msg = f"last: {num_chunks}:{chunk_data}"
+            else:
+                chunk_msg = f"part {i} {num_chunks}:{chunk_data}"
+            
+            # Send without waiting
+            self.client.publish(topic, chunk_msg, qos=qos)
+            print(f"Sent chunk {i}/{num_chunks - 1}: {len(chunk_data)} bytes")
+        
+        # Now wait for single final confirmation
+        print(f"[Rapid-fire] All chunks sent. Waiting for confirmation...")
+        timeout = 10.0  # 10 second timeout for all chunks to be processed
+        start_wait = time.time()
+        while True:
+            with self.confirmation_lock:
+                if self.chunk_confirmations.get('received', False):
+                    print(f"[Rapid-fire] Confirmation received")
+                    break
+            
+            if time.time() - start_wait > timeout:
+                print(f"Warning: Timeout waiting for final confirmation")
+                break
+                
+            time.sleep(0.05)  # Slightly longer sleep since we're just waiting for one confirmation
+    #     self.client.publish(topic, message, qos=qos)
     
     def run(self):
         self.client.connect(self.broker, int(self.port), 60)
@@ -75,7 +276,8 @@ class ECTopic(ECObject):
         return self.qos
 
 ###############################################################################
-# The MQTT compiler and rutime handlers
+###############################################################################
+# The MQTT compiler and runtime handlers
 class MQTT(Handler):
 
     def __init__(self, compiler):
@@ -236,15 +438,22 @@ class MQTT(Handler):
     #############################################################################
     # Compile a value in this domain
     def compileValue(self):
-        token = self.nextToken()
-        if token == 'mqtt':
-            value = ECValue(domain=self.getName())
+        token = self.getToken()
+        if token == 'the':
             token = self.nextToken()
-            if token in ['topic', 'message']:
-                value.setType(token)
-                return value
+        if self.isSymbol():
+            record = self.getSymbolRecord()
+            object = self.getObject(record)
+            if isinstance(object, ECTopic):
+                return ECValue(domain=self.getName(), type='str', content=record['name'])
+            else: return None
         else:
-            return self.getValue()
+            if token == 'mqtt':
+                token = self.nextToken()
+                if token in ['message', 'messages']:
+                    return ECValue(domain=self.getName(), type=str, content=token)
+            # else:
+            #     return self.getValue()
         return None
 
     #############################################################################
@@ -258,8 +467,13 @@ class MQTT(Handler):
     def v_message(self, v):
         return self.program.mqttClient.getMessagePayload()
 
+    def v_messages(self, v):
+        print(self.program.mqttClient.messages) # type: ignore
+        return self.program.mqttClient.messages # type: ignore
+
     def v_topic(self, v):
-        return self.program.mqttClient.getMessageTopic()
+        topic = self.getObject(self.getVariable(self.textify(v.getContent())))
+        return f'{{"name": "{topic.getName()}", "qos": {topic.getQOS()}}}'
 
     #############################################################################
     # Compile a condition

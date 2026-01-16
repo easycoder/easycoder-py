@@ -4,4 +4,4 @@ import os
 from easycoder import Program
 
 os.chdir('/home/graham/dev/easycoder/easycoder-py/tests')
-Program('hub.ecs').start()
+Program('docletHub.ecs').start()

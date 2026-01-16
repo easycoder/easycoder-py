@@ -78,7 +78,7 @@
 	log D
 	log D2
 
-	set X 6
+	set X to 6
 	set Y to 20
 	log X
 	log Y

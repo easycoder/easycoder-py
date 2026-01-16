@@ -289,7 +289,7 @@ class Program:
 
 		elif valType == 'symbol': # type: ignore
 			# If it's a symbol, get its value
-			record = self.getVariable(value.getContent()) # type: ignore
+			record = self.getVariable(value.getName()) # type: ignore
 			if not 'object' in record: return None # type: ignore
 			variable = self.getObject(record) # type: ignore
 			result = variable.getValue() # type: ignore

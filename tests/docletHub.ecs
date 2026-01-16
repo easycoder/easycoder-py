@@ -5,64 +5,100 @@
     use mqtt
     use plugin Doclets from ec_doclets
 
-    topic Request
-    topic Response
+    topic RequestTopic
+    topic ResponseTopic
     dictionary Doclet
+    dictionary Messages
+    dictionary Message
+    dictionary ReplyTo
     list List
+    list Senders
     variable Query
     variable DocletPath
     variable Name
     variable Text
     variable FilePath
+    variable Sender
+    variable Topic
+    variable Action
+    variable ResponseName
+    variable ReplyToName
+    variable ReplyToQoS
+    variable MessageText
     variable N
     variable P
+    variable S
     
 !    debug step
 
-    init Request
+    init RequestTopic
         name `a8:41:f4:d3:19:dd/request`
-        qos 1
-    init Response
-        name `a8:41:f4:d3:19:dd/response`
         qos 1
 
     mqtt
-        id `EasyCoder-Doclet-Hub`
+        id uuid
         broker `test.mosquitto.org`
         port 1883
-        topics Request
+        topics RequestTopic
 
     doclets init
-    set doclets path `Linux,Doclets,EasyCoder,RBR`
     
     on mqtt message
     begin
-        put the mqtt message into Query
-        log `Query: ` cat the mqtt topic cat ` - ` cat Query
-        put the position of `:` in Query into P
-        if left P of Query is `path`
-        begin
-            increment P
-            put from P of Query into DocletPath
-            set doclets path to DocletPath
-        end
-        else if left P of Query is `file`
-        begin
-            increment P
-            put from P of Query into Name
-            load Text from Name
-            send mqtt Text to Response
-        end
-        else
-        begin
-            get List from doclet query Query
-            if the count of List is 0 log `No results`
-            else log `Sending results`
-!            else begin
-!                log `Results: ` cat List
+        put the mqtt message into Message
+        put entry `reply-to` of Message into ReplyTo
+        put entry `action` of Message into Action
+        log Message
+        stop
+
+
+        put entry `name` of ReplyTo into ReplyToName
+        put entry `qos` of ReplyTo into ReplyToQoS
+        put entry `message` of Message into MessageText
+
+
+
+
+!        put the mqtt messages into Messages
+!        put the keys of Messages into Senders
+!        put 0 into S
+!        while S is less than the count of Senders
+!        begin
+!            put item S of Senders into Sender
+!            put entry Sender of Messages into Message
+!            log Message
+!            put entry `topic` of Message into Topic
+!            put entry `payload` of Message into Query
+!            log `Query: ` cat Topic cat ` - ` cat Query
+!            put Sender cat `/response` into ResponseName
+!            log `Response name: ` cat ResponseName
+!            init ResponseTopic
+!                name ResponseName
+!                qos 1
+!            put the position of `:` in Query into P
+!            if left P of Query is `path`
+!            begin
+!                increment P
+!                put from P of Query into DocletPath
+!                set doclets path to DocletPath
 !            end
-            send mqtt List to Response
-        end
+!            else if left P of Query is `file`
+!            begin
+!                increment P
+!                put from P of Query into Name
+!                load Text from Name
+!                send mqtt Text to Response
+!            end
+!            else
+!            begin
+!                get List from doclet query Query
+!                if the count of List is 0 log `No results`
+!                else log `Sending ` cat List cat ` to ` cat ResponseName
+!                send mqtt List to ResponseTopic
+!            end
+!            delete entry Sender of Messages
+!            increment S
+!        end
     end
 
     stop

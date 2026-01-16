@@ -71,7 +71,7 @@ class Core(Handler):
             if not isinstance(self.getObject(record), ECVariable): return False
             # If 'giving' comes next, this variable is the second value
             if self.peek() == 'giving':
-                v2 = ECValue(type='symbol', content=record['name'])
+                v2 = ECValue(type='symbol', name=record['name'])
                 command['value2'] = v2
                 self.nextToken()
                 # Now get the target variable
@@ -1686,8 +1686,7 @@ class Core(Handler):
             self.checkObjectType(record, ECObject)
             # If 'giving' comes next, this variable is the second value
             if self.peek() == 'giving':
-                v2 = ECValue(type='symbol')
-                v2.setContent(record['name'])
+                v2 = ECValue(type='symbol', name=record['name'])
                 command['value2'] = v2
                 self.nextToken()
                 # Now get the target variable
@@ -1950,8 +1949,12 @@ class Core(Handler):
         value = ECValue()
         token = self.getToken()
         if self.isSymbol():
-            value.setValue(type='symbol', content=token)
-            return value
+            record = self.getSymbolRecord()
+            if self.isObjectType(record, (ECVariable, ECDictionary, ECList, ECStack, ECSSH, ECFile, ECModule)):
+                value.setType('symbol')
+                value.name = record['name']
+                return value
+            else: return None
 
         value.setType(token)
 
@@ -1990,7 +1993,7 @@ class Core(Handler):
                 if self.nextIsSymbol():
                     record = self.getSymbolRecord()
                     self.checkObjectType(record['object'], ECList)
-                    value.target = ECValue(type='symbol', content=record['name'])
+                    value.target = ECValue(type='symbol', name=record['name'])
                     return value
             return None
 
@@ -2049,7 +2052,7 @@ class Core(Handler):
                     record = self.getSymbolRecord()
                     object = record['object']
                     if isinstance(object, ECList):
-                        value.setContent(record['name'])
+                        value.setName(record['name'])
                         return value
             return None
 
@@ -2225,7 +2228,7 @@ class Core(Handler):
         return ECValue(type=int, content=round(math.cos(angle * 0.01745329) * radius))
 
     def v_count(self, v):
-        variable = self.getObject(self.getVariable(v.getContent()))
+        variable = self.getObject(self.getVariable(v.getName()))
         return ECValue(type=int, content=variable.getItemCount())
 
     def v_datime(self, v):
@@ -2359,7 +2362,7 @@ class Core(Handler):
     def v_item(self, v):
         index = self.textify(v.index)
         targetName = v.target
-        target = self.getVariable(targetName.getContent())
+        target = self.getVariable(targetName.getName())
         variable = self.getObject(target)
         self.checkObjectType(variable, ECList)
         if index >= variable.getItemCount():
@@ -2468,14 +2471,10 @@ class Core(Handler):
 
     # This is used by the expression evaluator to get the value of a symbol
     def v_symbol(self, v):
-        name = v.name
-        record = self.program.getSymbolRecord(name)
-        keyword = record['keyword']
-        if keyword == 'object':
-            return record['object'].getValue()
-        elif keyword == 'variable':
+        record = self.program.getSymbolRecord(v.name)
+        if self.isObjectType(record, (ECVariable, ECDictionary, ECList)):
             return self.getSymbolValue(record)
-        elif keyword == 'ssh':
+        elif self.isObjectType(record, ECSSH):
             return ECValue(type=bool, content=True if 'ssh' in record and record['ssh'] != None else False)
         else:
             return None
@@ -2719,7 +2718,7 @@ class Core(Handler):
 
     def c_empty(self, condition):
         if condition.value1.getType() == 'symbol':
-            record = self.getVariable(condition.value1.content)
+            record = self.getVariable(condition.value1.name)
             variable = self.getObject(record)
             if isinstance(variable, (ECList, ECDictionary)):
                 comparison = variable.isEmpty()

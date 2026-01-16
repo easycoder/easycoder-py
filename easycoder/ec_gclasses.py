@@ -117,16 +117,18 @@ class ECLineInput(ECTextWidget):
         v = self.getValue()
         if v is None: return
         v.getContent().setText(str(text)) # type: ignore
-    
-    # Get the text of the widget
-    def getText(self):
-        return self.getValue().getContent().text() # type: ignore
 
     # Get the content of the value at the current index
     def getContent(self):
         v = self.getValue()
         if v is None: return None
-        return v.getContent().text()
+        return v
+    
+    # Get the text of the widget
+    def getText(self):
+        content = self.getContent()
+        if content is None: return None
+        return content.text() # type: ignore
     
 ###############################################################################
 # A multiline widget

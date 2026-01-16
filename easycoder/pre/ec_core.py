@@ -69,7 +69,7 @@ class Core(Handler):
             if not isinstance(self.getObject(record), ECVariable): return False
             # If 'giving' comes next, this variable is the second value
             if self.peek() == 'giving':
-                v2 = ECValue(type='symbol', content=record['name'])
+                v2 = ECValue(type='symbol', name=record['name'])
                 command['value2'] = v2
                 self.nextToken()
                 # Now get the target variable
@@ -1655,8 +1655,7 @@ class Core(Handler):
             self.checkObjectType(record, ECObject)
             # If 'giving' comes next, this variable is the second value
             if self.peek() == 'giving':
-                v2 = ECValue(type='symbol')
-                v2.setContent(record['name'])
+                v2 = ECValue(type='symbol', name=record['name'])
                 command['value2'] = v2
                 self.nextToken()
                 # Now get the target variable
@@ -1912,7 +1911,7 @@ class Core(Handler):
         value = ECValue()
         token = self.getToken()
         if self.isSymbol():
-            value.setValue(type='symbol', content=token)
+            value.setValue(type='symbol', name=token)
             return value
 
         value.setType(token)
@@ -1946,13 +1945,13 @@ class Core(Handler):
                 value.format = None
             return value
 
-        if token == 'element':
+        if token == 'item':
             value.index = self.nextValue()
             if self.nextToken() == 'of':
                 if self.nextIsSymbol():
                     record = self.getSymbolRecord()
                     self.checkObjectType(record['object'], ECList)
-                    value.target = ECValue(type='symbol', content=record['name'])
+                    value.target = ECValue(type='symbol', name=record['name'])
                     return value
             return None
 
@@ -2214,10 +2213,10 @@ class Core(Handler):
             value = v
         return value
 
-    def v_element(self, v):
+    def v_item(self, v):
         index = self.textify(v.index)
         targetName = v.target
-        target = self.getVariable(targetName.getContent())
+        target = self.getVariable(targetName.getName())
         variable = self.getObject(target)
         self.checkObjectType(variable, ECList)
         content = variable.getContent()
@@ -2656,7 +2655,7 @@ class Core(Handler):
 
     def c_empty(self, condition):
         if condition.value1.getType() == 'symbol':
-            record = self.getVariable(condition.value1.content)
+            record = self.getVariable(condition.value1.name)
             variable = self.getObject(record)
             if isinstance(variable, (ECList, ECDictionary)):
                 comparison = variable.isEmpty()

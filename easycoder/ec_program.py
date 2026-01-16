@@ -1,4 +1,4 @@
-import time, sys, json
+import time, sys, json, traceback
 from copy import deepcopy
 from collections import deque
 
@@ -300,7 +300,7 @@ class Program:
 
 		elif valType == 'symbol': # type: ignore
 			# If it's a symbol, get its value
-			record = self.getVariable(value.getContent()) # type: ignore
+			record = self.getVariable(value.getName()) # type: ignore
 			if not 'object' in record: return None # type: ignore
 			variable = self.getObject(record) # type: ignore
 			result = variable.getValue() # type: ignore
@@ -374,7 +374,6 @@ class Program:
 		value = object.getValue() # type: ignore
 		if value is None:
 			raise NoValueRuntimeError(self, f'Symbol "{record["name"]}" has no value')
-		# copy = deepcopy(value)
 		copy = ECValue(domain=value.getDomain(),type=value.getType(),content=deepcopy(value.getContent()))
 		return copy
 
@@ -489,7 +488,8 @@ class Program:
 							pass	# Place a breakpoint here for a debugger to catch
 						self.pc = handler(command)
 					except Exception as e:
-						raise RuntimeError(self, f'Error during execution of {domainName}:{keyword}: {str(e)}')
+						tb = traceback.format_exc()
+						raise RuntimeError(self, f'Error during execution of {domainName}:{keyword}: {str(e)}\n\nTraceback:\n{tb}')
 					# Deal with 'exit'
 					if self.pc == -1:
 						queue = deque()

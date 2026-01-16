@@ -203,6 +203,7 @@ class Compiler:
 
 	# Compile a symbol
 	def compileSymbol(self, command, name, classname):
+		# January 2026
 		# try:
 		# 	self.symbols[name]
 		# 	raise FatalError(self, f'Duplicate symbol name "{name}"')

@@ -1536,7 +1536,7 @@ class Graphics(Handler):
         value = ECValue(domain=self.getName())
         token = self.getToken()
         if self.isSymbol():
-            value.setContent(token)
+            value.setName(token)
             record = self.getSymbolRecord()
             object = self.getObject(record)
             if isinstance(object, ECCoreWidget) and object.hasRuntimeValue():
@@ -1558,14 +1558,14 @@ class Graphics(Handler):
                 if self.nextIsSymbol():
                     record = self.getSymbolRecord()
                     if self.isObjectType(record, ECListBox) or self.isObjectType(record, ECComboBox): # type: ignore
-                        value.setContent(ECValue(domain=self.getName(), type='object', content=record['name']))
+                        value.setContent(ECValue(domain=self.getName(), type='object', name=record['name']))
                         return value
             elif token == 'count':
                 self.skip('of')
                 if self.nextIsSymbol():
                     record = self.getSymbolRecord()
                     if self.isObjectType(record, ECListBox) or self.isObjectType(record, ECComboBox): # type: ignore
-                        value.setContent(ECValue(domain=self.getName(), type='object', content=record['name']))
+                        value.setContent(ECValue(domain=self.getName(), type='object', name=record['name']))
                         return value
             elif token == 'text':
                 self.skip('of')
@@ -1574,7 +1574,7 @@ class Graphics(Handler):
                     if (
                         self.isObjectType(record, (ECLabel, ECPushButton, ECMultiline, ECLineInput))
                     ): # type: ignore
-                        value.setContent(ECValue(domain=self.getName(), type='object', content=record['name']))
+                        value.setContent(ECValue(domain=self.getName(), type='object', name=record['name']))
                         return value
             elif token == 'index':
                 self.skip('of')
@@ -1582,7 +1582,7 @@ class Graphics(Handler):
                 if self.nextIsSymbol():
                     record = self.getSymbolRecord()
                     if self.isObjectType(record, (ECListBox, ECComboBox)): # type: ignore
-                        value.setContent(ECValue(domain=self.getName(), type='object', content=record['name']))
+                        value.setContent(ECValue(domain=self.getName(), type='object', name=record['name']))
                         return value
             elif token in ['width', 'height']:
                 self.skip('of')
@@ -1640,7 +1640,7 @@ class Graphics(Handler):
     def v_count(self, v):
         content = v.getContent()
         if isinstance(content, ECValue) and content.getType() == 'object':
-            record = self.getVariable(content.getContent())
+            record = self.getVariable(content.getName())
             object = self.getObject(record)
             if isinstance(object, (ECListBox, ECComboBox)):
                 widget = self.getInnerObject(object)
@@ -1651,7 +1651,7 @@ class Graphics(Handler):
     def v_current(self, v):
         content = v.getContent()
         if isinstance(content, ECValue) and content.getType() == 'object':
-            record = self.getVariable(content.getContent())
+            record = self.getVariable(content.getName())
             object = self.getObject(record)
             option = v.option
             if isinstance(object, (ECListBox)):
@@ -1670,7 +1670,7 @@ class Graphics(Handler):
     
     def v_empty(self, v):
         if v.type == 'object':
-            record = self.getVariable(v.getContent())
+            record = self.getVariable(v.getName())
             object = self.getObject(record)
             value = object.isEmpty()
             return ECValue(domain=self.getName(), type=bool, content=value)  # type: ignore
@@ -1691,7 +1691,7 @@ class Graphics(Handler):
     def v_text(self, v):
         content = v.getContent()
         if isinstance(content, ECValue) and content.getType() == 'object':
-            record = self.getVariable(content.getContent())
+            record = self.getVariable(content.getName())
             object = self.getObject(record)
             value = object.getText()
             return ECValue(domain=self.getName(), type=int, content=value)  # type: ignore
