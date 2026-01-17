@@ -95,7 +95,7 @@ class Program:
 				f'{round((finishCompile - startCompile) * 1000)} ms')
 			for name in self.symbols.keys():
 				record = self.code[self.symbols[name]]
-				if name[-1] != ':' and not 'used' in record:
+				if name[-1] != ':' and not record['used']:
 					print(f'Variable "{name}" not used')
 			else:
 				print(f'Run {self.name}')
@@ -254,7 +254,7 @@ class Program:
 	# Test if an item is a string or a number
 	def getItemType(self, value):
 		return int if isinstance(value, int) else str
-	
+
 	# Get the value of an item that may be an ECValue or a raw value. Return as an ECValue
 	def getValueOf(self, item):
 		value = ECValue()
@@ -272,6 +272,15 @@ class Program:
 			elif varType == 'dict': value.setValue(type=dict, content=item)
 			else: value.setValue(type=None, content=None)
 		return value
+	
+	# Get the value of an item from its domain handler
+	def textifyInDomain(self, value):
+		domainName = value.getDomain()  # type: ignore
+		if domainName == None: domainName = 'core'
+		domain = self.domainIndex[domainName]
+		handler = domain.valueHandler(value.getType()) # type: ignore
+		result = handler(value) if handler else None
+		return result
 
 	# Runtime function to evaluate an ECObject or ECValue. Returns another ECValue
 	# This function may be called recursively by value handlers.
@@ -327,12 +336,7 @@ class Program:
 			result.setValue(type=str, content=content)
 	
 		else:
-			# Call the given domain to handle a value
-			domainName = value.getDomain()  # type: ignore
-			if domainName == None: domainName = 'core'
-			domain = self.domainIndex[domainName]
-			handler = domain.valueHandler(value.getType()) # type: ignore
-			if handler: result = handler(value)
+			result = self.textifyInDomain(value)
 
 		return result
 
@@ -345,7 +349,7 @@ class Program:
 		if isinstance(value, dict):
 			value = value['object']
 		if isinstance(value, ECObject):
-			value = value.getValue()
+			value = value.textify() # type: ignore
 		if isinstance(value, ECValue): # type: ignore
 			v = self.evaluate(value) # type: ignore
 		else:
@@ -355,6 +359,8 @@ class Program:
 			if v.getType() == 'object':
 				return value.getContent() # type: ignore
 			return v.getContent() 
+		elif isinstance(v, ECObject):
+			return v.textify() # type: ignore
 		if isinstance(v, (dict, list)): 
 			return json.dumps(v)
 		return v

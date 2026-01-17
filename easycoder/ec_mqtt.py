@@ -18,6 +18,7 @@ class MQTTClient():
         self.topics = topics
         self.onConnectPC = None
         self.onMessagePC = None
+        self.timeout = False
         self.messages = {}
         self.chunked_messages = {}  # Store incoming chunked messages {topic: {part_num: data}}
         self.chunk_confirmations = {}  # Store confirmations for sent chunks
@@ -35,8 +36,8 @@ class MQTTClient():
         print(f"Client {self.clientID} connected")
         for item in self.topics:
             topic = self.program.getObject(self.program.getVariable(item))
-            self.client.subscribe(topic.getName(), qos=topic.getQOS())
-            print(f"Subscribed to topic: {topic.getName()} with QoS {topic.getQOS()}")
+            self.client.subscribe(topic.getName(), qos=topic.getQoS())
+            print(f"Subscribed to topic: {topic.getName()} with QoS {topic.getQoS()}")
 
         if self.onConnectPC is not None:
             self.program.run(self.onConnectPC)
@@ -55,18 +56,18 @@ class MQTTClient():
                     self.chunk_confirmations['received'] = True
             return
         
-        # Check if this is a chunked message (format: "part <n> <total>:<data>")
-        if payload.startswith('part '):
-            colon_pos = payload.find(':')
-            if colon_pos > 0:
-                # Extract part number and total: "part <n> <total>"
-                header = payload[5:colon_pos]  # Skip "part "
-                parts = header.split()
-                if len(parts) >= 2:
-                    try:
-                        part_num = int(parts[0])
-                        total_chunks = int(parts[1])
-                        data = payload[colon_pos + 1:]  # Get data after colon
+        # Check if this is a chunked message (format: "!part!<n> <total><data>")
+        if payload.startswith('!part!'):
+            # Extract: "!part!<n> <total><data>"
+            header_end = payload.find(' ', 6)  # Find space after part number
+            if header_end > 6:
+                try:
+                    part_num = int(payload[6:header_end])  # Extract part number
+                    # Find next space to get total_chunks
+                    total_end = payload.find(' ', header_end + 1)
+                    if total_end > header_end:
+                        total_chunks = int(payload[header_end + 1:total_end])
+                        data = payload[total_end + 1:]  # Rest is data
                         
                         # Initialize chunked message storage if this is part 0
                         if part_num == 0:
@@ -76,65 +77,60 @@ class MQTTClient():
                         if topic in self.chunked_messages:
                             self.chunked_messages[topic][part_num] = data
                             print(f"Received chunk {part_num}/{total_chunks - 1} on topic {topic}")
-                    except ValueError:
-                        pass
+                except (ValueError, IndexError):
+                    pass
             return
             
-        elif payload.startswith('last:'):
-            # Final chunk: "last: <total>:<data>"
-            colon_pos = payload.find(':')
-            if colon_pos > 0:
-                header = payload[5:colon_pos]  # Skip "last: "
-                try:
-                    total_chunks = int(header)
-                    data = payload[colon_pos + 1:]  # Get data after colon
+        elif payload.startswith('!last!'):
+            # Final chunk: "!last!<total><data>"
+            try:
+                # Find where the total ends and data begins (first space after !last!)
+                space_pos = payload.find(' ', 6)
+                if space_pos > 6:
+                    total_chunks = int(payload[6:space_pos])
+                    data = payload[space_pos + 1:]  # Rest is data
                     
-                    if topic in self.chunked_messages:
-                        # Store the last chunk
-                        self.chunked_messages[topic][total_chunks - 1] = data
+                    # Initialize topic storage if not present (single chunk case)
+                    if topic not in self.chunked_messages:
+                        self.chunked_messages[topic] = {}
+                    
+                    # Store the last chunk
+                    self.chunked_messages[topic][total_chunks - 1] = data
+                    
+                    # Verify all chunks are present
+                    expected_parts = set(range(total_chunks))
+                    received_parts = set(self.chunked_messages[topic].keys())
+                    
+                    if expected_parts == received_parts:
+                        # All chunks received - assemble complete message
+                        message_parts = [self.chunked_messages[topic][i] for i in sorted(self.chunked_messages[topic].keys())]
+                        complete_message = ''.join(message_parts)
+                        del self.chunked_messages[topic]
                         
-                        # Verify all chunks are present
-                        expected_parts = set(range(total_chunks))
-                        received_parts = set(self.chunked_messages[topic].keys())
+                        # Send single confirmation
+                        confirmation = f"confirm: {total_chunks} {len(complete_message)}"
+                        self.client.publish(topic, confirmation, qos=1)
+                        print(f"All chunks received for topic {topic} ({len(complete_message)} bytes total). Confirmation sent.")
                         
-                        if expected_parts == received_parts:
-                            # All chunks received - assemble complete message
-                            message_parts = [self.chunked_messages[topic][i] for i in sorted(self.chunked_messages[topic].keys())]
-                            complete_message = ''.join(message_parts)
-                            del self.chunked_messages[topic]
-                            
-                            # Send single confirmation
-                            total_bytes = sum(len(self.chunked_messages[topic].get(i, '')) for i in range(total_chunks))
-                            confirmation = f"confirm: {total_chunks} {len(complete_message)}"
-                            self.client.publish(topic, confirmation, qos=1)
-                            print(f"All chunks received for topic {topic} ({len(complete_message)} bytes total). Confirmation sent.")
-                            
-                            # Store and trigger callback with complete message
-                            callerID = client._client_id.decode()
-                            self.messages[callerID] = {"topic": topic, "payload": complete_message}
-                            
-                            if self.onMessagePC is not None:
-                                # Create a mock message object with the complete payload
-                                self.message = type('obj', (object,), {
-                                    'topic': topic,
-                                    'payload': complete_message.encode('utf-8')
-                                })
-                                print(f'Complete message received ({len(complete_message)} bytes). Resume program at PC {self.onMessagePC}')
-                                self.program.run(self.onMessagePC)
-                                self.program.flushCB()
-                        else:
-                            missing = expected_parts - received_parts
-                            print(f"Warning: Missing chunks {missing} for topic {topic}")
-                except ValueError:
-                    pass
+                        # Store and trigger callback with complete message
+                        self.message = {"topic": topic, "payload": complete_message}
+                        
+                        if self.onMessagePC is not None:
+                            print(f'Complete chunked message received ({len(complete_message)} bytes).\nResume program at PC {self.onMessagePC}')
+                            self.program.run(self.onMessagePC)
+                            self.program.flushCB()
+                    else:
+                        missing = expected_parts - received_parts
+                        print(f"Warning: Missing chunks {missing} for topic {topic}")
+            except (ValueError, IndexError):
+                pass
             return
         
         # Regular non-chunked message
         callerID = client._client_id.decode()
-        print(f"Message received from {callerID} on topic {topic}: {payload}")
-        self.messages[callerID] = {"topic": topic, "payload": payload}
+        print(f"Non-chunked message received on topic {topic}: {payload}")
+        self.message = {"topic": topic, "payload": payload}
         if self.onMessagePC is not None:
-            self.message = msg
             print(f'Resume program at PC {self.onMessagePC}')
             self.program.run(self.onMessagePC)
             self.program.flushCB()
@@ -142,8 +138,8 @@ class MQTTClient():
     def getMessageTopic(self):
         return self.message.topic # type: ignore
     
-    def getMessagePayload(self):
-        return self.message.payload.decode('utf-8') # type: ignore
+    def getReceivedMessage(self):
+        return self.message
 
     def onMessage(self, pc):
         self.onMessagePC = pc
@@ -161,7 +157,7 @@ class MQTTClient():
         
         # If chunk_size is 0, send message as-is (no chunking)
         if chunk_size == 0:
-            print(f'Send MQTT message to topic {topic} with QoS {qos}')
+            print(f'Send MQTT message to topic {topic} with QoS {qos}: {message}')
             self.client.publish(topic, message, qos=qos)
             self.last_send_time = time.time() - send_start
             return
@@ -184,15 +180,14 @@ class MQTTClient():
         """Send chunks one at a time, waiting for confirmation of each"""
         for i in range(num_chunks):
             start = i * chunk_size
-            end = min(start + chunk_size, message[start:].count('') + chunk_size)
             end = min(start + chunk_size, len(message))
             chunk_data = message[start:end]
             
-            # Prepare chunk with header: "part <n> <total>:<data>"
+            # Prepare chunk with header: "!part!<n> <total><data>" or "!last!<total><data>"
             if i == num_chunks - 1:
-                chunk_msg = f"last: {num_chunks}:{chunk_data}"
+                chunk_msg = f"!last!{num_chunks} {chunk_data}"
             else:
-                chunk_msg = f"part {i} {num_chunks}:{chunk_data}"
+                chunk_msg = f"!part!{i} {num_chunks} {chunk_data}"
             
             # Clear confirmation flag
             with self.confirmation_lock:
@@ -227,15 +222,15 @@ class MQTTClient():
             end = min(start + chunk_size, len(message))
             chunk_data = message[start:end]
             
-            # Prepare chunk with header: "part <n> <total>:<data>"
+            # Prepare chunk with header: "!part!<n> <total><data>" or "!last!<total><data>"
             if i == num_chunks - 1:
-                chunk_msg = f"last: {num_chunks}:{chunk_data}"
+                chunk_msg = f"!last!{num_chunks} {chunk_data}"
             else:
-                chunk_msg = f"part {i} {num_chunks}:{chunk_data}"
+                chunk_msg = f"!part!{i} {num_chunks} {chunk_data}"
             
             # Send without waiting
             self.client.publish(topic, chunk_msg, qos=qos)
-            print(f"Sent chunk {i}/{num_chunks - 1}: {len(chunk_data)} bytes")
+            print(f"Sent chunk {i}/{num_chunks - 1} to topic {topic} with QoS {qos}: {chunk_msg}")
         
         # Now wait for single final confirmation
         print(f"[Rapid-fire] All chunks sent. Waiting for confirmation...")
@@ -249,11 +244,12 @@ class MQTTClient():
             
             if time.time() - start_wait > timeout:
                 print(f"Warning: Timeout waiting for final confirmation")
+                self.timeout = True
                 break
                 
             time.sleep(0.05)  # Slightly longer sleep since we're just waiting for one confirmation
-    #     self.client.publish(topic, message, qos=qos)
     
+    # Start the MQTT client loop
     def run(self):
         self.client.connect(self.broker, int(self.port), 60)
         self.client.loop_start()
@@ -264,16 +260,27 @@ class ECTopic(ECObject):
     def __init__(self):
         super().__init__()
 
-    def create(self, name, qos=1):
-        super().__init__()
-        self.name = name
-        self.qos = qos
-
     def getName(self):
-        return self.name
-
-    def getQOS(self):
-        return self.qos
+        v = self.getValue()
+        if v is None:
+            return ""
+        if v is None:
+            return ""
+        return v['name']
+    
+    def getQoS(self):
+        v = self.getValue()
+        if v is None:
+            return 0
+        if v is None:
+            return 0
+        return int(v['qos'])
+    
+    def textify(self):
+        v = self.getValue()
+        if v is None:
+            return ""
+        return f'{{"name": "{v["name"]}", "qos": {v["qos"]}}}'
 
 ###############################################################################
 ###############################################################################
@@ -297,7 +304,8 @@ class MQTT(Handler):
             self.checkObjectType(record, ECTopic)
             command['topic'] = record['name']
             self.skip('name')
-            command['name'] = self.nextValue()
+            name =self.nextValue()
+            command['name'] = name
             self.skip('qos')
             command['qos'] = self.nextValue()
             self.add(command)
@@ -307,7 +315,10 @@ class MQTT(Handler):
     def r_init(self, command):
         record = self.getVariable(command['topic'])
         topic = ECTopic()
-        topic.create(self.textify(command['name']), qos=int(self.textify(command['qos'])))
+        value = {}
+        value['name'] = self.textify(command['name'])
+        value['qos'] = int(self.textify(command['qos']))
+        topic.setValue(value)
         record['object'] = topic
         return self.nextPC()
 
@@ -423,8 +434,10 @@ class MQTT(Handler):
         if 'qos' in command:
             qos = int(self.textify(command['qos']))
         else:
-            qos = topic.getQOS()
-        self.program.mqttClient.sendMessage(topic.getName(), message, qos)
+            qos = topic.getQoS()
+        self.program.mqttClient.sendMessage(topic.getName(), message, qos, chunk_size=100)
+        if self.program.mqttClient.timeout:
+            return 0
         return self.nextPC()
 
     # Declare a topic variable
@@ -445,13 +458,13 @@ class MQTT(Handler):
             record = self.getSymbolRecord()
             object = self.getObject(record)
             if isinstance(object, ECTopic):
-                return ECValue(domain=self.getName(), type='str', content=record['name'])
+                return ECValue(domain=self.getName(), type='symbol', content=record['name'])
             else: return None
         else:
             if token == 'mqtt':
                 token = self.nextToken()
-                if token in ['message', 'messages']:
-                    return ECValue(domain=self.getName(), type=str, content=token)
+                if token == 'message':
+                    return ECValue(domain=self.getName(), type='mqtt', content=token)
             # else:
             #     return self.getValue()
         return None
@@ -465,11 +478,13 @@ class MQTT(Handler):
     # Value handlers
 
     def v_message(self, v):
-        return self.program.mqttClient.getMessagePayload()
-
-    def v_messages(self, v):
-        print(self.program.mqttClient.messages) # type: ignore
-        return self.program.mqttClient.messages # type: ignore
+        return self.program.mqttClient.message
+    
+    def v_mqtt(self, v):
+        content = v.getContent()
+        if content == 'message':
+            return self.program.mqttClient.message
+        return None
 
     def v_topic(self, v):
         topic = self.getObject(self.getVariable(self.textify(v.getContent())))

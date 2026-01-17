@@ -5,9 +5,8 @@
     debug compile
     debug step
 
-    variable V
+    list List
 
-    put 5 into V
-    if V is not -1 print `OK`
+    set List to `["Item 1"]`
 
     exit

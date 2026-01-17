@@ -1405,7 +1405,7 @@ class Core(Handler):
                 command['type'] = 'ssh'
                 self.add(command)
                 return True
-            elif isinstance(self.getObject(record), ECVariable):
+            elif isinstance(self.getObject(record), (ECVariable, ECDictionary, ECList)):
                 if self.peek() == 'to':
                     self.nextToken()
                     value = self.nextValue()
@@ -1449,10 +1449,14 @@ class Core(Handler):
                         self.checkObjectType(self.getObject(record), ECDictionary)
                     command['target'] = record['name']
                     if self.nextIs('to'):
-                        value = self.nextValue()
-                        if value == None:
-                            FatalError(self.compiler, 'Unable to get a value')
-                        command['value'] = value
+                        if self.nextIsSymbol():
+                            record = self.getSymbolRecord()
+                            command['name'] = record['name']
+                        else:
+                            value = self.getValue()
+                            if value == None:
+                                FatalError(self.compiler, 'Unable to get a value')
+                            command['value'] = value
                         self.add(command)
                         return True
 
@@ -1519,7 +1523,10 @@ class Core(Handler):
 
         elif cmdType == 'entry':
             key = self.textify(command['key'])
-            value = self.textify(command['value'])
+            if 'name' in command:
+                value = self.textify(self.getVariable(command['name']))
+            elif 'value' in command:
+                value = self.textify(command['value'])
             record = self.getVariable(command['target'])
             self.checkObjectType(self.getObject(record), ECDictionary)
             variable = self.getObject(record)

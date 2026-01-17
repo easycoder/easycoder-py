@@ -465,7 +465,6 @@ Return matching filenames:"""
             message_dict: Dictionary with mandatory 'action' key and optional parameters
             
         Message structure:
-            - action: "topics" -> returns None (caller provides implementation)
             - action: "file", path: <path> -> returns None (caller provides implementation)
             - action: "query", topics: <list>, message: <query_text> -> returns list of doclets or content
             - action: "view", name: <doclet_name> -> returns doclet content
@@ -473,7 +472,7 @@ Return matching filenames:"""
         Returns:
             - For "query": List of doclet display names or single content string
             - For "view": Single doclet content string
-            - For "topics" and "file": None (caller handles)
+            - For "file": None (caller handles)
             - For unknown actions: None
         """
         action = message_dict.get('action')
@@ -483,11 +482,7 @@ Return matching filenames:"""
             return None
         
         # Switch-like structure for different actions
-        if action == 'topics':
-            # Return None - caller will provide implementation
-            return None
-            
-        elif action == 'file':
+        if action == 'file':
             # Return None - caller will provide implementation
             return None
             
@@ -753,7 +748,15 @@ class Doclets(Handler):
     #############################################################################
     # Compile a value in this domain
     def compileValue(self):
-        token = self.nextToken()
+        value = ECValue(domain=self.getName())
+        token = self.getToken()
+        if token == 'the':
+            token = self.nextToken()
+        if token == 'doclet':
+            token = self.nextToken()
+            if token == 'topics':
+                value.setType('topics')
+                return value
         return None
 
     #############################################################################
@@ -769,6 +772,14 @@ class Doclets(Handler):
 
     def v_topic(self, v):
         return self.program.mqttClient.getMessageTopic()
+    
+    def v_topics(self, v):
+        # Return list of directories in ~/Doclets
+        doclets_root = Path.home() / 'Doclets'
+        if doclets_root.exists() and doclets_root.is_dir():
+            topics = [d.name for d in doclets_root.iterdir() if d.is_dir() and d.name[0] != '.']
+            return sorted(topics)
+        return []
 
     #############################################################################
     # Compile a condition

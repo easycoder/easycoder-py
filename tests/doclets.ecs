@@ -2,7 +2,7 @@
 
     script Doclets
 
-!    debug compile
+    debug compile
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Doclet query system
@@ -42,7 +42,7 @@
     dictionary ReceivedMessage
     list DocletList
 
-!    debug step
+    debug step
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Set up the UI
@@ -123,12 +123,17 @@
 !   Initialise things
     put `idle` into State
     clear MessageReceived
+
+    wait 3
     
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Request the list of topics from the hub
     put `topics` into State
     reset MessageToSend
+    set entry `reply-to` of MessageToSend to MyTopic
+    log MessageToSend
     set entry `action` of MessageToSend to `topics`
+    log `Message to send: ` cat MessageToSend
     send mqtt MessageToSend to HubTopic
 
     stop
@@ -184,6 +189,7 @@ ResultsListClick:
 !   Here when the user clicks the exit button
 ExitButtonClick:
     set entry `topics` of Config to TopicInput
+    log Config
     save Config to ConfigFileName
     exit
 

@@ -8,11 +8,12 @@
     topic RequestTopic
     topic ResponseTopic
     dictionary Doclet
-    dictionary Messages
     dictionary Message
+    dictionary Payload
     dictionary ReplyTo
     list List
     list Senders
+    list Topics
     variable Query
     variable DocletPath
     variable Name
@@ -29,7 +30,7 @@
     variable P
     variable S
     
-!    debug step
+    debug step
 
     init RequestTopic
         name `a8:41:f4:d3:19:dd/request`
@@ -46,59 +47,26 @@
     on mqtt message
     begin
         put the mqtt message into Message
-        put entry `reply-to` of Message into ReplyTo
-        put entry `action` of Message into Action
-        log Message
-        stop
+        put entry `topic` of Message into Topic
+        put entry `payload` of Message into Payload
 
+        put entry `reply-to` of Payload into ReplyTo
+        put entry `action` of Payload into Action
 
         put entry `name` of ReplyTo into ReplyToName
         put entry `qos` of ReplyTo into ReplyToQoS
         put entry `message` of Message into MessageText
+        log `Sender: ` cat ReplyToName
+        log `QoS:` cat ReplyToQoS
+        log `Message: ` cat MessageText
+        log `Action: ` cat Action
 
+        if Action is `topics` go to GetTopics
 
+    stop
 
-
-!        put the mqtt messages into Messages
-!        put the keys of Messages into Senders
-!        put 0 into S
-!        while S is less than the count of Senders
-!        begin
-!            put item S of Senders into Sender
-!            put entry Sender of Messages into Message
-!            log Message
-!            put entry `topic` of Message into Topic
-!            put entry `payload` of Message into Query
-!            log `Query: ` cat Topic cat ` - ` cat Query
-!            put Sender cat `/response` into ResponseName
-!            log `Response name: ` cat ResponseName
-!            init ResponseTopic
-!                name ResponseName
-!                qos 1
-!            put the position of `:` in Query into P
-!            if left P of Query is `path`
-!            begin
-!                increment P
-!                put from P of Query into DocletPath
-!                set doclets path to DocletPath
-!            end
-!            else if left P of Query is `file`
-!            begin
-!                increment P
-!                put from P of Query into Name
-!                load Text from Name
-!                send mqtt Text to Response
-!            end
-!            else
-!            begin
-!                get List from doclet query Query
-!                if the count of List is 0 log `No results`
-!                else log `Sending ` cat List cat ` to ` cat ResponseName
-!                send mqtt List to ResponseTopic
-!            end
-!            delete entry Sender of Messages
-!            increment S
-!        end
-    end
-
+! Get a list of the available doclet topics
+GetTopics:
+    put the doclet topics into Topics
+    log Topics
     stop

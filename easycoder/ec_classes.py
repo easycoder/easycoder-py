@@ -312,6 +312,12 @@ class ECValueHolder(ECObject):
     # Reset the object to empty state
     def reset(self):
         self.setValue(ECValue(content=None))
+    
+    def textify(self):
+        v = self.getValue()
+        if v is None:
+            return ""
+        return json.dumps(v.getContent())
 
 ###############################################################################
 # A string or int variable
