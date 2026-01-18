@@ -59,7 +59,6 @@
 ! Get a list of the available doclet topics
 GetTopics:
     put the doclet topics into Topics
-    log Topics
     put Topics into MessageText
 !    set ConfirmationRequested
     gosub to SendReply

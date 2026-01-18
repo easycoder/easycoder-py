@@ -102,13 +102,14 @@ class MQTTClient():
                         # print(f"All chunks received for topic {topic} ({len(complete_message)} bytes total).")
                         
                         # Attempt to extract sender and pending status
-                        sender = self._extract_peer(complete_message, role='sender')
-                        awaiting = bool(sender and self.awaiting_confirmations.get(sender, False))
+                        # sender = self._extract_peer(complete_message, role='sender')
+                        # awaiting = bool(sender and self.awaiting_confirmations.get(sender, False))
                         # Store and trigger callback with complete message
-                        self.message = {"topic": topic, "payload": complete_message, "sender": sender, "awaiting": awaiting}
+                        # self.message = {"topic": topic, "payload": complete_message, "sender": sender, "awaiting": awaiting}
+                        self.message = {"topic": topic, "payload": complete_message}
                         
                         if self.onMessagePC is not None:
-                            print(f'Run from PC {self.onMessagePC}')
+#                            print(f'Run from PC {self.onMessagePC}')
                             self.program.run(self.onMessagePC)
                             self.program.flushCB()
                     else:
@@ -118,33 +119,33 @@ class MQTTClient():
                 pass
             return
         
-        # Regular non-chunked message
-        print(f"Non-chunked message received on topic {topic}: {payload}")
-        # Try to parse as JSON to identify sender and confirmations
-        sender = self._extract_peer(payload, role='sender')
-        is_json_confirm = False
-        try:
-            data = json.loads(payload)
-            is_json_confirm = (
-                isinstance(data, dict) and (
-                    data.get('confirm') is True or
-                    data.get('type') in ['confirm', 'ack'] or
-                    data.get('action') in ['confirm', 'ack']
-                )
-            )
-        except Exception:
-            pass
+        # # Regular non-chunked message
+        # print(f"Non-chunked message received on topic {topic}: {payload}")
+        # # Try to parse as JSON to identify sender and confirmations
+        # sender = self._extract_peer(payload, role='sender')
+        # is_json_confirm = False
+        # try:
+        #     data = json.loads(payload)
+        #     is_json_confirm = (
+        #         isinstance(data, dict) and (
+        #             data.get('confirm') is True or
+        #             data.get('type') in ['confirm', 'ack'] or
+        #             data.get('action') in ['confirm', 'ack']
+        #         )
+        #     )
+        # except Exception:
+        #     pass
 
         # Clear pending for this sender on explicit JSON confirmation
-        if is_json_confirm and sender:
-            self.awaiting_confirmations.pop(sender, None)
+        # if is_json_confirm and sender:
+        #     self.awaiting_confirmations.pop(sender, None)
 
-        awaiting = bool(sender and self.awaiting_confirmations.get(sender, False))
-        self.message = {"topic": topic, "payload": payload, "sender": sender, "awaiting": awaiting}
-        if self.onMessagePC is not None:
-            print(f'Resume program at PC {self.onMessagePC}')
-            self.program.run(self.onMessagePC)
-            self.program.flushCB()
+        # awaiting = bool(sender and self.awaiting_confirmations.get(sender, False))
+        # self.message = {"topic": topic, "payload": payload, "sender": sender, "awaiting": awaiting}
+        # if self.onMessagePC is not None:
+        #     print(f'Resume program at PC {self.onMessagePC}')
+        #     self.program.run(self.onMessagePC)
+        #     self.program.flushCB()
     
     def getMessageTopic(self):
         return self.message.topic # type: ignore
@@ -163,15 +164,15 @@ class MQTTClient():
         send_start = time.time()
 
         # Mark pending confirmation keyed by the publish target topic (string)
-        if isinstance(topic, str) and topic:
-            self.awaiting_confirmations[topic] = True
+        # if isinstance(topic, str) and topic:
+        #     self.awaiting_confirmations[topic] = True
         
         # If chunk_size is 0, send message as-is (no chunking)
-        if chunk_size == 0:
-            # print(f'Send MQTT message to topic {topic} with QoS {qos}: {message}')
-            self.client.publish(topic, message, qos=qos)
-            self.last_send_time = time.time() - send_start
-            return
+        # if chunk_size == 0:
+        #     # print(f'Send MQTT message to topic {topic} with QoS {qos}: {message}')
+        #     self.client.publish(topic, message, qos=qos)
+        #     self.last_send_time = time.time() - send_start
+        #     return
         
         # Send message in chunks using selected strategy
         message_len = len(message)
@@ -213,22 +214,22 @@ class MQTTClient():
     # Helper: extract peer identifier from a JSON payload string
     # role='sender' looks for keys commonly used to denote the sender
     # role='recipient' looks for keys commonly used to denote the target/recipient
-    def _extract_peer(self, payload_text, role='sender'):
-        try:
-            data = json.loads(payload_text)
-            if not isinstance(data, dict):
-                return None
-            if role == 'sender':
-                for key in ['sender', 'from', 'source', 'client', 'peer']:
-                    if key in data and isinstance(data[key], str):
-                        return data[key]
-            else:
-                for key in ['recipient', 'to', 'target', 'client', 'peer']:
-                    if key in data and isinstance(data[key], str):
-                        return data[key]
-        except Exception:
-            return None
-        return None
+    # def _extract_peer(self, payload_text, role='sender'):
+    #     try:
+    #         data = json.loads(payload_text)
+    #         if not isinstance(data, dict):
+    #             return None
+    #         if role == 'sender':
+    #             for key in ['sender', 'from', 'source', 'client', 'peer']:
+    #                 if key in data and isinstance(data[key], str):
+    #                     return data[key]
+    #         else:
+    #             for key in ['recipient', 'to', 'target', 'client', 'peer']:
+    #                 if key in data and isinstance(data[key], str):
+    #                     return data[key]
+    #     except Exception:
+    #         return None
+    #     return None
         
 ###############################################################################
 # An MQTT topic
