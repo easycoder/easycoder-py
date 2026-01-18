@@ -166,12 +166,32 @@ class Core(Handler):
             return self.compileFromHere(['end'])
 
     # clear {variable}
+    # clear entry {name} of {dictionary}
+    # clear item {index} of {list}
     def k_clear(self, command):
         token = self.nextToken()
         if token == 'breakpoint':
             command['breakpoint'] = True
             self.add(command)
             return True
+        elif token == 'entry':
+            command['key'] = self.nextValue()
+            self.skip('of')
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                self.checkObjectType(self.getObject(record), ECDictionary)
+                command['target'] = record['name']
+                self.add(command)
+                return True
+        elif token == 'item':
+            command['index'] = self.nextValue()
+            self.skip('of')
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                self.checkObjectType(self.getObject(record), ECList)
+                command['target'] = record['name']
+                self.add(command)
+                return True
         elif self.isSymbol():
             record = self.getSymbolRecord()
             command['target'] = record['name']
@@ -187,6 +207,14 @@ class Core(Handler):
     def r_clear(self, command):
         if 'breakpoint' in command:
             self.program.breakpoint = False
+        elif 'key' in command:
+            key = self.textify(command['key'])
+            record = self.getVariable(command['target'])
+            self.getObject(record).setEntry(key, ECValue(type=bool, content=False))
+        elif 'index' in command:
+            index = self.textify(command['index'])
+            record = self.getVariable(command['target'])
+            self.getObject(record).setItem(index, ECValue(type=bool, content=False))
         else:
             target = self.getVariable(command['target'])
             if target['keyword'] == 'ssh':
@@ -1373,8 +1401,9 @@ class Core(Handler):
         return self.nextPC()
 
     # Set a value
-    # set {variable}
-    # set {variable} to {value}
+    # set {variable} [to {value}]
+    # set entry {key} of {dictionary} [to {value}]
+    # set item {index} of {list} [to {value}]
     # set {ssh} host {host} user {user} password {password}
     # set the items/elements in/of {variable} to {value}
     # set item/entry/property of {variable} to {value}
@@ -1411,8 +1440,9 @@ class Core(Handler):
                     value = self.nextValue()
                     command['type'] = 'setValue'
                     command['value'] = value
-                else:
+                elif isinstance(self.getObject(record), ECVariable):
                     command['type'] = 'set'
+                else: return False
                 self.add(command)
                 return True
             return False
@@ -1440,15 +1470,18 @@ class Core(Handler):
                 self.add(command)
                 return True
 
-        elif token in ('entry', 'property'):
+        elif token in ('entry', 'item', 'property'):
             command['key'] = self.nextValue()
             if self.nextIs('of'):
                 if self.nextIsSymbol():
                     record = self.getSymbolRecord()
                     if token == 'entry':
                         self.checkObjectType(self.getObject(record), ECDictionary)
+                    elif token == 'item':
+                        self.checkObjectType(self.getObject(record), ECList)
                     command['target'] = record['name']
-                    if self.nextIs('to'):
+                    if self.peek() == 'to':
+                        self.nextToken()
                         if self.nextIsSymbol():
                             record = self.getSymbolRecord()
                             command['name'] = record['name']
@@ -1457,6 +1490,10 @@ class Core(Handler):
                             if value == None:
                                 FatalError(self.compiler, 'Unable to get a value')
                             command['value'] = value
+                        self.add(command)
+                        return True
+                    else: # Set True
+                        command['value'] = ECValue(type=bool, content=True)
                         self.add(command)
                         return True
 
@@ -1503,6 +1540,18 @@ class Core(Handler):
             object.setElements(elements)
             return self.nextPC()
 
+        elif cmdType == 'entry':
+            key = self.textify(command['key'])
+            if 'name' in command:
+                value = self.textify(self.getVariable(command['name']))
+            elif 'value' in command:
+                value = self.textify(command['value'])
+            record = self.getVariable(command['target'])
+            self.checkObjectType(self.getObject(record), ECDictionary)
+            variable = self.getObject(record)
+            variable.setEntry(key, value)
+            return self.nextPC()
+
         elif cmdType == 'item':
             index = self.textify(command['index'])
             value = self.textify(command['value'])
@@ -1519,18 +1568,6 @@ class Core(Handler):
         elif cmdType == 'path':
             path = self.textify(command['path'])
             os.chdir(path)
-            return self.nextPC()
-
-        elif cmdType == 'entry':
-            key = self.textify(command['key'])
-            if 'name' in command:
-                value = self.textify(self.getVariable(command['name']))
-            elif 'value' in command:
-                value = self.textify(command['value'])
-            record = self.getVariable(command['target'])
-            self.checkObjectType(self.getObject(record), ECDictionary)
-            variable = self.getObject(record)
-            variable.setEntry(key, value)
             return self.nextPC()
 
         elif cmdType == 'property':

@@ -738,7 +738,7 @@ class Doclets(Handler):
         elif isinstance(result, str):
             val = ECValue(type=str, content=result)
         elif isinstance(result, list):
-            val = ECList(type=list, content=result)
+            val = ECList(type=list, content=result) # type: ignore
         else:
             val = ECValue(type=str, content=str(result))
         

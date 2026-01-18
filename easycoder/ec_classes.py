@@ -357,7 +357,7 @@ class ECDictionary(ECValueHolder):
             if types_equal(varType, str):
                 try:
                     if content in ('', {}, None): content = {}
-                    else: content = json.loads(content)
+                    elif content[0] in ('{', '['): content = json.loads(content) # type: ignore
                 except:
                     raise RuntimeError(None, 'ECDictionary string value is not valid JSON') # type: ignore
         elif varType == None:
@@ -393,7 +393,10 @@ class ECDictionary(ECValueHolder):
         content = self.getValue()
         if content is None:
             return None
-        return content.get(key, None)
+        if key in content:
+             return content[key]
+        else:
+             return None
 
     # Delete an entry from the dictionary
     def deleteEntry(self, key):

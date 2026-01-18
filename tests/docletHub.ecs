@@ -7,33 +7,28 @@
 
     topic RequestTopic
     topic ResponseTopic
-    dictionary Doclet
-    dictionary Message
     dictionary Payload
-    dictionary ReplyTo
-    list List
-    list Senders
+    dictionary Sender
+    dictionary ReceivedMessage
+    dictionary MessageToSend
+    dictionary WaitForConfirmation
     list Topics
-    variable Query
-    variable DocletPath
-    variable Name
-    variable Text
-    variable FilePath
-    variable Sender
+    variable MyID
+    variable SenderName
     variable Topic
     variable Action
-    variable ResponseName
-    variable ReplyToName
-    variable ReplyToQoS
+    variable SenderQoS
     variable MessageText
-    variable N
-    variable P
-    variable S
+    variable ConfirmationRequested
     
-    debug step
+!    debug step
 
+    reset WaitForConfirmation
+    clear ConfirmationRequested
+
+    put `a8:41:f4:d3:19:dd/request` into MyID
     init RequestTopic
-        name `a8:41:f4:d3:19:dd/request`
+        name MyID
         qos 1
 
     mqtt
@@ -46,22 +41,18 @@
     
     on mqtt message
     begin
-        put the mqtt message into Message
-        put entry `topic` of Message into Topic
-        put entry `payload` of Message into Payload
-
-        put entry `reply-to` of Payload into ReplyTo
+        put the mqtt message into ReceivedMessage
+        log `Incoming: ` cat ReceivedMessage
+        put entry `topic` of ReceivedMessage into Topic
+        put entry `payload` of ReceivedMessage into Payload
+        put entry `sender` of Payload into Sender
         put entry `action` of Payload into Action
-
-        put entry `name` of ReplyTo into ReplyToName
-        put entry `qos` of ReplyTo into ReplyToQoS
-        put entry `message` of Message into MessageText
-        log `Sender: ` cat ReplyToName
-        log `QoS:` cat ReplyToQoS
-        log `Message: ` cat MessageText
-        log `Action: ` cat Action
+        put entry `name` of Sender into SenderName
+        put entry `qos` of Sender into SenderQoS
 
         if Action is `topics` go to GetTopics
+        else if Action is `query` go to DoQuery
+        else if Action is `confirm` go to DoConfirm
 
     stop
 
@@ -69,4 +60,42 @@
 GetTopics:
     put the doclet topics into Topics
     log Topics
+    put Topics into MessageText
+!    set ConfirmationRequested
+    gosub to SendReply
     stop
+
+! Process a query
+DoQuery:
+    put entry `message` of Payload into MessageText
+    log `Message: ` cat MessageText
+    stop
+
+! Process a confirmation
+DoConfirm:
+    if WaitForConfirmation has entry Sender
+    begin
+        log `Confirmation from ` cat Sender
+        clear entry Sender of WaitForConfirmation
+    end
+    else log `No confirmation requested`
+    stop
+
+! Send a reply message
+SendReply:
+    init ResponseTopic
+        name SenderName
+        qos SenderQoS
+    reset MessageToSend
+    set entry `sender` of MessageToSend to MyID
+    set entry `message`  of MessageToSend to MessageText
+    if ConfirmationRequested
+    begin
+        set entry Sender of WaitForConfirmation
+        set Action to `confirm`
+    end
+    else set Action to `reply`
+    set entry `action` of MessageToSend to Action
+    send mqtt MessageToSend to ResponseTopic
+    clear ConfirmationRequested
+    return

@@ -21,11 +21,11 @@ class MQTTClient():
         self.timeout = False
         self.messages = {}
         self.chunked_messages = {}  # Store incoming chunked messages {topic: {part_num: data}}
-        self.chunk_confirmations = {}  # Store confirmations for sent chunks
         self.confirmation_lock = threading.Lock()
         self.chunk_size = 1024  # Default chunk size
-        self.chunking_strategy = 'rapid_fire'  # 'sequential' or 'rapid_fire'
         self.last_send_time = None  # Time taken for last message transmission (seconds)
+        # Track per-peer pending confirmations keyed by peer identifier
+        self.awaiting_confirmations = {}
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=self.clientID) # type: ignore
     
         # Setup callbacks
@@ -46,15 +46,6 @@ class MQTTClient():
     def on_message(self, client, userdata, msg):
         payload = msg.payload.decode('utf-8')
         topic = msg.topic
-        
-        # Check if this is a chunk confirmation
-        if payload.startswith('confirm:'):
-            # Extract confirmation info: "confirm: <total_chunks> <total_bytes>"
-            parts = payload.split()
-            if len(parts) >= 2:
-                with self.confirmation_lock:
-                    self.chunk_confirmations['received'] = True
-            return
         
         # Check if this is a chunked message (format: "!part!<n> <total><data>")
         if payload.startswith('!part!'):
@@ -107,16 +98,17 @@ class MQTTClient():
                         complete_message = ''.join(message_parts)
                         del self.chunked_messages[topic]
                         
-                        # Send single confirmation
-                        confirmation = f"confirm: {total_chunks} {len(complete_message)}"
-                        self.client.publish(topic, confirmation, qos=1)
-                        print(f"All chunks received for topic {topic} ({len(complete_message)} bytes total). Confirmation sent.")
+                        # Confirmation is now handled at the EasyCoder level
+                        # print(f"All chunks received for topic {topic} ({len(complete_message)} bytes total).")
                         
+                        # Attempt to extract sender and pending status
+                        sender = self._extract_peer(complete_message, role='sender')
+                        awaiting = bool(sender and self.awaiting_confirmations.get(sender, False))
                         # Store and trigger callback with complete message
-                        self.message = {"topic": topic, "payload": complete_message}
+                        self.message = {"topic": topic, "payload": complete_message, "sender": sender, "awaiting": awaiting}
                         
                         if self.onMessagePC is not None:
-                            print(f'Complete chunked message received ({len(complete_message)} bytes).\nResume program at PC {self.onMessagePC}')
+                            print(f'Run from PC {self.onMessagePC}')
                             self.program.run(self.onMessagePC)
                             self.program.flushCB()
                     else:
@@ -127,9 +119,28 @@ class MQTTClient():
             return
         
         # Regular non-chunked message
-        callerID = client._client_id.decode()
         print(f"Non-chunked message received on topic {topic}: {payload}")
-        self.message = {"topic": topic, "payload": payload}
+        # Try to parse as JSON to identify sender and confirmations
+        sender = self._extract_peer(payload, role='sender')
+        is_json_confirm = False
+        try:
+            data = json.loads(payload)
+            is_json_confirm = (
+                isinstance(data, dict) and (
+                    data.get('confirm') is True or
+                    data.get('type') in ['confirm', 'ack'] or
+                    data.get('action') in ['confirm', 'ack']
+                )
+            )
+        except Exception:
+            pass
+
+        # Clear pending for this sender on explicit JSON confirmation
+        if is_json_confirm and sender:
+            self.awaiting_confirmations.pop(sender, None)
+
+        awaiting = bool(sender and self.awaiting_confirmations.get(sender, False))
+        self.message = {"topic": topic, "payload": payload, "sender": sender, "awaiting": awaiting}
         if self.onMessagePC is not None:
             print(f'Resume program at PC {self.onMessagePC}')
             self.program.run(self.onMessagePC)
@@ -147,17 +158,17 @@ class MQTTClient():
     def sendMessage(self, topic, message, qos, chunk_size=0):
         """Send a message, optionally chunked if chunk_size > 0
         
-        Uses self.chunking_strategy to select between:
-        - 'sequential': Wait for confirmation of each chunk (slower, more reliable)
-        - 'rapid_fire': Send all chunks rapidly, wait for single final confirmation (faster)
-        
         Stores transmission time in self.last_send_time (seconds)
         """
         send_start = time.time()
+
+        # Mark pending confirmation keyed by the publish target topic (string)
+        if isinstance(topic, str) and topic:
+            self.awaiting_confirmations[topic] = True
         
         # If chunk_size is 0, send message as-is (no chunking)
         if chunk_size == 0:
-            print(f'Send MQTT message to topic {topic} with QoS {qos}: {message}')
+            # print(f'Send MQTT message to topic {topic} with QoS {qos}: {message}')
             self.client.publish(topic, message, qos=qos)
             self.last_send_time = time.time() - send_start
             return
@@ -166,55 +177,16 @@ class MQTTClient():
         message_len = len(message)
         num_chunks = (message_len + chunk_size - 1) // chunk_size
         
-        print(f'Sending message ({message_len} bytes) in {num_chunks} chunks using {self.chunking_strategy} strategy')
+        # print(f'Sending message ({message_len} bytes) in {num_chunks} chunks of size {chunk_size} to topic {topic} with QoS {qos}')
         
-        if self.chunking_strategy == 'sequential':
-            self._send_sequential(topic, message, qos, chunk_size, num_chunks)
-        else:  # rapid_fire
-            self._send_rapid_fire(topic, message, qos, chunk_size, num_chunks)
+        self._send_rapid_fire(topic, message, qos, chunk_size, num_chunks)
         
         self.last_send_time = time.time() - send_start
         print(f'Message transmission complete in {self.last_send_time:.3f} seconds')
     
-    def _send_sequential(self, topic, message, qos, chunk_size, num_chunks):
-        """Send chunks one at a time, waiting for confirmation of each"""
-        for i in range(num_chunks):
-            start = i * chunk_size
-            end = min(start + chunk_size, len(message))
-            chunk_data = message[start:end]
-            
-            # Prepare chunk with header: "!part!<n> <total><data>" or "!last!<total><data>"
-            if i == num_chunks - 1:
-                chunk_msg = f"!last!{num_chunks} {chunk_data}"
-            else:
-                chunk_msg = f"!part!{i} {num_chunks} {chunk_data}"
-            
-            # Clear confirmation flag
-            with self.confirmation_lock:
-                self.chunk_confirmations.clear()
-            
-            # Send the chunk
-            self.client.publish(topic, chunk_msg, qos=qos)
-            print(f"Sent chunk {i}/{num_chunks - 1}: {len(chunk_data)} bytes")
-            
-            # Wait for confirmation (with timeout)
-            timeout = 5.0  # 5 second timeout
-            start_wait = time.time()
-            while True:
-                with self.confirmation_lock:
-                    if self.chunk_confirmations.get('received', False):
-                        print(f"Chunk {i} confirmed")
-                        break
-                
-                if time.time() - start_wait > timeout:
-                    print(f"Warning: Timeout waiting for confirmation of chunk {i}")
-                    break
-                    
-                time.sleep(0.01)  # Small sleep to avoid busy waiting
-    
     def _send_rapid_fire(self, topic, message, qos, chunk_size, num_chunks):
         """Send all chunks as rapidly as possible, wait for single final confirmation"""
-        print(f"[Rapid-fire] Sending all {num_chunks} chunks as fast as possible...")
+        # print(f"Sending all {num_chunks} chunks as fast as possible...")
         
         # Send all chunks rapidly
         for i in range(num_chunks):
@@ -230,29 +202,33 @@ class MQTTClient():
             
             # Send without waiting
             self.client.publish(topic, chunk_msg, qos=qos)
-            print(f"Sent chunk {i}/{num_chunks - 1} to topic {topic} with QoS {qos}: {chunk_msg}")
-        
-        # Now wait for single final confirmation
-        print(f"[Rapid-fire] All chunks sent. Waiting for confirmation...")
-        timeout = 10.0  # 10 second timeout for all chunks to be processed
-        start_wait = time.time()
-        while True:
-            with self.confirmation_lock:
-                if self.chunk_confirmations.get('received', False):
-                    print(f"[Rapid-fire] Confirmation received")
-                    break
-            
-            if time.time() - start_wait > timeout:
-                print(f"Warning: Timeout waiting for final confirmation")
-                self.timeout = True
-                break
-                
-            time.sleep(0.05)  # Slightly longer sleep since we're just waiting for one confirmation
+            # print(f"Sent chunk {i}/{num_chunks - 1} to topic {topic} with QoS {qos}: {chunk_msg}")
+        # No waiting here; confirmations are handled in EasyCoder using sender identity
     
     # Start the MQTT client loop
     def run(self):
         self.client.connect(self.broker, int(self.port), 60)
         self.client.loop_start()
+
+    # Helper: extract peer identifier from a JSON payload string
+    # role='sender' looks for keys commonly used to denote the sender
+    # role='recipient' looks for keys commonly used to denote the target/recipient
+    def _extract_peer(self, payload_text, role='sender'):
+        try:
+            data = json.loads(payload_text)
+            if not isinstance(data, dict):
+                return None
+            if role == 'sender':
+                for key in ['sender', 'from', 'source', 'client', 'peer']:
+                    if key in data and isinstance(data[key], str):
+                        return data[key]
+            else:
+                for key in ['recipient', 'to', 'target', 'client', 'peer']:
+                    if key in data and isinstance(data[key], str):
+                        return data[key]
+        except Exception:
+            return None
+        return None
         
 ###############################################################################
 # An MQTT topic
@@ -431,11 +407,36 @@ class MQTT(Handler):
             raise RuntimeError(self.program, 'No MQTT client defined')
         topic = self.getObject(self.getVariable(command['to']))
         message = self.textify(command['message'])
+        
+        # Validate that outgoing message is valid JSON with required 'sender' and 'action' fields
+        try:
+            payload_dict = json.loads(message)
+            if not isinstance(payload_dict, dict):
+                raise RuntimeError(self.program, f'MQTT message must be a JSON object, got {type(payload_dict).__name__}')
+            
+            # sender can be a string (topic name) or a dict with 'name' and 'qos' keys
+            if 'sender' not in payload_dict:
+                raise RuntimeError(self.program, 'MQTT message must contain "sender" field')
+            sender_val = payload_dict.get('sender')
+            if isinstance(sender_val, str):
+                pass  # sender is a string (topic name), valid
+            elif isinstance(sender_val, dict):
+                if 'name' not in sender_val or not isinstance(sender_val.get('name'), str):
+                    raise RuntimeError(self.program, 'MQTT message "sender" dict must contain "name" field as string')
+            else:
+                raise RuntimeError(self.program, f'MQTT message "sender" must be a string or dict, got {type(sender_val).__name__}')
+            
+            # action must be a string
+            if 'action' not in payload_dict or not isinstance(payload_dict.get('action'), str):
+                raise RuntimeError(self.program, 'MQTT message must contain "action" field as string')
+        except json.JSONDecodeError as e:
+            raise RuntimeError(self.program, f'MQTT message must be valid JSON: {e}')
+        
         if 'qos' in command:
             qos = int(self.textify(command['qos']))
         else:
-            qos = topic.getQoS()
-        self.program.mqttClient.sendMessage(topic.getName(), message, qos, chunk_size=100)
+            qos = topic.qos if hasattr(topic, 'qos') else 1
+        self.program.mqttClient.sendMessage(topic.getName(), message, qos, chunk_size=1024)
         if self.program.mqttClient.timeout:
             return 0
         return self.nextPC()
@@ -458,7 +459,7 @@ class MQTT(Handler):
             record = self.getSymbolRecord()
             object = self.getObject(record)
             if isinstance(object, ECTopic):
-                return ECValue(domain=self.getName(), type='symbol', content=record['name'])
+                return ECValue(domain=self.getName(), type='topic', content=record['name'])
             else: return None
         else:
             if token == 'mqtt':
@@ -488,7 +489,7 @@ class MQTT(Handler):
 
     def v_topic(self, v):
         topic = self.getObject(self.getVariable(self.textify(v.getContent())))
-        return f'{{"name": "{topic.getName()}", "qos": {topic.getQOS()}}}'
+        return f'{{"name": "{topic.getName()}", "qos": {topic.getQoS()}}}'
 
     #############################################################################
     # Compile a condition
