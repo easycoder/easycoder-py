@@ -1627,7 +1627,7 @@ class Graphics(Handler):
             v = ECValue(domain=self.getName(), type=str, content=content)
             return v
         elif self.isObjectType(record, ECCheckBox):
-            checkbox =self.getInnerObject(record)
+            checkbox = self.getInnerObject(record)
             content = checkbox.isChecked()  # type: ignore
             v = ECValue(domain=self.getName(), type=bool, content=content)
             return v

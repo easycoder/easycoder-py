@@ -75,6 +75,13 @@ class ECLabel(ECTextWidget):
     # This is a core class
     def isCoreClass(self):
         return True
+    
+    def getContent(self):
+        return self.getValue().text() # type: ignore
+    
+    # Get the text of the widget
+    def textify(self):
+        return self.getContent()
 
 ###############################################################################
 # A pushbutton variable
@@ -100,7 +107,7 @@ class ECCheckBox(ECCoreWidget):
     def getContent(self):
         v = self.getValue()
         if v is None: return None
-        return v.getContent().isChecked() # type: ignore
+        return v.isChecked() # type: ignore
 
 ###############################################################################
 # A line input widget

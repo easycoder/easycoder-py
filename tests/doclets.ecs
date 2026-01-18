@@ -12,17 +12,23 @@
 
     window Window
     window MDWindow
+    window TopicsWindow
     layout Layout
     layout MainPanel
+    layout Panel1
+    layout Panel2
     layout MDMainPanel
     layout ButtonPanel
     label Label
-    lineinput TopicInput
+    label TopicsLabel
     multiline QueryInput
     multiline MDPanel
+    pushbutton ChooseTopicsButton
     pushbutton SendQueryButton
     pushbutton ExitButton
     pushbutton MDCloseButton
+    pushbutton OKButton
+    checkbox TopicCheckbox
     checkbox LLMCheckbox
     listbox ResultsList
 
@@ -36,12 +42,16 @@
     variable Action
     variable MessageText
     variable ConfigFileName
-    variable ResponseName
+    variable Text
+    variable Items
+    variable M
+    variable N
     variable P
     dictionary Config
     dictionary Payload
     dictionary MessageToSend
     dictionary ReceivedMessage
+    list TopicsAvailable
     list DocletList
 
 !    debug step
@@ -55,8 +65,12 @@
     add Layout to MainPanel
     create Label text `Topics:` width 100
     add Label to Layout
-    create TopicInput size 100
-    add TopicInput to Layout
+    create TopicsLabel size 100
+    add stretch TopicsLabel to Layout
+    create ChooseTopicsButton text `Choose`
+    on click ChooseTopicsButton go to ChooseTopics
+    disable ChooseTopicsButton
+    add ChooseTopicsButton to Layout
 
     create Layout type QHBoxLayout
     add Layout to MainPanel
@@ -96,8 +110,13 @@
 
     put `~/.doclets_config.json` into ConfigFileName
     if file ConfigFileName exists load Config from ConfigFileName
-    else reset Config
-    set the text of TopicInput to entry `topics` of Config
+    else
+    begin
+        reset Config
+        set entry `topics` of Config to empty
+    end
+    if entry `topics` of Config is empty set the text of TopicsLabel to `(none chosen)`
+    else set the text of TopicsLabel to entry `topics` of Config
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Set up MQTT
@@ -143,9 +162,65 @@
     stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Here when the user clicks the Choose button
+ChooseTopics:
+    create TopicsWindow title `Topics`
+    create Panel1 type QVBoxLayout
+    set the layout of TopicsWindow to Panel1
+    create Panel2 type QVBoxLayout
+    add Panel2 to Panel1
+    set the elements of TopicCheckbox to the count of TopicsAvailable
+    put TopicsLabel into Items
+    split Items on `,`
+    put 0 into N
+    while N is less than the count of TopicsAvailable
+    begin
+        put item N of TopicsAvailable into Text
+        index TopicCheckbox to N
+        create TopicCheckbox text Text
+        put 0 into M
+        while M is less than the elements of Items
+        begin
+            index Items to M
+            if Text is Items
+            begin
+                set the state of TopicCheckbox to true
+                go to CT2
+            end
+            increment M
+        end
+    CT2:
+        add TopicCheckbox to Panel2
+        increment N
+    end
+    create OKButton text `OK`
+    add OKButton to Panel1
+    on click OKButton
+    begin
+        put empty into Topics
+        put 0 into N
+        while N is less than the count of TopicsAvailable
+        begin
+            index TopicCheckbox to N
+            if TopicCheckbox
+            begin
+                if Topics is not empty put Topics cat `,` into Topics
+                put Topics cat item N of TopicsAvailable into Topics
+            end
+            increment N
+        end
+        log Topics
+        set the text of TopicsLabel to Topics
+        close TopicsWindow
+    end
+    show TopicsWindow
+    adjust TopicsWindow
+    stop
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Here when the user clicks the Send button
 SendQueryClick:
-    put TopicInput into Topics
+    put TopicsLabel into Topics
     put QueryInput into Query
     if LLMCheckbox put `LLM:` cat Query into Query
     put `query` into State
@@ -154,7 +229,7 @@ SendQueryClick:
     reset MessageToSend
     set entry `sender` of MessageToSend to MyTopic
     set entry `action` of MessageToSend to `query`
-    set entry `topics` of MessageToSend to TopicInput
+    set entry `topics` of MessageToSend to Topics
     set entry `message` of MessageToSend to Query
     send mqtt MessageToSend to HubTopic
     stop
@@ -177,7 +252,7 @@ ResultsListClick:
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Here when the user clicks the exit button
 ExitButtonClick:
-    set entry `topics` of Config to TopicInput
+    set entry `topics` of Config to the text of TopicsLabel
     log Config
     save Config to ConfigFileName
     exit
@@ -193,7 +268,8 @@ ProcessMessage:
     if State is `topics`
     begin
         if Action is `confirm` gosub to SendConfirmation
-        log MessageText
+        put MessageText into TopicsAvailable
+        enable ChooseTopicsButton
     end
     else if State is `query`
     begin

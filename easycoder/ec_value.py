@@ -22,11 +22,11 @@ class Value:
 
 		value = ECValue()
 
-		if token == 'true':
+		if token.lower() == 'true':
 			value.setValue(bool, True)
 			return value
 
-		if token == 'false':
+		if token.lower() == 'false':
 			value.setValue(bool, False)
 			return value
 
