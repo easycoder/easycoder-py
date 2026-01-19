@@ -340,19 +340,18 @@ class MQTT(Handler):
                                 record = self.getSymbolRecord()
                                 self.checkObjectType(record, ECTopic)
                                 command['sender'] = record['name']
-                            elif token == 'action':
-                                command['action'] = self.nextValue()
-                            elif token == 'topics':
-                                command['topics'] = self.nextValue()
-                            elif token == 'qos':
-                                command['qos'] = self.nextValue()
-                            elif token == 'message':
-                                command['message'] = self.nextValue()
+                        elif token == 'action':
+                            command['action'] = self.nextValue()
+                        elif token == 'topics':
+                            command['topics'] = self.nextValue()
+                        elif token == 'qos':
+                            command['qos'] = self.nextValue()
+                        elif token == 'message':
+                            command['message'] = self.nextValue()
                     else:
                         break
                 self.add(command)
                 return True
-
 
             command['message'] = self.nextValue()
             self.skip('to')
@@ -378,43 +377,19 @@ class MQTT(Handler):
     def r_send(self, command):
         if not hasattr(self.program, 'mqttClient'):
             raise RuntimeError(self.program, 'No MQTT client defined')
-        topic = self.getObject(self.getVariable(command['to']))
-        message = self.textify(command['message'])
-        
-        # Validate that outgoing message is valid JSON with required 'sender' and 'action' fields
-        try:
-            payload_dict = json.loads(message)
-            if 'message' in payload_dict:
-                try:
-                    payload_dict['message'] = json.loads(payload_dict['message'])
-                except:
-                    pass
-            if not isinstance(payload_dict, dict):
-                raise RuntimeError(self.program, f'MQTT message must be a JSON object, got {type(payload_dict).__name__}')
-            
-            # sender can be a string (topic name) or a dict with 'name' and 'qos' keys
-            if 'sender' not in payload_dict:
-                raise RuntimeError(self.program, 'MQTT message must contain "sender" field')
-            sender_val = payload_dict.get('sender')
-            if isinstance(sender_val, str):
-                pass  # sender is a string (topic name), valid
-            elif isinstance(sender_val, dict):
-                if 'name' not in sender_val or not isinstance(sender_val.get('name'), str):
-                    raise RuntimeError(self.program, 'MQTT message "sender" dict must contain "name" field as string')
-            else:
-                raise RuntimeError(self.program, f'MQTT message "sender" must be a string or dict, got {type(sender_val).__name__}')
-            
-            # action must be a string
-            if 'action' not in payload_dict or not isinstance(payload_dict.get('action'), str):
-                raise RuntimeError(self.program, 'MQTT message must contain "action" field as string')
-        except json.JSONDecodeError as e:
-            raise RuntimeError(self.program, f'MQTT message must be valid JSON: {e}')
-        
-        if 'qos' in command:
-            qos = int(self.textify(command['qos']))
-        else:
-            qos = topic.qos if hasattr(topic, 'qos') else 1
-        self.program.mqttClient.sendMessage(topic.getName(), message, qos, chunk_size=1024)
+        topic = self.getVariable(command['to'])
+        qos = int(self.textify(command['qos'])) if 'qos' in command else 1
+        payload = {}
+        payload['sender'] = self.textify(self.getVariable(command['sender'])) if 'sender' in command else None
+        payload['action'] = self.textify(command['action']) if 'action' in command else None
+        payload['topics'] = self.textify(command['topics']) if 'topics' in command else None
+        payload['message'] = self.textify(command['message']) if 'message' in command else None
+        # Validate that outgoing message is valid JSON with required fields
+        if payload['sender'] == None:
+            raise RuntimeError(self.program, 'MQTT send command missing sender field')
+        if payload['action'] == None:
+            raise RuntimeError(self.program, 'MQTT send command missing action field')
+        self.program.mqttClient.sendMessage(topic['name'], json.dumps(payload), qos, chunk_size=1024)
         if self.program.mqttClient.timeout:
             return 0
         return self.nextPC()

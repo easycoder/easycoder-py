@@ -154,7 +154,7 @@
     put `topics` into State
     send to ServerTopic
         sender MyTopic
-        action 'topics'
+        action `topics`
     stop
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
