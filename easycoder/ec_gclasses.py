@@ -127,9 +127,9 @@ class ECLineInput(ECTextWidget):
 
     # Get the content of the value at the current index
     def getContent(self):
-        content = self.getValue()
-        if content is None: return None
-        return content.text()
+        value = self.getValue()
+        if value is None: return None
+        return value.text()
     
     # Get the text of the widget
     def textify(self):
@@ -157,9 +157,13 @@ class ECMultiline(ECTextWidget):
 
     # Get the content of the value at the current index
     def getContent(self):
-        v = self.getValue()
-        if v is None: return None
-        return v.getContent().text()
+        value = self.getValue()
+        if value is None: return None
+        return value.toPlainText()
+    
+    # Get the text of the widget
+    def textify(self):
+        return self.getContent()
 
 ###############################################################################
 # A listbox variable

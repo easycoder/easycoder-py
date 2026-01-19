@@ -42,7 +42,7 @@ class MQTTClient():
             self.program.flushCB()
     
     def on_message(self, client, userdata, msg):
-        payload = msg.payload.decode('utf-8')
+        payload = msg.payload.decode('utf-8', errors='replace')
         topic = msg.topic
         
         # Check if this is a chunked message (format: "!part!<n> <total><data>")
@@ -98,7 +98,14 @@ class MQTTClient():
                         
                         # Confirmation is now handled at the EasyCoder level
                         # print(f"All chunks received for topic {topic} ({len(complete_message)} bytes total).")
-                        self.message = {"topic": topic, "payload": complete_message}
+                        try:
+                            self.message = json.loads(complete_message)
+                        except:
+                            self.message = complete_message
+                        try:
+                            self.message['message'] = json.loads(self.message['message']) # type: ignore
+                        except:
+                            pass
                         
                         if self.onMessagePC is not None:
 #                            print(f'Run from PC {self.onMessagePC}')
@@ -121,42 +128,47 @@ class MQTTClient():
         self.onMessagePC = pc
 
     def sendMessage(self, topic, message, qos, chunk_size=0):
-        """Send a message, optionally chunked if chunk_size > 0
-        
-        Stores transmission time in self.last_send_time (seconds)
+        """Send a message, chunking at the UTF-8 byte level.
+        Stores transmission time in self.last_send_time (seconds).
         """
         send_start = time.time()
-        
-        # Send message in chunks using selected strategy
-        message_len = len(message)
+        if isinstance(message, bytes):
+            message_str = message.decode('utf-8', errors='replace')
+        else:
+            message_str = str(message)
+
+        message_bytes = message_str.encode('utf-8')
+        if chunk_size <= 0:
+            chunk_size = len(message_bytes) or 1  # avoid div-by-zero
+
+        message_len = len(message_bytes)
         num_chunks = (message_len + chunk_size - 1) // chunk_size
-        
+
         # print(f'Sending message ({message_len} bytes) in {num_chunks} chunks of size {chunk_size} to topic {topic} with QoS {qos}')
-        
-        self._send_rapid_fire(topic, message, qos, chunk_size, num_chunks)
-        
+
+        self._send_rapid_fire(topic, message_bytes, qos, chunk_size, num_chunks)
+
         self.last_send_time = time.time() - send_start
         print(f'Message transmission complete in {self.last_send_time:.3f} seconds')
     
-    def _send_rapid_fire(self, topic, message, qos, chunk_size, num_chunks):
-        """Send all chunks as rapidly as possible, wait for single final confirmation"""
+    def _send_rapid_fire(self, topic, message_bytes, qos, chunk_size, num_chunks):
+        """Send all chunks rapidly; chunking is done on UTF-8 bytes."""
         # print(f"Sending all {num_chunks} chunks as fast as possible...")
-        
-        # Send all chunks rapidly
         for i in range(num_chunks):
             start = i * chunk_size
-            end = min(start + chunk_size, len(message))
-            chunk_data = message[start:end]
-            
-            # Prepare chunk with header: "!part!<n> <total><data>" or "!last!<total><data>"
+            end = min(start + chunk_size, len(message_bytes))
+            chunk_data = message_bytes[start:end]
+
             if i == num_chunks - 1:
-                chunk_msg = f"!last!{num_chunks} {chunk_data}"
+                header = f"!last!{num_chunks} ".encode('ascii')
             else:
-                chunk_msg = f"!part!{i} {num_chunks} {chunk_data}"
-            
+                header = f"!part!{i} {num_chunks} ".encode('ascii')
+
+            chunk_msg = header + chunk_data
+
             # Send without waiting
             self.client.publish(topic, chunk_msg, qos=qos)
-            # print(f"Sent chunk {i}/{num_chunks - 1} to topic {topic} with QoS {qos}: {chunk_msg}")
+            # print(f"Sent chunk {i}/{num_chunks - 1} to topic {topic} with QoS {qos}: {len(chunk_msg)} bytes")
         # No waiting here; confirmations are handled in EasyCoder using sender identity
     
     # Start the MQTT client loop
@@ -314,7 +326,34 @@ class MQTT(Handler):
 
     # send {message} to {topic}
     def k_send(self, command):
-        if self.nextIs('mqtt'):
+        if self.nextIs('to'):
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                self.checkObjectType(record, ECTopic)
+                command['to'] = record['name']
+                while True:
+                    token = self.peek()
+                    if token in ('sender', 'action', 'topics', 'qos', 'message'):
+                        self.nextToken()
+                        if token == 'sender':
+                            if self.nextIsSymbol():
+                                record = self.getSymbolRecord()
+                                self.checkObjectType(record, ECTopic)
+                                command['sender'] = record['name']
+                            elif token == 'action':
+                                command['action'] = self.nextValue()
+                            elif token == 'topics':
+                                command['topics'] = self.nextValue()
+                            elif token == 'qos':
+                                command['qos'] = self.nextValue()
+                            elif token == 'message':
+                                command['message'] = self.nextValue()
+                    else:
+                        break
+                self.add(command)
+                return True
+
+
             command['message'] = self.nextValue()
             self.skip('to')
             if self.nextIsSymbol():
@@ -345,6 +384,11 @@ class MQTT(Handler):
         # Validate that outgoing message is valid JSON with required 'sender' and 'action' fields
         try:
             payload_dict = json.loads(message)
+            if 'message' in payload_dict:
+                try:
+                    payload_dict['message'] = json.loads(payload_dict['message'])
+                except:
+                    pass
             if not isinstance(payload_dict, dict):
                 raise RuntimeError(self.program, f'MQTT message must be a JSON object, got {type(payload_dict).__name__}')
             

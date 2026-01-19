@@ -317,7 +317,11 @@ class ECValueHolder(ECObject):
         v = self.getValue()
         if v is None:
             return ""
-        return json.dumps(v.getContent())
+        elif isinstance(v, str):
+            return json.dumps(v)
+        elif isinstance(v, ECValue):
+            return v.getContent()
+        return v
 
 ###############################################################################
 # A string or int variable

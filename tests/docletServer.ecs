@@ -1,0 +1,112 @@
+!   docletHub.ecs
+
+    script DocletServer
+
+    use mqtt
+    use plugin Doclets from ec_doclets
+
+    topic ServerTopic
+    topic SenderTopic
+    dictionary Payload
+    dictionary Sender
+    dictionary ReceivedMessage
+    dictionary MessageToSend
+    dictionary WaitForConfirmation
+    list ResultList
+    variable MyID
+    variable SenderName
+    variable Topic
+    variable Topics
+    variable Action
+    variable SenderQoS
+    variable MessageText
+    variable ConfirmationRequested
+    
+!    debug step
+
+    reset WaitForConfirmation
+    clear ConfirmationRequested
+
+    put `a8:41:f4:d3:19:dd/request` into MyID
+    init ServerTopic
+        name MyID
+        qos 1
+
+    mqtt
+        id uuid
+        broker `test.mosquitto.org`
+        port 1883
+        topics ServerTopic
+
+    doclets init
+    
+    on mqtt message
+    begin
+        put the mqtt message into ReceivedMessage
+        log `Incoming: ` cat ReceivedMessage
+        put entry `topic` of ReceivedMessage into Topic
+        put entry `payload` of ReceivedMessage into Payload
+        put entry `sender` of Payload into Sender
+        put entry `action` of Payload into Action
+        put entry `name` of Sender into SenderName
+        put entry `qos` of Sender into SenderQoS
+
+        if Action is `topics` go to GetTopics
+        else if Action is `query` go to DoQuery
+        else if Action is `view` go to GetDoclet
+        else if Action is `confirm` go to DoConfirm
+
+    stop
+
+! Get a list of the available doclet topics
+GetTopics:
+    put the doclet topics into Topics
+    put Topics into MessageText
+    log `Available topics: ` cat MessageText
+!    set ConfirmationRequested
+    gosub to SendReply
+    stop
+
+! Process a query
+DoQuery:
+    get doclet ResultList from Payload
+!    log ResultList
+!    if the count of ResultList is 0 log `No results`
+!    else log `Sending ` cat ResultList
+    put ResultList into MessageText
+    gosub to SendReply
+    stop
+
+! Get the content of a doclet
+GetDoclet:
+    stop
+
+! Process a confirmation
+DoConfirm:
+    if WaitForConfirmation has entry Sender
+    begin
+        log `Confirmation from ` cat Sender
+        clear entry Sender of WaitForConfirmation
+    end
+    else log `No confirmation requested`
+    stop
+
+! Send a reply message
+SendReply:
+    init SenderTopic
+        name SenderName
+        qos SenderQoS
+    reset MessageToSend
+    set entry `sender` of MessageToSend to MyID
+    set entry `message`  of MessageToSend to MessageText
+    if ConfirmationRequested
+    begin
+        set entry Sender of WaitForConfirmation
+        set Action to `confirm`
+    end
+    else set Action to `reply`
+    set entry `action` of MessageToSend to Action
+    log `Sending ` cat MessageToSend cat ` to ` cat SenderTopic
+    send mqtt MessageToSend to SenderTopic
+    clear ConfirmationRequested
+    return

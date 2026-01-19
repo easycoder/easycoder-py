@@ -1470,7 +1470,7 @@ class Core(Handler):
                 self.add(command)
                 return True
 
-        elif token in ('entry', 'item', 'property'):
+        elif token in ('entry', 'property'):
             command['key'] = self.nextValue()
             if self.nextIs('of'):
                 if self.nextIsSymbol():

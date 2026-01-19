@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-Doclet Search - Use a local LLM to search through dated note files
+Doclet Search and Management for EasyCoder
 """
 import sys
 import re
 from pathlib import Path
-from datetime import datetime
 from typing import List, Dict, Tuple, Optional, Any, Union
 import requests
+
+from easycoder import ECDictionary
 
 class DocletManager():
     def __init__(self, doclets_dir: str = None, ollama_url: str = "http://localhost:11434"): # type: ignore
@@ -586,34 +587,18 @@ class Doclets(Handler):
         self.program.doclets_manager = doclets_manager
         return self.nextPC()
 
-    # get {list} from doclet query {query}
+    # get doclet {list} from {payload}
     def k_get(self, command):
-        if self.nextIsSymbol():
-            record = self.getSymbolRecord()
-            self.checkObjectType(record, ECList)
-            command['target'] = record['name']
-            while True:
-                token = self.nextToken()
-                if token == 'with':
-                    token = self.nextToken()
-                    if token == 'content':
-                        command['include_content'] = True
-                    elif token == 'llm':
-                        command['use_llm'] = True
-                    else:
-                        break
-                    token = self.nextToken()
-                    if token != 'and':
-                        break
-                else:
-                    break
-            if token == 'from':
-                if self.nextIs('doclet'):
-                    token = self.nextToken()
-                    if token == 'query':
-                        command['query'] = self.nextValue()
-                    elif token == 'file':
-                        command['file'] = self.nextValue() 
+        if self.nextIs('doclet'):
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                self.checkObjectType(record, ECList)
+                command['target'] = record['name']
+                self.skip('from')
+                if self.nextIsSymbol():
+                    record = self.getSymbolRecord()
+                    self.checkObjectType(record, ECDictionary())
+                    command['payload'] = record['name']
                     self.add(command)
                     return True
         return False
@@ -621,29 +606,47 @@ class Doclets(Handler):
     def r_get(self, command):
         if not hasattr(self.program, 'doclets_manager'):
             raise RuntimeError(self.program, 'Doclets manager not initialized')
-        doclets_manager: DocletManager = self.program.doclets_manager
         target = self.getObject(self.getVariable(command['target']))
-        if 'query' in command:
-            query = self.textify(command['query'])
-            # Check if query starts with 'LLM:' to enable LLM mode
+        payload = self.getObject(self.getVariable(command['payload'])).getValue()
+        
+        action = payload.get('action', '')
+        
+        # Normalize incoming fields to UTF-8 strings
+        topics = payload.get('topics', '')
+        if isinstance(topics, bytes):
+            topics = topics.decode('utf-8', errors='replace')
+
+        query = payload.get('message', '')
+        if isinstance(query, bytes):
+            query = query.decode('utf-8', errors='replace')
+        
+        if action == 'query':
+            # Extract topics and set doclet directories
+            if topics:
+                self.program.doclets_manager.set_doclets_dirs(topics)
+            
+            # Extract message and check for LLM prefix
             use_llm = False
             if query.startswith('LLM:'):
                 use_llm = True
                 query = query[4:].strip()  # Remove 'LLM:' prefix and trim whitespace
-            # print('query:', query)
-            results = doclets_manager.search_data(
+            
+            print(f'query: {query}, topics: {topics}, use_llm: {use_llm}')
+            
+            # Perform search
+            results = self.program.doclets_manager.search_data(
                 query=query,
-                include_content=command.get('include_content', False),
+                include_content=False,
                 use_llm=use_llm,
                 include_summary=False,
                 return_meta=False
             )
-            # print('results:', results)
+            
             # Sort by topic first, then by filename within each topic
             # First pass: group results by topic
             topics_dict = {}
             for r in results:
-                display_name = r.get('display_filename', '')
+                display_name = r.get('display_filename', '') # type: ignore
                 topic = display_name.split('/')[0].lower() if '/' in display_name else display_name.lower()
                 if topic not in topics_dict:
                     topics_dict[topic] = []
@@ -656,94 +659,35 @@ class Doclets(Handler):
                 sorted_results.extend(topic_group)
             results = sorted_results
             
-            # If a single result has content, return just the content string
-            if len(results) == 1 and 'content' in results[0]:
-                results = results[0]['content']
-            else:
-                # Otherwise return list of display filenames or full entries
-                res = []
-                for r in results:
-                    if 'content' in r:
-                        res.append(r.get('content')) # type: ignore
-                    else:
-                        # Append first line (subject) to display filename
-                        display_name = r.get('display_filename', '')
-                        subject = r.get('subject', '')
-                        res.append(f"{display_name}: {subject}") # type: ignore
-                results = res
-        elif 'file' in command:
-            filepath = self.textify(command['file'])
-            results = doclets_manager.read_doclet_content(filepath=filepath)
+            # Format results: append subject to display filename
+            res = []
+            for r in results:
+                if 'content' in r:
+                    res.append(r.get('content')) # type: ignore
+                else:
+                    # Append subject to display filename
+                    display_name = r.get('display_filename', '')
+                    subject = r.get('subject', '')
+                    res.append(f"{display_name}: {subject}") # type: ignore
+            results = res
+
+        elif action == 'view':
+            # Extract doclet name
+            doclet_name = payload.get('name', '')
+            if isinstance(doclet_name, bytes):
+                doclet_name = doclet_name.decode('utf-8', errors='replace')
+            if not doclet_name:
+                raise RuntimeError(self.program, "No 'name' provided for view action")
+            # Read doclet content directly by name
+            results = self.program.doclets_manager.read_doclet_content(doclet_name)
+        
+        # Convert results to ECValue
         if isinstance(results, str):
             results = ECValue(type=str, content=results)
         elif isinstance(results, list):
             results = ECValue(type=list, content=results)
         target.setValue(results)
         return self.nextPC()
-    
-    # set doclets path {path}
-    # def k_set(self, command):
-    #     if self.nextIs('doclets'):
-    #         self.skip('path')
-    #         self.skip('to')
-    #         command['doclets_dir'] = self.nextValue()
-    #         self.add(command)
-    #         return True
-    #     return False
-    
-    # def r_set(self, command):
-    #     if not hasattr(self.program, 'doclets_manager'):
-    #         raise RuntimeError(self.program, 'Doclets manager not initialized')
-    #     doclets_manager: DocletManager = self.program.doclets_manager
-    #     doclets_manager.set_doclets_dirs(self.textify(command['doclets_dir']))
-    #     return self.nextPC()
-
-    # process {result} from doclet message {message_dict}
-    # def k_process(self, command):
-    #     if self.nextIsSymbol():
-    #         record = self.getSymbolRecord()
-    #         command['target'] = record['name']
-    #         if self.nextIs('from'):
-    #             if self.nextIs('doclet'):
-    #                 if self.nextIs('message'):
-    #                     command['message'] = self.nextValue()
-    #                     self.add(command)
-    #                     return True
-    #     return False
-    
-    # def r_process(self, command):
-    #     if not hasattr(self.program, 'doclets_manager'):
-    #         raise RuntimeError(self.program, 'Doclets manager not initialized')
-    #     doclets_manager: DocletManager = self.program.doclets_manager
-    #     target = self.getVariable(command['target'])
-        
-    #     # Get message dictionary
-    #     message_content = self.textify(command['message'])
-        
-    #     # Parse JSON if it's a string
-    #     if isinstance(message_content, str):
-    #         try:
-    #             message_dict = json.loads(message_content)
-    #         except json.JSONDecodeError as e:
-    #             raise RuntimeError(self.program, f'Invalid JSON message: {e}')
-    #     else:
-    #         message_dict = message_content
-        
-    #     # Process the message
-    #     result = doclets_manager.process_message(message_dict)
-        
-    #     # Convert result to appropriate ECValue
-    #     if result is None:
-    #         val = ECValue(type=str, content='')
-    #     elif isinstance(result, str):
-    #         val = ECValue(type=str, content=result)
-    #     elif isinstance(result, list):
-    #         val = ECList(type=list, content=result) # type: ignore
-    #     else:
-    #         val = ECValue(type=str, content=str(result))
-        
-    #     self.putSymbolValue(target, val)
-    #     return self.nextPC()
 
     #############################################################################
     # Compile a value in this domain
