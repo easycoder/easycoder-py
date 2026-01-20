@@ -1482,14 +1482,7 @@ class Core(Handler):
                     command['target'] = record['name']
                     if self.peek() == 'to':
                         self.nextToken()
-                        if self.nextIsSymbol():
-                            record = self.getSymbolRecord()
-                            command['name'] = record['name']
-                        else:
-                            value = self.getValue()
-                            if value == None:
-                                FatalError(self.compiler, 'Unable to get a value')
-                            command['value'] = value
+                        command['value'] = self.nextValue()
                         self.add(command)
                         return True
                     else: # Set True

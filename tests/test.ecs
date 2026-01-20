@@ -5,8 +5,10 @@
     debug compile
     debug step
 
-    list List
+    dictionary RoomSpec
+    variable T
+    variable T1
 
-    set List to `["Item 1"]`
+    set entry `temperature` of RoomSpec to T cat `.` cat T1
 
     exit

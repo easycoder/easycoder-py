@@ -10,7 +10,6 @@
     dictionary Payload
     dictionary Sender
     dictionary ReceivedMessage
-    dictionary MessageToSend
     dictionary WaitForConfirmation
     list ResultList
     variable MyID
@@ -36,7 +35,7 @@
         id uuid
         broker `test.mosquitto.org`
         port 1883
-        topics ServerTopic
+        subscribe ServerTopic
 
     doclets init
     
@@ -96,17 +95,15 @@ SendReply:
     init SenderTopic
         name SenderName
         qos SenderQoS
-    reset MessageToSend
-    set entry `sender` of MessageToSend to MyID
-    set entry `message`  of MessageToSend to MessageText
     if ConfirmationRequested
     begin
         set entry Sender of WaitForConfirmation
         set Action to `confirm`
     end
     else set Action to `reply`
-    set entry `action` of MessageToSend to Action
-    log `Sending ` cat MessageToSend cat ` to ` cat SenderTopic
-    send mqtt MessageToSend to SenderTopic
+    log `Sending ` cat MessageText cat ` to ` cat SenderTopic
+    send to SenderTopic
+        action Action
+        message MessageText
     clear ConfirmationRequested
     return

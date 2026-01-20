@@ -134,7 +134,9 @@
         id UUID
         broker `test.mosquitto.org`
         port 1883
-        topics MyTopic
+        subscribe MyTopic
+        action `query` requires `topics` and `message`
+        action `view` requires `message`
     
     on mqtt message
     begin

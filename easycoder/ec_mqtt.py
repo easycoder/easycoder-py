@@ -257,7 +257,7 @@ class MQTT(Handler):
             elif token == 'port':
                 self.nextToken()
                 command['port'] = self.nextValue()
-            elif token == 'topics':
+            elif token == 'subscribe':
                 self.nextToken()
                 topics = []
                 while self.nextIsSymbol():
