@@ -823,7 +823,7 @@ class Core(Handler):
             ssh = self.getVariable(command['ssh'])
             path = self.textify(command['path'])
             sftp = ssh['sftp']
-            print(f'Loading from path: {Path(path).expanduser()}')
+            # print(f'Loading from path: {Path(path).expanduser()}')
             try:
                 with sftp.open(path, 'r') as remote_file: content = remote_file.read().decode()
             except:
