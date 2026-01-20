@@ -21,7 +21,7 @@
     variable MessageText
     variable ConfirmationRequested
     
-!    debug step
+    debug step
 
     reset WaitForConfirmation
     clear ConfirmationRequested
@@ -42,11 +42,11 @@
     on mqtt message
     begin
         put the mqtt message into ReceivedMessage
-        log `Incoming: ` cat ReceivedMessage
+!        log `Incoming: ` cat ReceivedMessage
         put entry `topic` of ReceivedMessage into Topic
-        put entry `payload` of ReceivedMessage into Payload
-        put entry `sender` of Payload into Sender
-        put entry `action` of Payload into Action
+!        put entry `payload` of ReceivedMessage into Payload
+        put entry `sender` of ReceivedMessage into Sender
+        put entry `action` of ReceivedMessage into Action
         put entry `name` of Sender into SenderName
         put entry `qos` of Sender into SenderQoS
 
@@ -68,16 +68,17 @@ GetTopics:
 
 ! Process a query
 DoQuery:
-    get doclet ResultList from Payload
-!    log ResultList
-!    if the count of ResultList is 0 log `No results`
-!    else log `Sending ` cat ResultList
+    get doclet ResultList from ReceivedMessage
+    if the count of ResultList is 0 log `No results`
+    else log `Sending ` cat ResultList
     put ResultList into MessageText
     gosub to SendReply
     stop
 
 ! Get the content of a doclet
 GetDoclet:
+    get doclet MessageText from ReceivedMessage
+    gosub to SendReply
     stop
 
 ! Process a confirmation
@@ -101,7 +102,6 @@ SendReply:
         set Action to `confirm`
     end
     else set Action to `reply`
-    log `Sending ` cat MessageText cat ` to ` cat SenderTopic
     send to SenderTopic
         action Action
         message MessageText

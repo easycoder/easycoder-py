@@ -587,7 +587,7 @@ class Doclets(Handler):
         self.program.doclets_manager = doclets_manager
         return self.nextPC()
 
-    # get doclet {list} from {payload}
+    # get doclet {list} from {message}
     def k_get(self, command):
         if self.nextIs('doclet'):
             if self.nextIsSymbol():
@@ -598,7 +598,7 @@ class Doclets(Handler):
                 if self.nextIsSymbol():
                     record = self.getSymbolRecord()
                     self.checkObjectType(record, ECDictionary())
-                    command['payload'] = record['name']
+                    command['message'] = record['name']
                     self.add(command)
                     return True
         return False
@@ -607,16 +607,16 @@ class Doclets(Handler):
         if not hasattr(self.program, 'doclets_manager'):
             raise RuntimeError(self.program, 'Doclets manager not initialized')
         target = self.getObject(self.getVariable(command['target']))
-        payload = self.getObject(self.getVariable(command['payload'])).getValue()
+        message = self.getObject(self.getVariable(command['message'])).getValue()
         
-        action = payload.get('action', '')
+        action = message.get('action', '')
         
         # Normalize incoming fields to UTF-8 strings
-        topics = payload.get('topics', '')
+        topics = message.get('topics', '')
         if isinstance(topics, bytes):
             topics = topics.decode('utf-8', errors='replace')
 
-        query = payload.get('message', '')
+        query = message.get('message', '')
         if isinstance(query, bytes):
             query = query.decode('utf-8', errors='replace')
         
@@ -673,13 +673,13 @@ class Doclets(Handler):
 
         elif action == 'view':
             # Extract doclet name
-            doclet_name = payload.get('name', '')
-            if isinstance(doclet_name, bytes):
-                doclet_name = doclet_name.decode('utf-8', errors='replace')
-            if not doclet_name:
-                raise RuntimeError(self.program, "No 'name' provided for view action")
+            # doclet_name = message.get('name', '')
+            # if isinstance(doclet_name, bytes):
+            #     doclet_name = doclet_name.decode('utf-8', errors='replace')
+            # if not doclet_name:
+            #     raise RuntimeError(self.program, "No 'name' provided for view action")
             # Read doclet content directly by name
-            results = self.program.doclets_manager.read_doclet_content(doclet_name)
+            results = self.program.doclets_manager.read_doclet_content(message['message'])
         
         # Convert results to ECValue
         if isinstance(results, str):

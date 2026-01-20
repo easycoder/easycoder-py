@@ -135,14 +135,14 @@
         broker `test.mosquitto.org`
         port 1883
         subscribe MyTopic
-        action `query` requires `topics` and `message`
-        action `view` requires `message`
+        action query requires sender and topics and message
+        action view requires sender and message
     
     on mqtt message
     begin
         put the mqtt message into ReceivedMessage
 !        log `Received ` cat ReceivedMessage
-        gosub to ProcessMessage
+        log `Message received re ` cat State
     end
     
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -157,7 +157,7 @@
     send to ServerTopic
         sender MyTopic
         action `topics`
-    stop
+    go to WaitForReply
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Here when the user clicks the Choose button
@@ -224,26 +224,28 @@ SendQueryClick:
     put `query` into State
 !    send mqtt `path:` cat Topics to ServerTopic
     clear ResultsList
+    put empty into ReceivedMessage
     send to ServerTopic
         sender MyTopic
         action `query`
         topics Topics
         message Query
-    stop
+    go to WaitForReply
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Here when the user clicks an item in the results list
 ResultsListClick:
     log `Select ` cat ResultsList
-    put ResultsList into Query
+    put the selected item in ResultsList into Query
     put the position of `:` in Query into P
     put left P of Query into Query
     put `content` into State
+    put empty into ReceivedMessage
     send to ServerTopic
         sender MyTopic
         action `view`
         message Query
-    stop
+    go to WaitForReply
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Here when the user clicks the exit button
@@ -254,11 +256,13 @@ ExitButtonClick:
     exit
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   Wait for a reply. This may arrive in a different thread, so just save it
+WaitForReply:
+    while ReceivedMessage is empty wait 10 ticks
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   Process a received message
 ProcessMessage:
-    log `Message received re ` cat State
-    put the mqtt message into ReceivedMessage
-!    log ReceivedMessage
     put entry `message` of ReceivedMessage into MessageText
     put entry `action` of ReceivedMessage into Action
     if State is `topics`
@@ -282,7 +286,7 @@ ProcessMessage:
         create MDMainPanel type QVBoxLayout
 
         create MDPanel cols 80 rows 25
-        set the text of MDPanel to Message
+        set the text of MDPanel to MessageText
         add stretch MDPanel to MDMainPanel
         create MDCloseButton text `Close`
         add MDCloseButton to MDMainPanel
@@ -293,7 +297,7 @@ ProcessMessage:
         show MDWindow
         adjust MDWindow
     end
-    return
+    stop
 
 ! Send a confirmtion message
 SendConfirmation:

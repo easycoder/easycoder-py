@@ -246,6 +246,7 @@ class MQTT(Handler):
 
     # mqtt id {clientID} broker {broker} port {port} topics {topic} [and {topic} ...]
     def k_mqtt(self, command):
+        command['requires'] = {}
         while True:
             token = self.peek()
             if token == 'id':
@@ -267,10 +268,22 @@ class MQTT(Handler):
                     if self.peek() == 'and': self.nextToken()
                     else:break
                 command['topics'] = topics
+            elif token == 'action':
+                self.nextToken()
+                reqList = []
+                action = self.nextToken()
+                if self.nextIs('requires'):
+                    while True:
+                        reqList.append(self.nextToken())
+                        if self.peek() == 'and':
+                            self.nextToken()
+                        else:
+                            break
+                command['requires'][action] = reqList
             else:
-                self.add(command)
-                return True
-        return False
+                break
+        self.add(command)
+        return True
 
     def r_mqtt(self, command):
         if hasattr(self.program, 'mqttClient'):
@@ -278,6 +291,7 @@ class MQTT(Handler):
         clientID = self.textify(command['clientID'])
         broker = self.textify(command['broker'])
         port = self.textify(command['port'])
+        self.requires = command['requires']
         topics = command['topics']
         client = MQTTClient()
         client.create(self.program, clientID, broker, port, topics)
@@ -381,15 +395,23 @@ class MQTT(Handler):
         qos = int(self.textify(command['qos'])) if 'qos' in command else 1
         payload = {}
         payload['sender'] = self.textify(self.getVariable(command['sender'])) if 'sender' in command else None
-        payload['action'] = self.textify(command['action']) if 'action' in command else None
+        action = self.textify(command['action']) if 'action' in command else None
+        payload['action'] = action
         payload['topics'] = self.textify(command['topics']) if 'topics' in command else None
         payload['message'] = self.textify(command['message']) if 'message' in command else None
         # Validate that outgoing message is valid JSON with required fields
-        if payload['sender'] == None:
-            raise RuntimeError(self.program, 'MQTT send command missing sender field')
-        if payload['action'] == None:
+        # if payload['sender'] == None:
+        #     raise RuntimeError(self.program, 'MQTT send command missing sender field')
+        if action == None:
             raise RuntimeError(self.program, 'MQTT send command missing action field')
-        self.program.mqttClient.sendMessage(topic['name'], json.dumps(payload), qos, chunk_size=1024)
+        if action in self.requires:
+            requires = self.requires[action]
+            for item in requires:
+                if payload[item] is None:
+                    raise RuntimeError(self.program, f'MQTT send command missing required field: {item}')  
+        topicDict = self.getInnerObject(self.getObject(topic))
+        topicName = topicDict['name']
+        self.program.mqttClient.sendMessage(topicName, json.dumps(payload), qos, chunk_size=1024)  
         if self.program.mqttClient.timeout:
             return 0
         return self.nextPC()
