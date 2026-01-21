@@ -1212,7 +1212,7 @@ class Graphics(Handler):
             self.skip('of')
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                if self.isObjectType(record, ECCoreWidget):
+                if self.isObjectType(record, (ECWindow, ECCoreWidget)):
                     command['domain'] = record['domain']
                     command['name'] = record['name']
                     self.skip('to')

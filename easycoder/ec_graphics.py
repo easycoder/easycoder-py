@@ -131,6 +131,7 @@ class ECPlainTextEditWidget(QPlainTextEdit):
         super().__init__()
         self.multiline = True
         self.container = None
+
     
     def setContainer(self, container):
         self.container = container
@@ -594,19 +595,15 @@ class Graphics(Handler):
         return True
 
     def k_createMultiLineEdit(self, command):
-        cols = self.compileConstant(30)
-        rows = self.compileConstant(5)
         while True:
             next = self.peek()
             if next == 'cols':
                 self.nextToken()
-                cols = self.nextValue()
+                command['cols'] = self.nextValue()
             elif next == 'rows':
                 self.nextToken()
-                rows = self.nextValue()
+                command['rows'] = self.nextValue()
             else: break;
-        command['cols'] = cols
-        command['rows'] = rows
         self.add(command)
         return True
 
@@ -802,11 +799,14 @@ class Graphics(Handler):
     
     def r_createMultiLineEdit(self, command, record):
         textinput = ECPlainTextEditWidget()
-        fontMetrics = textinput.fontMetrics()
-        charWidth = fontMetrics.horizontalAdvance('x')
-        charHeight = fontMetrics.height()
-        textinput.setFixedWidth(charWidth * self.textify(command['cols']))
-        textinput.setFixedHeight(charHeight * self.textify(command['rows']))
+        if 'cols' in command and 'rows' in command:
+            fontMetrics = textinput.fontMetrics()
+            charWidth = fontMetrics.horizontalAdvance('x')
+            charHeight = fontMetrics.height()
+            textinput.setFixedWidth(charWidth * self.textify(command['cols']))
+            textinput.setFixedHeight(charHeight * self.textify(command['rows']))
+        else:
+            textinput.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setGraphicElement(record, textinput)
         return self.nextPC()
     
@@ -1224,9 +1224,6 @@ class Graphics(Handler):
     # set {listbox} to {list}
     # set blocked true/false
     def k_set(self, command):
-        # Graphics-reserved syntax: optional article pattern with 'of'/'to' prepositions
-        # Forms like 'set the layout of Window to MainPanel' and 'set layout of Window to MainPanel' are equivalent
-        # Plugin-safe: graphics is a core-only module
         self.skipArticles()  # Optional 'the', 'a', 'an' — syntactic sugar for readability
         token = self.nextToken()
         command['what'] = token
@@ -1239,6 +1236,17 @@ class Graphics(Handler):
                     command['name'] = record['name']
                     self.skip('to')
                     command['value'] = self.nextValue()
+                    self.add(command)
+                    return True
+        elif token == 'size':
+            self.skip('of')
+            if self.nextIsSymbol():
+                record = self.getSymbolRecord()
+                if self.isObjectType(record, ECWindow):
+                    command['name'] = record['name']
+                    self.skip('to')
+                    command['width'] = self.nextValue()
+                    command['height'] = self.nextValue()
                     self.add(command)
                     return True
         elif token == 'layout':
@@ -1366,6 +1374,9 @@ class Graphics(Handler):
         elif what == 'width':
             widget = self.getInnerObject(self.getVariable(command['name']))
             widget.setFixedWidth(self.textify(command['value']))  # type: ignore
+        elif what == 'size':
+            window = self.getInnerObject(self.getVariable(command['name']))
+            window.resize(self.textify(command['width']), self.textify(command['height']))  # type: ignore
         elif what == 'layout':
             target = self.getVariable(command['name'])
             object = target['object']

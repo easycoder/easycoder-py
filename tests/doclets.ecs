@@ -285,21 +285,34 @@ ProcessMessage:
     begin
         create MDMainPanel type QVBoxLayout
 
-        create MDPanel cols 80 rows 25
+        create MDPanel !cols 80 rows 25
         set the text of MDPanel to MessageText
-        add stretch MDPanel to MDMainPanel
+        add MDPanel to MDMainPanel
         create MDCloseButton text `Close`
         add MDCloseButton to MDMainPanel
-        on click MDCloseButton close MDWindow
+        on click MDCloseButton
+        begin
+            set entry `content-width` of Config to the width of MDWindow
+            set entry `content-height` of Config to the height of MDWindow
+            close MDWindow
+        end
 
         create MDWindow title ResultsList !size 700 500
         set the layout of MDWindow to MDMainPanel
         show MDWindow
+        if Config has entry `content-width`
+            if Config has entry `content-height`
+            begin
+                set the size of MDWindow to
+                    entry `content-width` of Config
+                    entry `content-height` of Config
+                stop
+            end
         adjust MDWindow
     end
     stop
 
-! Send a confirmtion message
+! Send a confirmation message
 SendConfirmation:
     send to ServerTopic
         sender MyTopic
