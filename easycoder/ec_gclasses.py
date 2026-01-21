@@ -166,6 +166,36 @@ class ECMultiline(ECTextWidget):
         return self.getContent()
 
 ###############################################################################
+# A markdown preview widget
+class ECMDPanel(ECTextWidget):
+    def __init__(self):
+        super().__init__()
+    
+    # This object has a runtime value
+    def hasRuntimeValue(self):
+        return True
+    
+    # Set the markdown text of the widget
+    def setText(self, text):
+        v = self.getValue()
+        if v is None: return
+        v.getContent().setMarkdown(str(text)) # type: ignore
+    
+    # Get the markdown text of the widget
+    def getText(self):
+        return self.getValue().getContent().toMarkdown() # type: ignore
+
+    # Get the content of the widget
+    def getContent(self):
+        value = self.getValue()
+        if value is None: return None
+        return value.toMarkdown()
+    
+    # Get the text of the widget
+    def textify(self):
+        return self.getContent()
+
+###############################################################################
 # A listbox variable
 class ECListBox(ECCoreWidget):
     def __init__(self):

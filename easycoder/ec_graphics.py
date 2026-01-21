@@ -17,6 +17,7 @@ from .ec_gclasses import (
     ECCheckBox,
     ECLineInput,
     ECMultiline,
+    ECMDPanel,
     ECListBox,
     ECComboBox,
     ECWindow,
@@ -40,6 +41,7 @@ from PySide6.QtWidgets import (
     QLCDNumber,
     QLineEdit,
     QPlainTextEdit,
+    QTextEdit,
     QListWidget,
     QMainWindow,
     QProgressBar,
@@ -131,6 +133,26 @@ class ECPlainTextEditWidget(QPlainTextEdit):
         super().__init__()
         self.multiline = True
         self.container = None
+
+    
+    def setContainer(self, container):
+        self.container = container
+
+    def mousePressEvent(self, event):
+        self.clicked.emit()
+        super().mousePressEvent(event)
+        if self.container != None: self.container.setClickSource(self)
+
+#############################################################################
+# EC MDPanel widget class
+class ECMDPanelWidget(QTextEdit):
+    clicked = Signal()
+
+    def __init__(self):
+        super().__init__()
+        self.multiline = True
+        self.container = None
+        self.setReadOnly(True)  # Make it read-only for preview
 
     
     def setContainer(self, container):
@@ -607,6 +629,19 @@ class Graphics(Handler):
         self.add(command)
         return True
 
+    def k_createMDPanel(self, command):
+        while True:
+            next = self.peek()
+            if next == 'cols':
+                self.nextToken()
+                command['cols'] = self.nextValue()
+            elif next == 'rows':
+                self.nextToken()
+                command['rows'] = self.nextValue()
+            else: break;
+        self.add(command)
+        return True
+
     def k_createListBox(self, command):
         self.add(command)
         return True
@@ -689,6 +724,7 @@ class Graphics(Handler):
             elif keyword == 'checkbox': return self.k_createCheckBox(command)
             elif keyword == 'lineinput': return self.k_createLineEdit(command)
             elif keyword == 'multiline': return self.k_createMultiLineEdit(command)
+            elif keyword == 'mdpanel': return self.k_createMDPanel(command)
             elif keyword == 'listbox': return self.k_createListBox(command)
             elif keyword == 'combobox': return self.k_createComboBox(command)
             elif keyword == 'panel': return self.k_createPanel(command)
@@ -810,6 +846,19 @@ class Graphics(Handler):
         self.setGraphicElement(record, textinput)
         return self.nextPC()
     
+    def r_createMDPanel(self, command, record):
+        preview = ECMDPanelWidget()
+        if 'cols' in command and 'rows' in command:
+            fontMetrics = preview.fontMetrics()
+            charWidth = fontMetrics.horizontalAdvance('x')
+            charHeight = fontMetrics.height()
+            preview.setFixedWidth(charWidth * self.textify(command['cols']))
+            preview.setFixedHeight(charHeight * self.textify(command['rows']))
+        else:
+            preview.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setGraphicElement(record, preview)
+        return self.nextPC()
+    
     def r_createListWidget(self, command, record):
         listwidget = ECListBoxWidget()
         self.setGraphicElement(record, listwidget)
@@ -904,6 +953,7 @@ class Graphics(Handler):
         elif keyword == 'checkbox': return self.r_createCheckBox(command, record)
         elif keyword == 'lineinput': return self.r_createLineEdit(command, record)
         elif keyword == 'multiline': return self.r_createMultiLineEdit(command, record)
+        elif keyword == 'mdpanel': return self.r_createMDPanel(command, record)
         elif keyword == 'listbox': return self.r_createListWidget(command, record)
         elif keyword == 'combobox': return self.r_createComboBox(command, record)
         elif keyword == 'panel': return self.r_createPanel(command, record)
@@ -1043,6 +1093,13 @@ class Graphics(Handler):
         self.compiler.addValueType()
         return self.compileVariable(command, 'ECMultiline')
     def r_multiline(self, command):
+        return self.nextPC()
+
+    # markdown preview {variable}
+    def k_mdpanel(self, command):
+        self.compiler.addValueType()
+        return self.compileVariable(command, 'ECMDPanel')
+    def r_mdpanel(self, command):
         return self.nextPC()
 
     # on click/tap {pushbutton}/{lineinput}/{multiline}
@@ -1276,7 +1333,7 @@ class Graphics(Handler):
             self.skip('of')
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                if self.isObjectType(record, (ECLabel, ECPushButton, ECLineInput, ECMultiline)):
+                if self.isObjectType(record, (ECLabel, ECPushButton, ECLineInput, ECMultiline, ECMDPanel)):
                     command['name'] = record['name']
                     self.skip('to')
                     command['value'] = self.nextValue()
@@ -1403,6 +1460,8 @@ class Graphics(Handler):
                 widget.setText(str(text))  # type: ignore
             elif self.isObjectType(record, ECMultiline):
                 widget.setPlainText(str(text))  # type: ignore
+            elif self.isObjectType(record, ECMDPanel):
+                widget.setMarkdown(str(text))  # type: ignore
             if self.isObjectType(record, ECPushButton):
                 widget.setAccessibleName(str(text))  # type: ignore
         elif what == 'state':
@@ -1722,7 +1781,7 @@ class Graphics(Handler):
     def getUnknownValue(self, value):
         if self.isObjectType(value, (ECLabelWidget, ECPushButtonWidget, ECLineEditWidget, ECListBoxWidget, ECComboBoxWidget)):
             return value.text()  # type: ignore
-        if self.isObjectType(value, (ECPlainTextEditWidget)):
+        if self.isObjectType(value, (ECPlainTextEditWidget, ECMDPanelWidget)):
             return value.toPlainText()  # type: ignore
         if self.isObjectType(value, (ECCheckBoxWidget)):
             return value.isChecked()  # type: ignore

@@ -149,7 +149,7 @@ class MQTTClient():
         self._send_rapid_fire(topic, message_bytes, qos, chunk_size, num_chunks)
 
         self.last_send_time = time.time() - send_start
-        print(f'Message transmission complete in {self.last_send_time:.3f} seconds')
+        # print(f'Message transmission complete in {self.last_send_time:.3f} seconds')
     
     def _send_rapid_fire(self, topic, message_bytes, qos, chunk_size, num_chunks):
         """Send all chunks rapidly; chunking is done on UTF-8 bytes."""

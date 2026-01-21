@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 """
 Doclet Search and Management for EasyCoder
@@ -457,6 +458,101 @@ Return matching filenames:"""
                     result.append(f"  - {display_name}: {subject}")
         
         return "\n".join(result)
+
+    # def process_message(self, message_dict: Dict[str, Any]) -> Optional[Union[List[str], str]]:
+    #     """Process a structured MQTT message and return appropriate response.
+        
+    #     Args:
+    #         message_dict: Dictionary with mandatory 'action' key and optional parameters
+            
+    #     Message structure:
+    #         - action: "file", path: <path> -> returns None (caller provides implementation)
+    #         - action: "query", topics: <list>, message: <query_text> -> returns list of doclets or content
+    #         - action: "view", name: <doclet_name> -> returns doclet content
+            
+    #     Returns:
+    #         - For "query": List of doclet display names or single content string
+    #         - For "view": Single doclet content string
+    #         - For "file": None (caller handles)
+    #         - For unknown actions: None
+    #     """
+    #     action = message_dict.get('action')
+        
+    #     if action is None:
+    #         print("Error: No 'action' key in message")
+    #         return None
+        
+    #     # Switch-like structure for different actions
+    #     if action == 'file':
+    #         # Return None - caller will provide implementation
+    #         return None
+            
+    #     elif action == 'query':
+    #         # Extract parameters
+    #         topics = message_dict.get('topics', [])
+    #         query_message = message_dict.get('message', '')
+            
+    #         # Set topics if provided
+    #         if topics:
+    #             # Join topic list as comma-separated string
+    #             topics_str = ','.join(topics) if isinstance(topics, list) else topics
+    #             self.set_doclets_dirs(topics_str)
+            
+    #         # Check if query starts with 'LLM:' to enable LLM mode
+    #         use_llm = False
+    #         if query_message.startswith('LLM:'):
+    #             use_llm = True
+    #             query_message = query_message[4:].strip()
+            
+    #         # Perform search
+    #         results = self.search_data(
+    #             query=query_message,
+    #             include_content=False,  # Don't include content by default
+    #             use_llm=use_llm,
+    #             include_summary=False,
+    #             return_meta=False
+    #         )
+            
+    #         # Sort by topic first, then by filename within each topic
+    #         topics_dict = {}
+    #         for r in results:
+    #             display_name = r.get('display_filename', '')
+    #             topic = display_name.split('/')[0].lower() if '/' in display_name else display_name.lower()
+    #             if topic not in topics_dict:
+    #                 topics_dict[topic] = []
+    #             topics_dict[topic].append(r)
+            
+    #         # Sort each topic group by filename, then combine in topic order
+    #         sorted_results = []
+    #         for topic in sorted(topics_dict.keys()):
+    #             topic_group = sorted(topics_dict[topic], key=lambda r: r.get('filename', ''))
+    #             sorted_results.extend(topic_group)
+            
+    #         # Format results: append subject to display filename
+    #         result_list = []
+    #         for r in sorted_results:
+    #             display_name = r.get('display_filename', '')
+    #             subject = r.get('subject', '')
+    #             result_list.append(f"{display_name}: {subject}")
+            
+    #         return result_list
+            
+    #     elif action == 'view':
+    #         # Extract doclet name
+    #         doclet_name = message_dict.get('name', '')
+            
+    #         if not doclet_name:
+    #             print("Error: No 'name' provided for view action")
+    #             return None
+            
+    #         # Read doclet content directly by name
+    #         # The name should be in format like "RBR/260102-00.md" or "260102-00.md"
+    #         content = self.read_doclet_content(doclet_name)
+    #         return content
+            
+    #     else:
+    #         print(f"Warning: Unknown action '{action}'")
+    #         return None
 
 ###############################################################################
 ###############################################################################
