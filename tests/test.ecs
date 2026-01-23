@@ -5,10 +5,22 @@
     debug compile
     debug step
 
-    dictionary RoomSpec
-    variable T
-    variable T1
+    variable I
+    variable Hour
+    variable Minute
+    variable Second
+    variable Time
 
-    set entry `temperature` of RoomSpec to T cat `.` cat T1
+    put `02:04` into Time
+    log Time
+    put the index of `:` in Time into I
+    log I
+    put the value of left I of Time into Hour
+    increment I
+    put the value of from I of Time into Minute
+    multiply Hour by 60 giving Second
+    add Minute to Second
+    multiply Second by 60 giving Time
+    log Time
 
     exit

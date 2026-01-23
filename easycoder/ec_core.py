@@ -2383,6 +2383,7 @@ class Core(Handler):
             index = target.getIndexOf(value)
         else:
             data = target.getContent()
+            if not isinstance(data, str): data = self.textify(data)
             try: index = data.index(value)
             except: index = -1
         return ECValue(type=int, content=index)
@@ -2462,7 +2463,7 @@ class Core(Handler):
         return ECValue(type=str, content='\n')
 
     def v_now(self, v):
-        return ECValue(type=int, content=int(time.time()))
+        return ECValue(type=int, content=int(time.time() * 1000))
 
     def v_position(self, v):
         needle = self.textify(v.needle)
@@ -2546,7 +2547,8 @@ class Core(Handler):
         return value
 
     def v_today(self, v):
-        return ECValue(type=int, content=int(datetime.combine(datetime.now().date(),datetime.min.time()).timestamp()) * 1000)
+        return ECValue(type=int, content=(int(time.time() // 86400)) * 86400 * 1000)
+        # return ECValue(type=int, content=int(datetime.combine(datetime.now().date(),datetime.min.time()).timestamp()) * 1000)
 
     def v_trim(self, v):
         content = v.getContent()
