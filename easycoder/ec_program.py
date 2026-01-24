@@ -198,13 +198,12 @@ class Program:
 	def getVariable(self, name):
 		self.ensureRunning()
 		if isinstance(name, dict): name = name['name']
-		try:
-			target = self.code[self.symbols[name]]
-			if 'import' in target:
-				target = target['import']
-			return target
-		except:
+		if not name in self.symbols:
 			RuntimeError(self, f'Unknown symbol \'{name}\'')
+		target = self.code[self.symbols[name]]
+		if 'import' in target:
+			target = target['import']
+		return target
 	
 	# Get the object represented by a symbol record
 	def getObject(self, record):

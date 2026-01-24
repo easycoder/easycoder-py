@@ -1099,6 +1099,7 @@ class Graphics(Handler):
     def k_mdpanel(self, command):
         self.compiler.addValueType()
         return self.compileVariable(command, 'ECMDPanel')
+
     def r_mdpanel(self, command):
         return self.nextPC()
 
@@ -1454,11 +1455,8 @@ class Graphics(Handler):
             record = self.getVariable(command['name'])
             widget = self.getInnerObject(record)
             text = self.textify(command['value'])
-            keyword = record['keyword']
             setText = getattr(widget, "setText", None)
-            if callable(setText):
-                widget.setText(str(text))  # type: ignore
-            elif self.isObjectType(record, ECMultiline):
+            if self.isObjectType(record, ECMultiline):
                 widget.setPlainText(str(text))  # type: ignore
             elif self.isObjectType(record, ECMDPanel):
                 widget.setMarkdown(str(text))  # type: ignore
