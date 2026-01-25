@@ -1455,8 +1455,9 @@ class Graphics(Handler):
             record = self.getVariable(command['name'])
             widget = self.getInnerObject(record)
             text = self.textify(command['value'])
-            setText = getattr(widget, "setText", None)
-            if self.isObjectType(record, ECMultiline):
+            if self.isObjectType(record, (ECLabel, ECPushButton)):
+                widget.setText(str(text))  # type: ignore
+            elif self.isObjectType(record, ECMultiline):
                 widget.setPlainText(str(text))  # type: ignore
             elif self.isObjectType(record, ECMDPanel):
                 widget.setMarkdown(str(text))  # type: ignore

@@ -1,0 +1,47 @@
+!   mqtt_example.ecs
+!   Example EasyCoder script demonstrating MQTT plugin usage
+!   This is the JavaScript equivalent of tests/mqtt.ecs
+
+    script MQTTExample
+
+    topic Request
+    topic Response
+    variable Query
+    variable Message
+    
+    ! Initialize topics with names and QoS levels
+    init Request
+        name `device123/request`
+        qos 1
+    
+    init Response
+        name `device123/response`
+        qos 1
+
+    ! Create MQTT client and subscribe to Response topic
+    mqtt
+        id `EasyCoder-JS-MQTT-Client`
+        broker `test.mosquitto.org`
+        port 1883
+        subscribe Response
+    
+    ! Handle incoming messages
+    on mqtt message
+        begin
+            put the mqtt message into Message
+            print `Message received:`
+            print Message
+        end
+
+    ! Wait for connection
+    wait 1
+    
+    ! Send a query
+    print `Sending query...`
+    put `hello world` into Query
+    send mqtt Query to Request action `query` message Query
+
+    ! Wait for response
+    wait 3
+
+    stop
