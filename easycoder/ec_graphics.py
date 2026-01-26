@@ -147,14 +147,21 @@ class ECPlainTextEditWidget(QPlainTextEdit):
 # EC MDPanel widget class
 class ECMDPanelWidget(QTextEdit):
     clicked = Signal()
+    
+    # Font size configuration - adjust this value to experiment with different sizes
+    FONT_SIZE = 12  # Default is typically 9-10, try 12, 14, 16, or 18
 
     def __init__(self):
         super().__init__()
         self.multiline = True
         self.container = None
         self.setReadOnly(True)  # Make it read-only for preview
+        
+        # Set the font size
+        font = self.font()
+        font.setPointSize(self.FONT_SIZE)
+        self.setFont(font)
 
-    
     def setContainer(self, container):
         self.container = container
 
