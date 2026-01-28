@@ -199,7 +199,7 @@ Loop1:
     multiply N by 1000
     log N
     log datime N
-    log datime 1735689600000 format `%b %d %Y %H:%M:%S`
+    log datime 1769644800 format `%b %d %Y %H:%M:%S`
 
     put `"Goodbye,\n cruel world!"` into X
     put encode X into Y

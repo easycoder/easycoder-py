@@ -217,9 +217,6 @@ class Graphics(Handler):
 
     def getName(self):
         return 'graphics'
-
-    def closeEvent(self):
-        print('window closed')
     
     def isCoreWidget(self, object):
         if isinstance(object, dict): object = object['object']
@@ -1025,7 +1022,11 @@ class Graphics(Handler):
         return self.nextPC()
 
     # Initialize the graphics environment
-    # Unused: def k_init(self, command):
+    def k_init(self, command):
+        if self.nextIs('graphics'):
+            self.add(command)
+            return True
+        return False
     
     def r_init(self, command):
         print('Initializing graphics...')

@@ -233,10 +233,6 @@ class Compiler:
 #		print(f'Compile {token}')
 		if not token:
 			return False
-		if len(self.code) == 0:
-			if self.program.parent == None and self.program.graphics:
-				cmd = {'domain': 'graphics', 'keyword': 'init'}
-				self.code.append(cmd)
 		mark = self.getIndex()
 		for domain in self.program.getDomains():
 			handler = domain.keywordHandler(token)
