@@ -960,7 +960,7 @@ class Core(Handler):
 
     # on message {action}
     def k_on(self, command):
-        token = self.peek()
+        token = self.nextToken()
         if token == 'message':
             self.nextToken()
             command['goto'] = 0
@@ -1386,7 +1386,11 @@ class Core(Handler):
     def k_send(self, command):
         command['message'] = self.nextValue()
         if self.nextIs('to'):
-            if self.nextIsSymbol():
+            if self.nextIs('parent'):
+                command['module'] = 'parent'
+                self.add(command)
+                return True
+            elif self.isSymbol():
                 record = self.getSymbolRecord()
                 if self.isObjectType(record, ECModule):
                     command['module'] = record['name']
@@ -1396,8 +1400,10 @@ class Core(Handler):
 
     def r_send(self, command):
         message = self.textify(command['message'])
-        module = self.getVariable(command['module'])
-        module['child'].handleMessage(message)
+        if command['module'] == 'parent':
+            module = self.program.parent.program
+        else: module = self.getVariable(command['module'])['child']
+        module.handleMessage(message)
         return self.nextPC()
 
     # Set a value

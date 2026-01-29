@@ -556,7 +556,7 @@ class Program:
 	def onMessage(self, pc):
 		self.onMessagePC = pc
 
-	# Handle a message from our parent program
+	# Handle a message
 	def handleMessage(self, message):
 		self.message = message
 		self.run(self.onMessagePC)

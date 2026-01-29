@@ -1,0 +1,16 @@
+!   parent.ecs
+
+    script Parent
+
+    module Child
+
+!    debug step
+
+    run `child.ecs` as Child
+    send `hello` to Child
+    on message
+    begin
+        print the message
+        exit
+    end
+    stop
