@@ -67,6 +67,7 @@ class Program:
 		self.ticker = 0
 		self.graphicsRunning = False
 		self.debugger = None
+		self.graphics_app = None
 		self.running = False
 		self.parent = None
 		self.message = None
@@ -82,7 +83,8 @@ class Program:
 	def start(self, parent=None, module = None, exports=[]):
 		self.parent = parent
 		self.exports = exports
-		if self.debugging: self.useGraphics()
+		if self.debugging:
+			self.useGraphics()
 		if module != None:
 			module['child'] = self
 		startCompile = time.time()
@@ -103,8 +105,35 @@ class Program:
 		else:
 			self.compiler.showWarnings()
 
-		# If this is the main script and there's no graphics, run a main loop
-		if parent == None:
+		# If debugging is enabled and graphics module is available,
+		# launch debugger and event loop
+		if self.debugging and self.graphics is not None and self.debugger is None:
+			print('Starting debugger...')
+			try:
+				from PySide6.QtWidgets import QApplication
+				from .debugger.ec_debug import Debugger
+				
+				# Create QApplication if needed
+				app = QApplication.instance()
+				if app is None:
+					print('Creating QApplication for debugger...')
+					app = QApplication(sys.argv)
+					self.graphics_app = app
+				
+				# Create debugger
+				self.debugger = Debugger(self)
+				self.debugger.enableBreakpoints()
+				
+				# If this is the main script and graphics are enabled, run event loop
+				if parent == None and not self.graphicsRunning:
+					print('Running debugger event loop...')
+					self.graphics_app.exec() if self.graphics_app else app.exec()
+			except Exception as e:
+				print(f'Warning: Could not start debugger: {e}')
+				import traceback
+				traceback.print_exc()
+		# If this is the main script and there's no graphics/debugger, run a main loop
+		elif parent == None and not self.graphicsRunning:
 			while not self.graphicsRunning:
 				if self.running == True:
 					flush()
@@ -557,7 +586,8 @@ class Program:
 		self.onMessagePC = pc
 
 	# Handle a message
-	def handleMessage(self, message):
+	def handleMessage(self, sender, message):
+		self.sender = sender
 		self.message = message
 		self.run(self.onMessagePC)
 

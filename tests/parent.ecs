@@ -7,10 +7,11 @@
 !    debug step
 
     run `child.ecs` as Child
-    send `hello` to Child
     on message
     begin
-        print the message
+        print the sender cat `: ` cat the message
         exit
     end
+    wait 5 seconds
+    send `hello` to Child
     stop

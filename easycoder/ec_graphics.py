@@ -1030,7 +1030,11 @@ class Graphics(Handler):
     
     def r_init(self, command):
         print('Initializing graphics...')
-        self.app = QApplication(sys.argv)
+        # Check if QApplication already exists (created by debugger)
+        from PySide6.QtWidgets import QApplication
+        self.app = QApplication.instance()
+        if self.app is None:
+            self.app = QApplication(sys.argv)
         screen = QApplication.screens()[0].size().toTuple()
         self.program.screenWidth = screen[0]  # type: ignore
         self.program.screenHeight = screen[1]  # type: ignore
@@ -1050,7 +1054,7 @@ class Graphics(Handler):
         timer.start(10)
         QTimer.singleShot(500, init)
         self.program.startGraphics()
-        if self.program.debugging:
+        if self.program.debugging and self.program.debugger is None:
             print('Starting debugger...')
             self.program.debugger = Debugger(self.program)
             self.program.debugger.enableBreakpoints()

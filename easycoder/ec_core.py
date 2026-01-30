@@ -1382,12 +1382,14 @@ class Core(Handler):
         self.program.name = self.nextToken()
         return True
 
-    # Send a message to a module
+    # send {message} to parent/sender/{module}
     def k_send(self, command):
         command['message'] = self.nextValue()
         if self.nextIs('to'):
-            if self.nextIs('parent'):
-                command['module'] = 'parent'
+            self.skip('the')
+            token = self.nextToken()
+            if token in ('parent','sender'):
+                command['module'] = token
                 self.add(command)
                 return True
             elif self.isSymbol():
@@ -1400,10 +1402,13 @@ class Core(Handler):
 
     def r_send(self, command):
         message = self.textify(command['message'])
-        if command['module'] == 'parent':
+        senderName = command['module']
+        if senderName == 'parent':
             module = self.program.parent.program
+        elif senderName == 'sender':
+            module = self.program.sender
         else: module = self.getVariable(command['module'])['child']
-        module.handleMessage(message)
+        module.handleMessage(self.program, message)
         return self.nextPC()
 
     # Set a value
@@ -1444,10 +1449,10 @@ class Core(Handler):
                 if self.peek() == 'to':
                     self.nextToken()
                     value = self.nextValue()
-                    command['type'] = 'setValue'
+                    command['type'] = 'value'
                     command['value'] = value
                 elif isinstance(self.getObject(record), ECVariable):
-                    command['type'] = 'set'
+                    command['type'] = 'boolean'
                 else: return False
                 self.add(command)
                 return True
@@ -1456,6 +1461,7 @@ class Core(Handler):
         token = self.getToken()
         if token == 'the':
             token = self.nextToken()
+        
         command['type'] = token
 
         if token == 'elements':
@@ -1478,6 +1484,8 @@ class Core(Handler):
 
         elif token in ('entry', 'property'):
             command['key'] = self.nextValue()
+            if command['key'] == None:
+                FatalError(self.compiler, f'No valid key found after \'{token}\'')
             if self.nextIs('of'):
                 if self.nextIsSymbol():
                     record = self.getSymbolRecord()
@@ -1512,7 +1520,6 @@ class Core(Handler):
             return True
         
         elif token == 'breakpoint':
-            command['breakpoint'] = True
             self.add(command)
             return True
 
@@ -1520,12 +1527,12 @@ class Core(Handler):
 
     def r_set(self, command):
         cmdType = command['type']
-        if cmdType == 'set':
+        if cmdType == 'boolean':
             target = self.getVariable(command['target'])
             self.putSymbolValue(target, ECValue(type=bool, content=True))
             return self.nextPC()
         
-        elif cmdType == 'setValue':
+        elif cmdType == 'value':
             value = self.evaluate(command['value'])
             target = self.getVariable(command['target'])
             self.putSymbolValue(target, value)
@@ -2072,7 +2079,7 @@ class Core(Handler):
         token = self.getToken()
         value.setType(token)
 
-        if token in ['args', 'message', 'uuid', 'weekday']:
+        if token in ['args', 'message', 'sender', 'uuid', 'weekday']:
             return value
 
         if token in ('items', 'elements'):
@@ -2498,6 +2505,9 @@ class Core(Handler):
         content = self.textify(v.getContent())
         count = self.textify(v.count)
         return ECValue(type=str, content=content[-count:])
+
+    def v_sender(self, v):
+        return ECValue(type=str, content=self.program.sender.name)
 
     def v_sin(self, v):
         angle = self.textify(v.angle)

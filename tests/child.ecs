@@ -6,8 +6,8 @@
 
     on message
     begin
-        print the message
-        send `OK` to parent
+        print the sender cat `: ` cat the message
+        send `buongiorno` to parent
     end
     release parent
     stop
