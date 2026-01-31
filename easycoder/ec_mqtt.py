@@ -395,7 +395,6 @@ class MQTT(Handler):
         payload['sender'] = self.textify(self.getVariable(command['sender'])) if 'sender' in command else None
         action = self.textify(command['action']) if 'action' in command else None
         payload['action'] = action
-        payload['topics'] = self.textify(command['topics']) if 'topics' in command else None
         payload['message'] = self.textify(command['message']) if 'message' in command else None
         # Validate that outgoing message is valid JSON with required fields
         # if payload['sender'] == None:
