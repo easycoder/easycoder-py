@@ -527,7 +527,10 @@ class Program:
 					# Deal with 'exit'
 					if self.pc == -1:
 						queue = deque()
-						if self.parent != None:
+						if self.parent == None:
+							print('Program exiting')
+							sys.exit()
+						else:
 							self.releaseParent()
 						self.running = False
 						break
