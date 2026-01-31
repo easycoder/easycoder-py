@@ -420,6 +420,7 @@ class Debugger(QMainWindow):
     def __init__(self, program, width=800, height=600, ratio=0.2):
         super().__init__()
         self.program = program
+        self.pc = getattr(program, 'pc', 0) if program is not None else 0
         self.setWindowTitle("EasyCoder Debugger")
         self.setMinimumSize(width, height)
         # Disable the window close button
@@ -848,14 +849,8 @@ class Debugger(QMainWindow):
         # Determine if we should halt
         should_halt = False
         
-        # If this is the first real command (pc==1), always halt to initialize display
-        if is_first_command:
-            should_halt = True
-            self.stopped = True
-            self.step_from_line = None
-            print(f"Program ready at line {lino + 1}")
         # If we're in stopped (step) mode, halt after each command
-        elif self.stopped:
+        if self.stopped:
             # If stepping, only halt when we reach a different source line
             if self.step_from_line is not None:
                 if lino != self.step_from_line:
