@@ -4,4 +4,4 @@ import os
 from easycoder import Program
 
 os.chdir('/home/graham/dev/rbr/dev/rbr/')
-Program('uicore.ecs').start()
+Program('main.ecs').start()

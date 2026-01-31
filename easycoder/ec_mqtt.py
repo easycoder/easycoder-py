@@ -347,7 +347,7 @@ class MQTT(Handler):
                 command['to'] = record['name']
                 while True:
                     token = self.peek()
-                    if token in ('sender', 'action', 'topics', 'qos', 'message'):
+                    if token in ('sender', 'action', 'message', 'qos'):
                         self.nextToken()
                         if token == 'sender':
                             if self.nextIsSymbol():
@@ -356,8 +356,6 @@ class MQTT(Handler):
                                 command['sender'] = record['name']
                         elif token == 'action':
                             command['action'] = self.nextValue()
-                        elif token == 'topics':
-                            command['topics'] = self.nextValue()
                         elif token == 'qos':
                             command['qos'] = self.nextValue()
                         elif token == 'message':
