@@ -1,4 +1,4 @@
-import time, sys, json, traceback
+import time, sys, json, traceback, threading
 from copy import deepcopy
 from collections import deque
 
@@ -17,9 +17,19 @@ from .ec_core import Core
 import importlib
 from importlib.metadata import version
 
+# Intent queue for callbacks from other threads (e.g., MQTT)
+intent_queue = deque()
+intent_lock = threading.Lock()
+
 # Flush the queue
 def flush():
-	global queue
+	global queue, intent_queue
+	# First process any pending intents from other threads
+	with intent_lock:
+		while len(intent_queue):
+			intent = intent_queue.popleft()
+			queue.append(intent)
+	# Then process the main queue
 	while len(queue):
 		item = queue.popleft()
 		item.program.flush(item.pc)
@@ -73,7 +83,15 @@ class Program:
 		self.message = None
 		self.onMessagePC = 0
 		self.breakpoint = False
-
+	# Queue an intent to run at a given PC (thread-safe for MQTT callbacks)
+	def queueIntent(self, pc):
+		global intent_queue
+		with intent_lock:
+			item = ECValue()
+			item.program = self # type: ignore
+			item.pc = pc # type: ignore
+			intent_queue.append(item)
+			self.running = True
 	# This is called at 10msec intervals by the GUI code
 	def flushCB(self):
 		self.ticker += 1

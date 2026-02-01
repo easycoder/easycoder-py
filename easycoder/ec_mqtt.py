@@ -38,8 +38,7 @@ class MQTTClient():
             print(f"Subscribed to topic: {topic.getName()} with QoS {topic.getQoS()}")
 
         if self.onConnectPC is not None:
-            self.program.run(self.onConnectPC)
-            self.program.flushCB()
+            self.program.queueIntent(self.onConnectPC)
     
     def on_message(self, client, userdata, msg):
         payload = msg.payload.decode('utf-8', errors='replace')
@@ -109,8 +108,7 @@ class MQTTClient():
                         
                         if self.onMessagePC is not None:
 #                            print(f'Run from PC {self.onMessagePC}')
-                            self.program.run(self.onMessagePC)
-                            self.program.flushCB()
+                            self.program.queueIntent(self.onMessagePC)
                     else:
                         missing = expected_parts - received_parts
                         print(f"Warning: Missing chunks {missing} for topic {topic}")
