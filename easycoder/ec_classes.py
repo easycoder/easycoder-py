@@ -341,6 +341,10 @@ class ECVariable(ECValueHolder):
         elif not type_in(val_type, (str, int, float, bool, None)):
             raise RuntimeError(None, 'ECVariable can only hold str, int, float, or bool values') # type: ignore
         super().setValue(value)
+    
+    # Check if the variable is empty
+    def isEmpty(self):
+        return self.getContent() == ''
 
 ###############################################################################
 # A dictionary variable

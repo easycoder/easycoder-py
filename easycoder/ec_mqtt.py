@@ -65,7 +65,7 @@ class MQTTClient():
                         # Store this chunk with its part number
                         if topic in self.chunked_messages:
                             self.chunked_messages[topic][part_num] = data
-                            print(f"Received chunk {part_num}/{total_chunks - 1} on topic {topic}")
+                            # print(f"Received chunk {part_num}/{total_chunks - 1} on topic {topic}")
                 except (ValueError, IndexError):
                     pass
             return

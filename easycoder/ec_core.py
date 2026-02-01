@@ -2314,7 +2314,7 @@ class Core(Handler):
         return ECValue(type=int, content=object.getElements())
 
     def v_empty(self, v):
-        return ECValue(type=str, content=''  )
+        return ECValue(type=str, content='')
 
     def v_encode(self, v):
         content = self.textify(v.getContent())
@@ -2775,7 +2775,7 @@ class Core(Handler):
         if condition.value1.getType() == 'symbol':
             record = self.getVariable(condition.value1.name)
             variable = self.getObject(record)
-            if isinstance(variable, (ECList, ECDictionary)):
+            if isinstance(variable, (ECVariable, ECList, ECDictionary)):
                 comparison = variable.isEmpty()
                 return not comparison if condition.negate else comparison
         value = self.textify(condition.value1)
