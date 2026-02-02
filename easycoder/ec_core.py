@@ -2498,7 +2498,7 @@ class Core(Handler):
         return variable.getProperty(propertyValue)
 
     def v_random(self, v):
-        limit = self.textify(v.getValue())
+        limit = self.textify(v.getContent())
         return ECValue(type=int, content=random.randrange(0, limit))
 
     def v_right(self, v):
