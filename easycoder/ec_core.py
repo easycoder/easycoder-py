@@ -1909,9 +1909,8 @@ class Core(Handler):
             # In debug mode, use Qt's event loop to resume safely on the UI thread
             from PySide6.QtCore import QTimer
             def resume():
-                self.program.run(next)
-                from easycoder.ec_program import flush
-                flush()
+                # Just enqueue - let the graphics timer's flush handle execution
+                self.program.queueIntent(next)
             QTimer.singleShot(int(value), resume)
         else:
             # In normal mode, resume via the thread-safe intent queue

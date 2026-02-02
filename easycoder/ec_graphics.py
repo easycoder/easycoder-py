@@ -1043,7 +1043,10 @@ class Graphics(Handler):
         def on_last_window_closed():
             self.program.kill()
         def init():
-            self.program.flush(self.nextPC())
+            try:
+                self.program.flush(self.nextPC())
+            except Exception as e:
+                pass
         def flush():
             if not self.blocked:
                 if self.runOnTick != 0:

@@ -466,6 +466,12 @@ class Debugger(QMainWindow):
         self._flush_timer.timeout.connect(self._flush_console_buffer)
         self._flush_timer.stop()
 
+        # Periodic program flush (needed for wait/timers in debug mode)
+        self._program_timer = QTimer(self)
+        self._program_timer.setInterval(10)
+        self._program_timer.timeout.connect(self._tick_program)
+        self._program_timer.start()
+
         # Keep a ratio so proportions are preserved when window is resized
         self.ratio = ratio
 
@@ -905,6 +911,15 @@ class Debugger(QMainWindow):
                 ec_program.queue.extend(self.saved_queue)
         except Exception as ex:
             print(f"Error restoring queue state: {ex}")
+
+    def _tick_program(self):
+        """Periodic flush to keep debug-mode scripts progressing."""
+        try:
+            if self.program and self.program.running:
+                from easycoder.ec_program import flush
+                flush()
+        except Exception as ex:
+            print(f"Error during program tick: {ex}")
     
     def doRun(self):
         """Resume free-running execution from current PC"""
