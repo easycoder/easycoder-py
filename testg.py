@@ -4,4 +4,4 @@ import os
 from easycoder import Program
 
 os.chdir('/home/graham/dev/easycoder/easycoder-py/tests')
-Program('testg.ecs').start()
+Program('debug testg.ecs').start()

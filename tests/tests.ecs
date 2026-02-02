@@ -171,6 +171,8 @@
 	assert 52 is not greater than 52
 	assert 52 is not less than 52
 
+	wait 3
+
 	fork to Concurrent
 	put 0 into N
 Loop1:

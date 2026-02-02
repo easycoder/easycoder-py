@@ -1905,8 +1905,18 @@ class Core(Handler):
     def r_wait(self, command):
         value = self.textify(command['value']) * command['multiplier']
         next = self.nextPC()
-        threading.Timer(value/1000.0, lambda: (self.run(next))).start()
-        return 0
+        if getattr(self.program, 'debugging', False) and self.program.debugger is not None:
+            # In debug mode, use Qt's event loop to resume safely on the UI thread
+            from PySide6.QtCore import QTimer
+            def resume():
+                self.program.run(next)
+                from easycoder.ec_program import flush
+                flush()
+            QTimer.singleShot(int(value), resume)
+        else:
+            # In normal mode, resume via the thread-safe intent queue
+            threading.Timer(value/1000.0, lambda: (self.program.queueIntent(next))).start()
+        return None
 
     # while <condition> <action>
     def k_while(self, command):

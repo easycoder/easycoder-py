@@ -1039,7 +1039,7 @@ class Graphics(Handler):
         self.program.screenWidth = screen[0]  # type: ignore
         self.program.screenHeight = screen[1]  # type: ignore
         print(f'Screen: {self.program.screenWidth}x{self.program.screenHeight}')
-        # return self.nextPC()
+        
         def on_last_window_closed():
             self.program.kill()
         def init():
@@ -1054,12 +1054,23 @@ class Graphics(Handler):
         timer.start(10)
         QTimer.singleShot(500, init)
         self.program.startGraphics()
+        
+        # If debugger already exists (debugging mode), don't create another one
+        # and don't call exec() as the debugger's event loop is already running
         if self.program.debugging and self.program.debugger is None:
             print('Starting debugger...')
             self.program.debugger = Debugger(self.program)
             self.program.debugger.enableBreakpoints()
-        self.app.lastWindowClosed.connect(on_last_window_closed)
-        self.app.exec()
+        
+        self.app.lastWindowClosed.connect(on_last_window_closed)  # type: ignore
+        
+        # Only call exec() if debugger is not running (i.e., not in debug mode)
+        # When debugger exists, it manages the event loop
+        if self.program.debugger is None:
+            self.app.exec()
+        else:
+            # In debug mode, return control to debugger
+            return self.nextPC()
 
     # Declare a label variable
     def k_label(self, command):

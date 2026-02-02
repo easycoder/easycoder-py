@@ -91,7 +91,6 @@ class Program:
 			item.program = self # type: ignore
 			item.pc = pc # type: ignore
 			intent_queue.append(item)
-			self.running = True
 	# This is called at 10msec intervals by the GUI code
 	def flushCB(self):
 		self.ticker += 1
@@ -227,7 +226,7 @@ class Program:
 	# Ensure the program is running
 	def ensureRunning(self):
 		if not self.running:
-			raise RuntimeError(self, 'Improper use of runtime function')
+			raise FatalError(self.compiler, 'Improper use of runtime function')
 	
 	# Ensure the program is not running
 	def ensureNotRunning(self):
