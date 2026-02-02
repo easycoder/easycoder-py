@@ -394,9 +394,7 @@ class MQTT(Handler):
         action = self.textify(command['action']) if 'action' in command else None
         payload['action'] = action
         payload['message'] = self.textify(command['message']) if 'message' in command else None
-        # Validate that outgoing message is valid JSON with required fields
-        # if payload['sender'] == None:
-        #     raise RuntimeError(self.program, 'MQTT send command missing sender field')
+#        print('Message: ', payload['message'])
         if action == None:
             raise RuntimeError(self.program, 'MQTT send command missing action field')
         if action in self.requires:
@@ -406,6 +404,7 @@ class MQTT(Handler):
                     raise RuntimeError(self.program, f'MQTT send command missing required field: {item}')  
         topicDict = self.getInnerObject(self.getObject(topic))
         topicName = topicDict['name']
+#        print(json.dumps(payload))
         self.program.mqttClient.sendMessage(topicName, json.dumps(payload), qos, chunk_size=1024)  
         if self.program.mqttClient.timeout:
             return 0
