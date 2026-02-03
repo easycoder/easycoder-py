@@ -1,5 +1,4 @@
 import sys
-from functools import partial
 from .ec_handler import Handler
 from .ec_classes import (
     FatalError,
@@ -1209,12 +1208,24 @@ class Graphics(Handler):
             widget = self.getInnerObject(self.getObject(record))
             goto = command['goto']
             if self.isObjectType(record, ECPushButton):
-                handler = partial(self.callback, widget, record, goto)
-                widget.clicked.connect(handler)
+                # Run directly on UI thread and flush to ensure execution
+                def on_click():
+                    self.run(goto)
+                    from easycoder.ec_program import flush
+                    flush()
+                widget.clicked.connect(on_click)
             elif self.isObjectType(record, ECComboBox):
-                widget.currentIndexChanged.connect(lambda: self.run(goto))
+                def on_change():
+                    self.run(goto)
+                    from easycoder.ec_program import flush
+                    flush()
+                widget.currentIndexChanged.connect(on_change)
             elif self.isObjectType(record, ECListBox):
-                widget.itemClicked.connect(lambda: self.run(goto))
+                def on_select():
+                    self.run(goto)
+                    from easycoder.ec_program import flush
+                    flush()
+                widget.itemClicked.connect(on_select)
         return self.nextPC()
 
     # Declare a simple panel variable

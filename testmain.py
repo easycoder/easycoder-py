@@ -4,4 +4,4 @@ import os
 from easycoder import Program
 
 os.chdir('/home/graham/dev/rbr/roombyroom/Controller/ui/')
-Program('uicore.ecs').start()
+Program('main.ecs').start()
