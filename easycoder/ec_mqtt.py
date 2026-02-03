@@ -16,8 +16,9 @@ class MQTTClient():
 # client.connect("mqtt.flespi.io", 8883, 60)
 # Rate limits: Free plan allows 200 MQTT connections, 10 GB traffic/month, and 2 million messages/day.
 
-    def create(self, program, clientID, broker, port, topics):
+    def create(self, program, token, clientID, broker, port, topics):
         self.program = program
+        self.token = token
         self.clientID = clientID
         self.broker = broker
         self.port = port
@@ -32,7 +33,7 @@ class MQTTClient():
         self.last_send_time = None  # Time taken for last message transmission (seconds)
         self.connected = False  # Track if we've processed initial connection
         if broker == 'mqtt.flespi.io':
-            self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+            self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=clientID) # type: ignore
             self.client.username_pw_set("flespi", clientID)
             self.client.tls_set()  # Enable TLS for port 8883
         elif broker == 'test.mosquitto.org':
@@ -267,7 +268,10 @@ class MQTT(Handler):
         command['requires'] = {}
         while True:
             token = self.peek()
-            if token == 'id':
+            if token == 'token':
+                self.nextToken()
+                command['token'] = self.nextValue()
+            elif token == 'id':
                 self.nextToken()
                 command['clientID'] = self.nextValue()
             elif token == 'broker':
@@ -306,13 +310,14 @@ class MQTT(Handler):
     def r_mqtt(self, command):
         if hasattr(self.program, 'mqttClient'):
             raise RuntimeError(self.program, 'MQQT client already defined')
+        token = self.textify(command['token'])
         clientID = self.textify(command['clientID'])
         broker = self.textify(command['broker'])
         port = self.textify(command['port'])
         self.requires = command['requires']
         topics = command['topics']
         client = MQTTClient()
-        client.create(self.program, clientID, broker, port, topics)
+        client.create(self.program, token, clientID, broker, port, topics)
         client.run()
         self.program.mqttClient = client
         return self.nextPC()
