@@ -115,7 +115,7 @@ class MQTTClient():
                         del self.chunked_messages[topic]
                         
                         # Confirmation is now handled at the EasyCoder level
-                        print(f"All chunks received for topic {topic} ({len(complete_message)} bytes total).")
+                        # print(f"All chunks received for topic {topic} ({len(complete_message)} bytes total).")
                         try:
                             self.message = json.loads(complete_message)
                         except:
@@ -126,7 +126,7 @@ class MQTTClient():
                             pass
                         
                         if self.onMessagePC is not None:
-                            print(f'Calling onMessagePC callback: {self.onMessagePC}')
+                            # print(f'Calling onMessagePC callback: {self.onMessagePC}')
                             self.program.queueIntent(self.onMessagePC)
                     else:
                         missing = expected_parts - received_parts
@@ -428,7 +428,7 @@ class MQTT(Handler):
         topicDict = self.getInnerObject(self.getObject(topic))
         topicName = topicDict['name']
 #        print(json.dumps(payload))
-        print(f'Sending to topic {topicName} with QoS {qos}: {json.dumps(payload)[:20]}...')
+        # print(f'Sending to topic {topicName} with QoS {qos}: {json.dumps(payload)[:20]}...')
         self.program.mqttClient.sendMessage(topicName, json.dumps(payload), qos, chunk_size=1024)  
         if self.program.mqttClient.timeout:
             return 0
