@@ -1,3 +1,4 @@
+from cmath import log
 from easycoder import Handler, ECObject, ECValue, RuntimeError
 import paho.mqtt.client as mqtt
 import time
@@ -9,12 +10,6 @@ import json
 class MQTTClient():
     def __init__(self):
         super().__init__()
-
-# client = mqtt.Client()
-# client.username_pw_set("flespi", "10RKW59yIvqbvyWfhLaVUx0dIyknVPJwL2CgFNTlcPFhg91aOCoN2UoYzgBQqtdC")
-# client.tls_set()  # Enable TLS for port 8883
-# client.connect("mqtt.flespi.io", 8883, 60)
-# Rate limits: Free plan allows 200 MQTT connections, 10 GB traffic/month, and 2 million messages/day.
 
     def create(self, program, token, clientID, broker, port, topics):
         self.program = program
@@ -32,12 +27,15 @@ class MQTTClient():
         self.chunk_size = 1024  # Default chunk size
         self.last_send_time = None  # Time taken for last message transmission (seconds)
         self.connected = False  # Track if we've processed initial connection
+        self.client = mqtt.Client(
+            client_id=self.clientID,
+            callback_api_version=mqtt.CallbackAPIVersion.VERSION2 # type: ignore
+        )
         if broker == 'mqtt.flespi.io':
-            self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=clientID) # type: ignore
-            self.client.username_pw_set("flespi", clientID)
+            self.client.username_pw_set(self.token, "")
             self.client.tls_set()  # Enable TLS for port 8883
         elif broker == 'test.mosquitto.org':
-            self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=self.clientID) # type: ignore
+            pass
         else:
             raise RuntimeError(program,"Unsupported MQTT broker")
     
@@ -117,7 +115,7 @@ class MQTTClient():
                         del self.chunked_messages[topic]
                         
                         # Confirmation is now handled at the EasyCoder level
-                        # print(f"All chunks received for topic {topic} ({len(complete_message)} bytes total).")
+                        print(f"All chunks received for topic {topic} ({len(complete_message)} bytes total).")
                         try:
                             self.message = json.loads(complete_message)
                         except:
@@ -128,7 +126,7 @@ class MQTTClient():
                             pass
                         
                         if self.onMessagePC is not None:
-#                            print(f'Run from PC {self.onMessagePC}')
+                            print(f'Calling onMessagePC callback: {self.onMessagePC}')
                             self.program.queueIntent(self.onMessagePC)
                     else:
                         missing = expected_parts - received_parts
@@ -430,6 +428,7 @@ class MQTT(Handler):
         topicDict = self.getInnerObject(self.getObject(topic))
         topicName = topicDict['name']
 #        print(json.dumps(payload))
+        print(f'Sending to topic {topicName} with QoS {qos}: {json.dumps(payload)[:20]}...')
         self.program.mqttClient.sendMessage(topicName, json.dumps(payload), qos, chunk_size=1024)  
         if self.program.mqttClient.timeout:
             return 0
