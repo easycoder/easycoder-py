@@ -10,6 +10,12 @@ class MQTTClient():
     def __init__(self):
         super().__init__()
 
+# client = mqtt.Client()
+# client.username_pw_set("flespi", "10RKW59yIvqbvyWfhLaVUx0dIyknVPJwL2CgFNTlcPFhg91aOCoN2UoYzgBQqtdC")
+# client.tls_set()  # Enable TLS for port 8883
+# client.connect("mqtt.flespi.io", 8883, 60)
+# Rate limits: Free plan allows 200 MQTT connections, 10 GB traffic/month, and 2 million messages/day.
+
     def create(self, program, clientID, broker, port, topics):
         self.program = program
         self.clientID = clientID
@@ -24,13 +30,27 @@ class MQTTClient():
         self.confirmation_lock = threading.Lock()
         self.chunk_size = 1024  # Default chunk size
         self.last_send_time = None  # Time taken for last message transmission (seconds)
-        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=self.clientID) # type: ignore
+        self.connected = False  # Track if we've processed initial connection
+        if broker == 'mqtt.flespi.io':
+            self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+            self.client.username_pw_set("flespi", clientID)
+            self.client.tls_set()  # Enable TLS for port 8883
+        elif broker == 'test.mosquitto.org':
+            self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=self.clientID) # type: ignore
+        else:
+            raise RuntimeError(program,"Unsupported MQTT broker")
     
         # Setup callbacks
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
+        # Only process connection logic once to avoid duplicate subscriptions and handlers
+        if self.connected:
+            # print(f"Client {self.clientID} reconnected (ignored)")
+            return
+            
+        self.connected = True
         print(f"Client {self.clientID} connected")
         for item in self.topics:
             topic = self.program.getObject(self.program.getVariable(item))
