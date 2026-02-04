@@ -324,7 +324,7 @@ class ECValueHolder(ECObject):
         return v
 
 ###############################################################################
-# A string or int variable
+# A string, int or boolean variable
 class ECVariable(ECValueHolder):
     def __init__(self):
         super().__init__()
@@ -344,7 +344,10 @@ class ECVariable(ECValueHolder):
     
     # Check if the variable is empty
     def isEmpty(self):
-        return self.getContent() == ''
+        content = self.getContent()
+        if content is None:
+            return True
+        return content.getContent() in ('', None)   
 
 ###############################################################################
 # A dictionary variable
