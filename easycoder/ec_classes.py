@@ -517,6 +517,10 @@ class ECFile(ECObject):
 class ECModule(ECObject):
     def __init__(self):
         super().__init__()
+    
+    # Set the value of the module variable to its program
+    def setValue(self, program):
+        super().setValue(program) # type: ignore
 
 ###############################################################################
 # An SSH variable

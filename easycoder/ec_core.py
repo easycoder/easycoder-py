@@ -1317,8 +1317,10 @@ class Core(Handler):
         parent.program = self.program # type: ignore
         parent.pc = self.nextPC() # type: ignore
         parent.waiting = True # type: ignore
-        p = self.program.__class__
-        p(path).start(parent, module, exports)
+        program_class = self.program.__class__
+        program_instance = program_class(path)
+        program_instance.start(parent, module, exports)
+        self.getObject(module).setValue(program_instance)
         return 0
 
     # Save a value to a file
@@ -1407,8 +1409,16 @@ class Core(Handler):
             module = self.program.parent.program
         elif senderName == 'sender':
             module = self.program.sender
-        else: module = self.getVariable(command['module'])['child']
-        module.handleMessage(self.program, message)
+        else:
+            record = self.getVariable(command['module'])
+            object = self.getObject(record)
+            value = object.getValue()
+            # Handle both single Program instances and ECValue wrappers
+            if isinstance(value, ECValue):
+                module = value.getContent()
+            else:
+                module = value
+        module.handleMessage(self.program, message) # type: ignore
         return self.nextPC()
 
     # Set a value
