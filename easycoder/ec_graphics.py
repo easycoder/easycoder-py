@@ -1205,27 +1205,29 @@ class Graphics(Handler):
             self.runOnTick = command['runOnTick']
         else:
             record = self.getVariable(command['name'])
-            widget = self.getInnerObject(self.getObject(record))
+            object = self.getObject(record)
             goto = command['goto']
+            
+            # Connect the current element to a handler
+            current_index = object.getIndex()
+            widget = self.getInnerObject(object)
+            
+            # Create a closure to capture the current index
+            def make_handler(index):
+                def handler():
+                    object.setIndex(index)
+                    self.run(goto)
+                    from easycoder.ec_program import flush
+                    flush()
+                return handler
+            
+            # Connect based on widget type
             if self.isObjectType(record, ECPushButton):
-                # Run directly on UI thread and flush to ensure execution
-                def on_click():
-                    self.run(goto)
-                    from easycoder.ec_program import flush
-                    flush()
-                widget.clicked.connect(on_click)
+                widget.clicked.connect(make_handler(current_index))
             elif self.isObjectType(record, ECComboBox):
-                def on_change():
-                    self.run(goto)
-                    from easycoder.ec_program import flush
-                    flush()
-                widget.currentIndexChanged.connect(on_change)
+                widget.currentIndexChanged.connect(make_handler(current_index))
             elif self.isObjectType(record, ECListBox):
-                def on_select():
-                    self.run(goto)
-                    from easycoder.ec_program import flush
-                    flush()
-                widget.itemClicked.connect(on_select)
+                widget.itemClicked.connect(make_handler(current_index))
         return self.nextPC()
 
     # Declare a simple panel variable

@@ -92,6 +92,10 @@ class ECPushButton(ECTextWidget):
     # This is a core class
     def isCoreClass(self):
         return True
+    
+    # Get the index for the variable
+    def getIndex(self):
+        return super().getIndex()
 
 ###############################################################################
 # A checkbox variable
