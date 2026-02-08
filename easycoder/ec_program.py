@@ -151,10 +151,11 @@ class Program:
 				traceback.print_exc()
 		# If this is the main script and there's no graphics/debugger, run a main loop
 		elif parent == None and not self.graphicsRunning:
+			delay_event = threading.Event()
 			while not self.graphicsRunning:
 				if self.running == True:
 					flush()
-					time.sleep(0.01)
+					delay_event.wait(0.01)
 				else:
 					break
 	
