@@ -370,11 +370,11 @@ class ECDictionary(ECValueHolder):
                     if content in ('', {}, None): content = {}
                     elif content[0] in ('{', '['): content = json.loads(content) # type: ignore
                 except:
-                    raise RuntimeError(None, 'ECDictionary string value is not valid JSON') # type: ignore
+                    raise RuntimeError(None, f'Invalid JSON for {self.name}: {content}') # type: ignore
         elif varType == None:
              content = {}
         else:
-            raise RuntimeError(None, 'ECDictionary can only hold dict values or None') # type: ignore
+            raise RuntimeError(None, f'{self.name} can only hold dict values or None') # type: ignore
         super().setValue(content)
     
     def getValue(self):
