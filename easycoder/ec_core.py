@@ -1433,7 +1433,7 @@ class Core(Handler):
         if self.nextIsSymbol():
             record = self.getSymbolRecord()
             command['target'] = record['name']
-            if record['keyword'] == 'ssh':
+            if self.isObjectType(record, ECSSH):
                 host = None
                 user = None
                 password = None
@@ -1455,13 +1455,13 @@ class Core(Handler):
                 command['type'] = 'ssh'
                 self.add(command)
                 return True
-            elif isinstance(self.getObject(record), (ECVariable, ECDictionary, ECList)):
+            elif self.isObjectType(record, (ECVariable, ECDictionary, ECList)):
                 if self.peek() == 'to':
                     self.nextToken()
                     value = self.nextValue()
                     command['type'] = 'value'
                     command['value'] = value
-                elif isinstance(self.getObject(record), ECVariable):
+                elif self.isObjectType(record, ECVariable):
                     command['type'] = 'boolean'
                 else: return False
                 self.add(command)
