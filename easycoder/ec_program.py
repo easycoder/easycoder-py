@@ -588,13 +588,13 @@ class Program:
 			try:
 				v1 = int(v1)
 			except:
-				print(f'{v1} is not an integer')
+				# print(f'{v1} is not an integer')
 				return None
 		if type(v2) is str:
 			try:
 				v2 = int(v2)
 			except:
-				print(f'{v2} is not an integer')
+				# print(f'{v2} is not an integer')
 				return None
 		if v1 < v2:  # type: ignore[operator]
 			return -1

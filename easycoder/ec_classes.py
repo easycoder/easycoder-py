@@ -407,7 +407,7 @@ class ECDictionary(ECValueHolder):
         if key in content:
              return content[key]
         else:
-             return None
+             raise RuntimeError(None, f"Key '{key}' not found in {self.name}") # type: ignore
 
     # Delete an entry from the dictionary
     def deleteEntry(self, key):
