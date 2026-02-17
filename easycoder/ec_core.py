@@ -14,6 +14,7 @@ from .ec_classes import (
     ECVariable,
     ECDictionary,
     ECList,
+    ECQueue,
     ECFile,
     ECStack,
     ECSSH,
@@ -116,14 +117,14 @@ class Core(Handler):
         self.putSymbolValue(target, targetValue)
         return self.nextPC()
 
-    # Append a value to an list
-    # append {value} to {list}
+    # Append a value to a list or a queue
+    # append {value} to {list/queue}
     def k_append(self, command):
         command['value'] = self.nextValue()
         if self.nextIs('to'):
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
-                self.program.checkObjectType(self.getObject(record), ECList)
+                self.program.checkObjectType(self.getObject(record), (ECList, ECQueue))
                 command['target'] = record['name']
                 self.add(command)
                 return True
@@ -1036,8 +1037,8 @@ class Core(Handler):
     def r_pass(self, command):
         return self.nextPC()
 
-    # Pop a value from a stack
-    # pop {variable} from {stack}
+    # Pop a value from a stack or a queue
+    # pop {variable} from {stack/queue}
     def k_pop(self, command):
         if (self.nextIsSymbol()):
             record = self.getSymbolRecord()
@@ -1047,7 +1048,7 @@ class Core(Handler):
                 self.nextToken()
                 if self.nextIsSymbol():
                     record = self.getSymbolRecord()
-                    self.checkObjectType(record, ECStack)
+                    self.checkObjectType(record, (ECStack, ECQueue))
                     command['from'] = record['name']
                     self.add(command)
                     return True
@@ -1131,7 +1132,6 @@ class Core(Handler):
             print(value)
         return self.nextPC()
 
-    # Push a value onto a stack
     # push {value} to/onto {stack}
     def k_push(self, command):
         value = self.nextValue()
@@ -1141,6 +1141,7 @@ class Core(Handler):
             self.nextToken()
             if self.nextIsSymbol():
                 record = self.getSymbolRecord()
+                self.checkObjectType(record, (ECStack, ECQueue))
                 command['to'] = record['name']
                 self.add(command)
                 return True
@@ -1177,6 +1178,14 @@ class Core(Handler):
         value = self.evaluate(command['value'])
         record = self.getVariable(command['target'])
         self.putSymbolValue(record, value)
+        return self.nextPC()
+
+    # Declare a queue variable
+    def k_queue(self, command):
+        self.compiler.addValueType()
+        return self.compileVariable(command, 'ECQueue')
+
+    def r_queue(self, command):
         return self.nextPC()
 
     # Read from a file
@@ -2794,7 +2803,7 @@ class Core(Handler):
         if condition.value1.getType() == 'symbol':
             record = self.getVariable(condition.value1.name)
             variable = self.getObject(record)
-            if isinstance(variable, (ECVariable, ECList, ECDictionary)):
+            if isinstance(variable, (ECVariable, ECDictionary, ECList, ECQueue)):
                 comparison = variable.isEmpty()
                 return not comparison if condition.negate else comparison
         value = self.textify(condition.value1)

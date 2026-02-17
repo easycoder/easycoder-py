@@ -507,6 +507,36 @@ class ECList(ECValueHolder):
         self.setContent(content)
 
 ###############################################################################
+# A queue variable
+class ECQueue(ECList):
+    def __init__(self):
+        super().__init__()
+
+    # push an ECValue onto the stack
+    def push(self, value: Any) -> None:
+        self.append(value)
+    
+    # Pop the first ECValue from the queue
+    def pop(self):
+        content = self.getContent()
+        return content.pop(0) # type: ignore
+
+###############################################################################
+# A stack variable
+class ECStack(ECList):
+    def __init__(self):
+        super().__init__()
+
+    # push an ECValue onto the stack
+    def push(self, value: Any) -> None:
+        self.append(value)
+    
+    # Pop the most recent ECValue from the stack
+    def pop(self):
+        content = self.getContent()
+        return content.pop() # type: ignore
+
+###############################################################################
 # A file variable
 class ECFile(ECObject):
     def __init__(self):
@@ -543,24 +573,3 @@ class ECSSH(ECObject):
     # Get the SFTP client
     def getSFTP(self):
         return self.sftp
-
-###############################################################################
-# A stack variable
-class ECStack(ECObject):
-
-    def __init__(self):
-        super().__init__()
-        self.values: Optional[list[list[Any]]] = None  # List of stacks, each holding any type
-    
-    def push(self, item: Any) -> None:
-        if self.values is None:
-            self.index = 0
-            self.elements = 1
-            self.values = [[]]
-        assert self.index is not None  # Type narrowing: index is always set when values exists
-        self.values[self.index].append(item)
-    
-    def pop(self) -> Any:
-        if self.values is None or self.index is None or self.values[self.index] is None or len(self.values[self.index]) == 0:
-            return None
-        return self.values[self.index].pop()
