@@ -432,10 +432,12 @@ class Program:
 	# Set the value of a symbol to either an ECValue or a raw value
 	def putSymbolValue(self, record, value):
 		variable = self.getObject(record)
+		name = record['name']
 		if variable.isLocked(): # type: ignore
-			name = record['name']
 			raise RuntimeError(self, f'Symbol "{name}" is locked')
-		variable.setValue(self.getValueOf(value)) # type: ignore
+		result = variable.setValue(self.getValueOf(value)) # type: ignore
+		if result != None:
+			raise RuntimeError(self, f'Failed to set value for symbol "{name}": ') # type: ignore
 
 	def encode(self, value):
 		return value
