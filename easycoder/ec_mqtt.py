@@ -54,7 +54,7 @@ class MQTTClient():
         for item in self.topics:
             topic = self.program.getObject(self.program.getVariable(item))
             self.client.subscribe(topic.getName(), qos=topic.getQoS())
-            print(f"Subscribed to topic: {topic.getName()} with QoS {topic.getQoS()}")
+            print(f"Subscribed to topic: {topic.getName().strip()} with QoS {topic.getQoS()}")
 
         if self.onConnectPC is not None:
             self.program.queueIntent(self.onConnectPC)
