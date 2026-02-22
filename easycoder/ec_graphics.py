@@ -63,6 +63,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QGraphicsDropShadowEffect
 )
+from easycoder.ec_program import flush
 
 #############################################################################
 # EC Label widget class
@@ -79,9 +80,16 @@ class ECLabelWidget(QLabel):
 class ECPushButtonWidget(QPushButton):
     def __init__(self, text=None):
         super().__init__(text)
+#        self.clicked.connect(self.handleClick)
     
     def getContent(self):
         return self.text()
+
+#    def setOnClick(self, cb):
+#        self.clicked.connect(cb)
+    
+#    def handleClick(self):
+#        pass
 
 #############################################################################
 # EC Checkbox widget class
@@ -213,6 +221,9 @@ class Graphics(Handler):
         self.blocked = False
         self.runOnTick = 0
         self.vkb = False
+        self.flushRunning = False
+        self.flushSkipCount = 0
+        self.tickBusySkipCount = 0
 
     def getName(self):
         return 'graphics'
@@ -802,9 +813,9 @@ class Graphics(Handler):
             if pixmap.isNull():
                 RuntimeError(self.program, f'Icon not found: {iconPath}')
             icon = pixmap.scaledToHeight(size if size != None else 24, Qt.TransformationMode.SmoothTransformation)
-            pushbutton = QPushButton()
-            pushbutton.setIcon(icon)
-            pushbutton.setIconSize(icon.size())
+            pushbutton = ECPushButtonWidget()
+            pushbutton.setIcon(icon) # type: ignore
+            pushbutton.setIconSize(icon.size()) # type: ignore
         elif 'text' in command:
             text = self.textify(command['text'])
             pushbutton = ECPushButtonWidget(text)
@@ -1047,13 +1058,31 @@ class Graphics(Handler):
             except Exception as e:
                 pass
         def flush():
-            if not self.blocked:
-                if self.runOnTick != 0:
-                    self.program.run(self.runOnTick)
-                self.program.flushCB()
+            if self.flushRunning:
+                self.flushSkipCount += 1
+                if self.flushSkipCount % 100 == 0:
+                    print(f'Graphics flush skipped {self.flushSkipCount} times (flush still running)')
+                return
+            self.flushRunning = True
+            try:
+                if not self.blocked:
+                    if self.runOnTick != 0:
+                        if not self.program.running:
+                            print('Call on tick handler...')
+                            self.program.run(self.runOnTick)
+                        else:
+                            self.tickBusySkipCount += 1
+                            if self.tickBusySkipCount % 100 == 0:
+                                print(f'Graphics tick skipped {self.tickBusySkipCount} times (program busy)')
+                    self.program.flushCB()
+            finally:
+                self.flushRunning = False
         timer = QTimer()
         timer.timeout.connect(flush)
-        timer.start(10)
+        # Adjust this for optimal performace.
+        # Too small and it may hang; too large and it may feel unresponsive
+        # The value needed will also depend on CPU performace
+        timer.start(250) # 0.25 sec interval
         QTimer.singleShot(500, init)
         self.program.startGraphics()
         
@@ -1215,9 +1244,9 @@ class Graphics(Handler):
             # Create a closure to capture the current index
             def make_handler(index):
                 def handler():
+                    print(f'Event triggered for {record["name"]}, index: {index}')
                     object.setIndex(index)
                     self.run(goto)
-                    from easycoder.ec_program import flush
                     flush()
                 return handler
             
@@ -1616,7 +1645,6 @@ class Graphics(Handler):
                 object.result =  dialog.exec()
             elif dialog.dialogType == 'confirm':
                 object.result = True if dialog.exec() == QDialog.DialogCode.Accepted else False
-                pass
             elif dialog.dialogType == 'lineedit':
                 if dialog.exec() == QDialog.DialogCode.Accepted:
                     object.result = dialog.lineEdit.text()  # type: ignore

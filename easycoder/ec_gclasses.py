@@ -97,6 +97,42 @@ class ECPushButton(ECTextWidget):
     def getIndex(self):
         return super().getIndex()
 
+    # Set the text of the widget
+    def setText(self, text):
+        v = self.getValue()
+        if v is None: return
+        v.getContent().setText(str(text)) # type: ignore
+    
+    # Set the icon for the widget
+    def setIcon(self, icon):
+        v = self.getValue()
+        if v is None: return
+        v.getContent().setIcon(icon) # type: ignore
+    
+    # Set the icon size for the widget
+    def setIconSize(self, size):
+        v = self.getValue()
+        if v is None: return
+        v.getContent().setIconSize(size) # type: ignore
+    
+    # Set the stylesheet for the widget
+    def setStyleSheet(self, style):
+        v = self.getValue()
+        if v is None: return
+        v.getContent().setStyleSheet(style) # type: ignore
+    
+    # Set the fixed width for the widget
+    def setFixedWidth(self, width):
+        v = self.getValue()
+        if v is None: return
+        v.getContent().setFixedWidth(width) # type: ignore 
+    
+    # Set the fixed height for the widget
+    def setFixedHeight(self, height):
+        v = self.getValue()
+        if v is None: return
+        v.getContent().setFixedHeight(height) # type: ignore
+
 ###############################################################################
 # A checkbox variable
 class ECCheckBox(ECCoreWidget):

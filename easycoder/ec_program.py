@@ -21,9 +21,12 @@ from importlib.metadata import version
 intent_queue = deque()
 intent_lock = threading.Lock()
 
+flushes = 0
+
 # Flush the queue
 def flush():
-	global queue, intent_queue
+	global queue, intent_queue, flushes
+#	print('Start flush',flushes)
 	# First process any pending intents from other threads
 	with intent_lock:
 		while len(intent_queue):
@@ -33,6 +36,8 @@ def flush():
 	while len(queue):
 		item = queue.popleft()
 		item.program.flush(item.pc)
+#	print('End flush',flushes)
+	flushes += 1
 
 class Program:
 
