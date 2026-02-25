@@ -18,10 +18,11 @@
         qos 1
 
     mqtt
+        token ``
         id `EasyCoder-MQTT-Test`
         broker `test.mosquitto.org`
         port 1883
-        topics Response
+        subscribe Response
     
     on mqtt message
         begin
