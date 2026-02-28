@@ -1822,7 +1822,7 @@ class Core(Handler):
     def k_trim(self, command):
         if self.nextIsSymbol():
             record = self.getSymbolRecord()
-            if record['hasValue']:
+            if self.isObjectType(record, ECVariable):
                 command['name'] = record['name']
                 self.add(command)
                 return True

@@ -188,7 +188,7 @@ class MQTTClient():
                 self.client.publish(topic, chunk_msg, qos=qos)
                 # print(f"Sent chunk {i}/{num_chunks - 1} to topic {topic} with QoS {qos}: {len(chunk_msg)} bytes")
             except Exception as e:
-                print(f"Error publishing chunk {i}/{num_chunks - 1} to topic {topic}: {e}")
+                print(f"Error publishing chunk {i}/{num_chunks - 1} to topic '{topic}': {e}")
         # No waiting here; confirmations are handled in EasyCoder using sender identity
     
     # Start the MQTT client loop
