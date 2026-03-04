@@ -2,7 +2,5 @@
 
     script Test
 
-    dictionary Result
-    put `{"action": "mode", "mode": "timed"}` into Result
-    log entry `action` of Result
+    print `A` cat `B` cat `C`
     exit

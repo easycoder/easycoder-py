@@ -100,6 +100,32 @@ See also [How it works](doc/README.md)
 
 A plugin can act as a wrapper around any Python functionality that has a sensible API, thereby hiding its complexity. The only challenge is to devise an unambiguous syntax that doesn't clash with anything already existing in **_EasyCoder_**.
 
+## MQTT token formats
+
+The MQTT plugin supports both plain-token and encrypted-token forms:
+
+```easycoder
+mqtt
+    token PlainTokenValue
+    id MyID
+    broker `mqtt.flespi.io`
+    port 8883
+    subscribe MyTopic
+```
+
+```easycoder
+mqtt
+    token EncryptedTokenValue SecretKeyValue
+    id MyID
+    broker `mqtt.flespi.io`
+    port 8883
+    subscribe MyTopic
+```
+
+Both `EncryptedTokenValue` and `SecretKeyValue` can be any EasyCoder value (string literal or variable).
+When two values are provided after `token`, EasyCoder decrypts the token before creating the MQTT client.
+This decryption path requires the Python package `cryptography`.
+
 ## Contributing
 
 We welcome contributions to EasyCoder-py! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) guide for:

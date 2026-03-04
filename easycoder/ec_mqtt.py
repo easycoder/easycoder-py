@@ -229,12 +229,27 @@ class ECTopic(ECObject):
 # The MQTT compiler and runtime handlers
 class MQTT(Handler):
 
+    MQTT_CLAUSE_KEYWORDS = {'token', 'id', 'broker', 'port', 'subscribe', 'action'}
+
     def __init__(self, compiler):
         Handler.__init__(self, compiler)
         self.spoke = None
 
     def getName(self):
         return 'mqtt'
+
+    def decrypt_fernet_token(self, encrypted_token, secret_key):
+        try:
+            from cryptography.fernet import Fernet, InvalidToken
+        except Exception as e:
+            raise RuntimeError(self.program, "Missing dependency 'cryptography' for encrypted MQTT token support") from e
+
+        try:
+            cipher = Fernet(secret_key.encode('utf-8'))
+            plain = cipher.decrypt(encrypted_token.encode('utf-8'))
+            return plain.decode('utf-8')
+        except (ValueError, InvalidToken) as e:
+            raise RuntimeError(self.program, 'Invalid encrypted token/secret key or decryption failed') from e
 
     #############################################################################
     # Keyword handlers
@@ -272,6 +287,8 @@ class MQTT(Handler):
             if token == 'token':
                 self.nextToken()
                 command['token'] = self.nextValue()
+                if self.peek() not in self.MQTT_CLAUSE_KEYWORDS:
+                    command['tokenKey'] = self.nextValue()
             elif token == 'id':
                 self.nextToken()
                 command['clientID'] = self.nextValue()
@@ -312,6 +329,9 @@ class MQTT(Handler):
         if hasattr(self.program, 'mqttClient'):
             raise RuntimeError(self.program, 'MQQT client already defined')
         token = self.textify(command['token'])
+        if 'tokenKey' in command:
+            token_key = self.textify(command['tokenKey'])
+            token = self.decrypt_fernet_token(token, token_key)
         clientID = self.textify(command['clientID'])
         broker = self.textify(command['broker'])
         port = self.textify(command['port'])

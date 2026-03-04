@@ -35,6 +35,15 @@ class Core(Handler):
     
     def noSymbolWarning(self):
         self.warning(f'Symbol "{self.getToken()}" not found')
+
+    def resolveLocalPath(self, raw_path):
+        path = Path(raw_path).expanduser()
+        if not path.is_absolute():
+            script_path = Path(self.program.scriptName).expanduser()
+            if not script_path.is_absolute():
+                script_path = (Path.cwd() / script_path).resolve()
+            path = script_path.parent / path
+        return path.resolve()
     
     def processOr(self, command, orHere):
         self.add(command)
@@ -281,8 +290,9 @@ class Core(Handler):
     def r_create(self, command):
         if command['item'] == 'directory':
             path = self.textify(command['path'])
-            if not os.path.exists(path):
-                os.makedirs(path)
+            local_path = self.resolveLocalPath(path)
+            if not os.path.exists(local_path):
+                os.makedirs(local_path)
         return self.nextPC()
 
     # Debug the script
@@ -384,7 +394,8 @@ class Core(Handler):
         if type == 'file':
             filename = self.textify(command['filename'])
             if filename != None:
-                if os.path.isfile(filename): os.remove(filename)
+                path = self.resolveLocalPath(filename)
+                if os.path.isfile(path): os.remove(path)
         elif type == 'entry':
             key = self.textify(command['key'])
             record = self.getVariable(command['variable'])
@@ -495,7 +506,8 @@ class Core(Handler):
         path = self.textify(command['path'])
         mode = 'wb' if binary else 'w'
         response = requests.get(url, stream=True)
-        with open(path, mode) as f:
+        local_path = self.resolveLocalPath(path)
+        with open(local_path, mode) as f:
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk: f.write(chunk)
         return self.nextPC()
@@ -837,7 +849,9 @@ class Core(Handler):
         else:
             filename = self.textify(command['file'])
             try:
-                with open(Path(filename).expanduser()) as f: content = f.read()
+                path = self.resolveLocalPath(filename)
+                print(path)
+                with open(path) as f: content = f.read()
             except:
                 errorReason = f'Unable to read from {filename}'
 
@@ -1024,8 +1038,9 @@ class Core(Handler):
     def r_open(self, command):
         record = self.getVariable(command['target'])
         path = self.textify(command['path'])
-        if command['mode'] == 'r' and os.path.exists(path) or command['mode'] != 'r':
-            record['file'] = open(path, command['mode'])
+        file_path = self.resolveLocalPath(path)
+        if command['mode'] == 'r' and os.path.exists(file_path) or command['mode'] != 'r':
+            record['file'] = open(file_path, command['mode'])
             return self.nextPC()
         RuntimeError(self.program, f"File {path} does not exist")
 
@@ -1376,7 +1391,8 @@ class Core(Handler):
                     content = json.dumps(content)
                 elif not isinstance(content, str):
                     content = self.textify(content)
-                with open(Path(filename).expanduser(), 'w') as f: f.write(content)
+                path = self.resolveLocalPath(filename)
+                with open(path, 'w') as f: f.write(content)
             except Exception as e:
                 errorReason = f'Unable to write to {filename}: {str(e)}'
 
@@ -2492,7 +2508,7 @@ class Core(Handler):
 
     def v_modification(self, v):
         fileName = self.textify(v['fileName'])
-        ts = int(os.stat(fileName).st_mtime)
+        ts = int(os.stat(self.resolveLocalPath(fileName)).st_mtime)
         return ECValue(type=int, content=ts)
 
     def v_modulo(self, v):
@@ -2828,7 +2844,7 @@ class Core(Handler):
 
     def c_exists(self, condition):
         path = self.textify(condition.path)
-        comparison = os.path.exists(Path(path).expanduser())
+        comparison = os.path.exists(self.resolveLocalPath(path))
         return not comparison if condition.negate else comparison
 
     def c_greater(self, condition):
