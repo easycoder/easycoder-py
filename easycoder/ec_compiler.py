@@ -230,7 +230,7 @@ class Compiler:
 	def compileToken(self):
 		self.warnings = []
 		token = self.getToken()
-#		print(f'Compile {token}')
+		# print(f'Compile {token}')
 		if not token:
 			return False
 		mark = self.getIndex()
