@@ -24,11 +24,21 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Generate report
+      - name: Install easycoder runtime
+        run: pip install .
+
+      - name: Run tests and collect actuals
+        run: |
+          python3 conformance/ec_py_runner.py \
+            --conformance-root conformance \
+            --output conformance/actuals-python-cli.json
+
+      - name: Generate parity report
         run: |
           python3 conformance/run_conformance.py \
             --implementation python-cli \
             --runtime-version ci \
+            --actuals conformance/actuals-python-cli.json \
             --output conformance/parity-report.generated.json
 
       - name: Validate report JSON
