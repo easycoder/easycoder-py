@@ -1,11 +1,11 @@
 {
   "specVersion": "0.1",
-  "generatedAt": "2026-03-14T11:49:28.535094+00:00",
+  "generatedAt": "2026-03-14T19:36:18.402039+00:00",
   "implementations": {
     "python-cli": {
-      "runtimeVersion": "260304.1",
+      "runtimeVersion": "unknown",
       "summary": {
-        "pass": 5,
+        "pass": 6,
         "fail": 0,
         "skip": 0
       },
@@ -56,6 +56,18 @@
           "actual": {
             "logs": [
               "green"
+            ],
+            "error": null
+          }
+        },
+        {
+          "id": "EC-0006",
+          "status": "pass",
+          "actual": {
+            "logs": [
+              "AND works",
+              "OR works",
+              "Precedence correct"
             ],
             "error": null
           }

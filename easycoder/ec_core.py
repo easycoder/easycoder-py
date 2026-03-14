@@ -2931,3 +2931,9 @@ class Core(Handler):
     def c_string(self, condition):
         comparison = type(self.textify(condition.value1)) is str
         return not comparison if condition.negate else comparison
+
+    def c_and(self, condition):
+        return self.testCondition(condition.left) and self.testCondition(condition.right)
+
+    def c_or(self, condition):
+        return self.testCondition(condition.left) or self.testCondition(condition.right)

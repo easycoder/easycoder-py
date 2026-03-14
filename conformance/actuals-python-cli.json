@@ -28,5 +28,13 @@
       "green"
     ],
     "error": null
+  },
+  "EC-0006": {
+    "logs": [
+      "AND works",
+      "OR works",
+      "Precedence correct"
+    ],
+    "error": null
   }
 }
