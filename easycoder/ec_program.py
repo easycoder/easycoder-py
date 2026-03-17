@@ -622,7 +622,8 @@ class Program:
 	def handleMessage(self, sender, message):
 		self.sender = sender
 		self.message = message
-		self.run(self.onMessagePC)
+		if self.onMessagePC:
+			self.run(self.onMessagePC)
 
 # This is the program launcher
 def Main():

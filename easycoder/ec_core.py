@@ -1450,6 +1450,13 @@ class Core(Handler):
         senderName = command['module']
         if senderName == 'parent':
             module = self.program.parent.program
+            # Intercept: if the caller is awaiting a direct reply
+            if hasattr(module, 'replyVar') and module.replyVar is not None:
+                module.message = message
+                record = module.getVariable(module.replyVar)
+                module.putSymbolValue(record, ECValue(type=str, content=message))
+                module.replyVar = None
+                return self.nextPC()
         elif senderName == 'sender':
             module = self.program.sender
             # Intercept: if the caller is awaiting a direct reply
