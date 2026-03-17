@@ -1412,19 +1412,37 @@ class Core(Handler):
     # send {message} to parent/sender/{module}
     def k_send(self, command):
         command['message'] = self.nextValue()
+        command['replyVar'] = None
         if self.nextIs('to'):
             self.skip('the')
             token = self.nextToken()
-            if token in ('parent','sender'):
+            if token in ('parent', 'sender'):
                 command['module'] = token
-                self.add(command)
-                return True
             elif self.isSymbol():
                 record = self.getSymbolRecord()
                 if self.isObjectType(record, ECModule):
                     command['module'] = record['name']
-                    self.add(command)
-                    return True
+                else:
+                    return False
+            else:
+                return False
+            if self.peek() == 'and':
+                self.nextToken()  # consume 'and'
+                token = self.nextToken()
+                if token != 'assign':
+                    return False
+                token = self.nextToken()
+                if token != 'reply':
+                    return False
+                token = self.nextToken()
+                if token != 'to':
+                    return False
+                if not self.nextIsSymbol():
+                    return False
+                record = self.getSymbolRecord()
+                command['replyVar'] = record['name']
+            self.add(command)
+            return True
         return False
 
     def r_send(self, command):
@@ -1434,6 +1452,13 @@ class Core(Handler):
             module = self.program.parent.program
         elif senderName == 'sender':
             module = self.program.sender
+            # Intercept: if the caller is awaiting a direct reply
+            if hasattr(module, 'replyVar') and module.replyVar is not None:
+                module.message = message
+                record = module.getVariable(module.replyVar)
+                module.putSymbolValue(record, ECValue(type=str, content=message))
+                module.replyVar = None
+                return self.nextPC()
         else:
             record = self.getVariable(command['module'])
             object = self.getObject(record)
@@ -1443,7 +1468,12 @@ class Core(Handler):
                 module = value.getContent()
             else:
                 module = value
+        replyVar = command.get('replyVar')
+        if replyVar:
+            self.program.replyVar = replyVar
         module.handleMessage(self.program, message) # type: ignore
+        if replyVar:
+            self.program.replyVar = None
         return self.nextPC()
 
     # Set a value
@@ -2500,7 +2530,7 @@ class Core(Handler):
         RuntimeError(self.program, 'Value is not a string')
 
     def v_lowercase(self, v):
-        content = self.textify(v.getValue())
+        content = self.textify(v.getContent())
         return ECValue(type=str, content=content.lower())
 
     def v_message(self, v):

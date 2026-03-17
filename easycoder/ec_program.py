@@ -15,7 +15,7 @@ from .ec_classes import (
 from .ec_compiler import Compiler
 from .ec_core import Core
 import importlib
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 
 # Intent queue for callbacks from other threads (e.g., MQTT)
 intent_queue = deque()
@@ -43,7 +43,11 @@ class Program:
 
 	def __init__(self, arg):
 		global queue
-		print(f'EasyCoder version {version("easycoder")}')
+		try:
+			easycoder_version = version("easycoder")
+		except PackageNotFoundError:
+			from . import __version__ as easycoder_version
+		print(f'EasyCoder version {easycoder_version}')
 		if len(arg) == 0:
 			print('No script supplied')
 			exit()
@@ -86,6 +90,7 @@ class Program:
 		self.running = False
 		self.parent = None
 		self.message = None
+				self.replyVar = None
 		self.onMessagePC = 0
 		self.breakpoint = False
 	# Queue an intent to run at a given PC (thread-safe for MQTT callbacks)

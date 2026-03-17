@@ -510,8 +510,7 @@ class MQTT(Handler):
     #############################################################################
     # Compile a condition
     def compileCondition(self):
-        condition = {}
-        return condition
+        return None
 
     #############################################################################
     # Condition handlers
