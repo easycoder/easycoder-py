@@ -1478,9 +1478,19 @@ class Core(Handler):
         replyVar = command.get('replyVar')
         if replyVar:
             self.program.replyVar = replyVar
+            # In direct-reply mode, run the target handler inline so this send blocks
+            # until the child replies (which clears self.program.replyVar).
+            module.sender = self.program # type: ignore[attr-defined]
+            module.message = message # type: ignore[attr-defined]
+            if not (hasattr(module, 'onMessagePC') and module.onMessagePC): # type: ignore[attr-defined]
+                self.program.replyVar = None
+                raise RuntimeError(self.program, f'Target "{senderName}" has no on message handler')
+            module.flush(module.onMessagePC) # type: ignore[attr-defined]
+            if self.program.replyVar is not None:
+                self.program.replyVar = None
+                raise RuntimeError(self.program, f'No reply received from module "{senderName}"')
+            return self.nextPC()
         module.handleMessage(self.program, message) # type: ignore
-        if replyVar:
-            self.program.replyVar = None
         return self.nextPC()
 
     # Set a value
