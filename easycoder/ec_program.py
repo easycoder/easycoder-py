@@ -90,7 +90,7 @@ class Program:
 		self.running = False
 		self.parent = None
 		self.message = None
-				self.replyVar = None
+		self.replyVar = None
 		self.onMessagePC = 0
 		self.breakpoint = False
 	# Queue an intent to run at a given PC (thread-safe for MQTT callbacks)
