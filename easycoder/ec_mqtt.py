@@ -37,7 +37,9 @@ class MQTTClient():
         elif broker == 'test.mosquitto.org':
             pass
         else:
-            raise RuntimeError(program,"Unsupported MQTT broker")
+            if isinstance(self.token, dict):
+                self.client.username_pw_set(self.token['username'], self.token['password'])
+            self.client.tls_set()  # Enable TLS
     
         # Setup callbacks
         self.client.on_connect = self.on_connect
@@ -329,9 +331,13 @@ class MQTT(Handler):
         if hasattr(self.program, 'mqttClient'):
             raise RuntimeError(self.program, 'MQQT client already defined')
         token = self.textify(command['token'])
+        broker = self.textify(command['broker'])
         if 'tokenKey' in command:
             token_key = self.textify(command['tokenKey'])
-            token = self.decrypt_fernet_token(token, token_key)
+            if broker == 'mqtt.flespi.io':
+                token = self.decrypt_fernet_token(token, token_key)
+            else:
+                token = {'username': token, 'password': token_key}
         clientID = self.textify(command['clientID'])
         broker = self.textify(command['broker'])
         port = self.textify(command['port'])
