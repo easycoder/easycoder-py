@@ -179,7 +179,7 @@ class Compiler:
 	# Instantiate an object of the given class name
 	def instantiate(self, classname):
 		# Search through all loaded modules for the class
-		items = sys.modules.items()
+		items = list(sys.modules.items())
 		for module_name, module in items:
 			if module is None:
 				continue

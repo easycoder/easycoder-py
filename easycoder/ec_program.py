@@ -82,6 +82,7 @@ class Program:
 		self.graphics = None
 		self.mqtt = None
 		self.psutil = None
+		self.server = None
 		self.useClass(Core)
 		self.ticker = 0
 		self.graphicsRunning = False
@@ -187,6 +188,15 @@ class Program:
 			self.useClass(MQTT)
 		return True
 	
+	# Use the server module
+	def useServer(self):
+		if self.server == None:
+			print('Loading server module')
+			from .ec_server import Server
+			self.server = Server
+			self.useClass(Server)
+		return True
+
 	# Use the psutil module
 	def usePSUtil(self):
 		if self.psutil == None:

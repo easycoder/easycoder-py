@@ -1292,6 +1292,13 @@ class Core(Handler):
 
     # Return from subroutine
     def k_return(self, command):
+        next_token = self.peek()
+        if next_token is not None and (
+            self.compiler.hasValue(next_token) or
+            next_token.startswith('`') or
+            (len(next_token) > 0 and next_token[0].isdigit())
+        ):
+            return False
         self.add(command)
         return True
 
@@ -1950,6 +1957,8 @@ class Core(Handler):
                 return self.program.useMQTT()
             elif token == 'psutil':
                 return self.program.usePSUtil()
+            elif token == 'server':
+                return self.program.useServer()
         return False
     
     # Unused
